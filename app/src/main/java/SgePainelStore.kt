@@ -54,7 +54,7 @@ object SgePainelStore {
     }
     fun ler(context: Context): PainelSge = runCatching {
         val raw = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).getString("painel_v2", null)
-            ?: return PainelSge()
+            ?: return@runCatching PainelSge()
         val j = JSONObject(raw)
         val a = j.getJSONArray("turmas")
         PainelSge((0 until a.length()).map { ResultadoTurma.ler(a.getJSONObject(it)) },
