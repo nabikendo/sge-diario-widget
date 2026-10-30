@@ -15,7 +15,7 @@ android {
         versionName = "1.0.0"
     }
 
-    sourceSets["main"].java.srcDirs("../")
+    sourceSets["main"].kotlin.srcDirs("../")
     sourceSets["main"].manifest.srcFile("../AndroidManifest.xml")
     sourceSets["main"].res.srcDirs("src/main/res")
 
