@@ -62,8 +62,7 @@ object SgePainelStore {
         val carregado = PainelSge((0 until a.length()).map { ResultadoTurma.ler(a.getJSONObject(it)) },
             j.optString("mensagem"), j.optBoolean("sincronizando"), j.optBoolean("sessaoAtiva"),
             j.optLong("inicioConsulta"))
-        if (carregado.sincronizando && carregado.inicioConsulta > 0 &&
-            System.currentTimeMillis() - carregado.inicioConsulta > 5 * 60 * 1000L) {
+        if (carregado.sincronizando && (carregado.inicioConsulta <= 0L || System.currentTimeMillis() - carregado.inicioConsulta > 5 * 60 * 1000L)) {
             carregado.copy(mensagem = "A sincronização anterior foi interrompida. Toque em atualizar para tentar novamente.",
                 sincronizando = false)
         } else carregado
