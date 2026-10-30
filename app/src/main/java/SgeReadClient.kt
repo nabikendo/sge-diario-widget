@@ -163,7 +163,8 @@ class SgeReadClient(cookies: String, private val userAgent: String, private val 
             val descricao = periodo.getString("Descricao")
             val janela = SgeParsing.janela(descricao, codigo, inicioLetivo.year)
             if (janela.first.isAfter(hoje) || janela.first.isAfter(fimLetivo) || janela.second.isBefore(inicioLetivo)) continue
-            val temAula = mesesComAula.any { month -> month >= YearMonth.from(janela.first) && month <= YearMonth.from(janela.second) }
+            val temAula = mesesComAula.any { month -> month >= YearMonth.from(janela.first) &&
+                month <= YearMonth.from(janela.second) && month <= YearMonth.from(hoje) }
             if (!temAula) continue
             if (!pei) {
                 if (descricao.trim().lowercase() !in periodosExistentes) ausentes++
