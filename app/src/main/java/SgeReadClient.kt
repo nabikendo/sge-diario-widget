@@ -4,6 +4,8 @@ import org.jsoup.Jsoup
 import org.json.JSONObject
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import java.time.YearMonth
+import org.jsoup.nodes.Document
 
 data class TurmaMonitorada(val id: String, val nome: String, val escola: String, val disciplina: String)
 
@@ -16,6 +18,7 @@ class SgeReadClient(cookies: String, private val userAgent: String, private val 
         if (p.size == 2) p[0] to p[1] else null
     }.toMap().toMutableMap()
     private val grades = mutableMapOf<String, String>()
+    private val conteudosHtml = mutableMapOf<String, String>()
     private val base = "https://sge.seduc.to.pontoid.com.br"
     private fun request(path: String, params: Map<String, String> = emptyMap(), post: Boolean = false): String {
         val response = Jsoup.connect(base + path).cookies(jar).header("X-Requested-With", "XMLHttpRequest")
@@ -72,7 +75,9 @@ class SgeReadClient(cookies: String, private val userAgent: String, private val 
         val j = JSONObject(request("/Conteudo/CarregarDadosConteudoAplicado", mapOf(
             "TurmaId" to t.id, "TipoDeTurma" to "0", "GradeEscolarId" to grade(t),
             "StatusConteudoAplicado" to "", "DataInicio" to "", "DataFinal" to "")))
-        SgeParsing.conteudos(j.getString("html"), t.disciplina, LocalDate.now())
+        val html = j.getString("html")
+        conteudosHtml[t.id + "/" + t.disciplina] = html
+        SgeParsing.conteudos(html, t.disciplina, LocalDate.now())
     }
     fun frequencia(t: TurmaMonitorada): ResultadoModulo = consulta {
         val j = JSONObject(request("/NotasFaltas/ObtenhaInicioFimParametros", mapOf("turmaId" to t.id, "bimestre" to "", "mes" to "")))
@@ -93,7 +98,84 @@ class SgeReadClient(cookies: String, private val userAgent: String, private val 
         val response = JSONObject(request("/PlanejamentoTurma/PartialPlanejamentos", mapOf(
             "TurmaId" to t.id, "TipoDeRegistroPedagogicoId" to tipo, "GradeEscolarId" to grade(t),
             "AtividadeDeAEEId" to "", "ModuloUnidadeCurricularId" to "", "Situacao" to "", "Periodos" to "[]")))
-        SgeParsing.planos(response.getString("html"))
+        val html = response.getString("html")
+        val existentes = SgeParsing.planos(html)
+        try {
+            val cobertura = ausentes(t, tipo, Jsoup.parse(html))
+            existentes.copy(quantidade = existentes.quantidade!! + cobertura,
+                detalhe = "$cobertura documentos ausentes; ${existentes.quantidade} não enviados/reprovados; " +
+                    "${existentes.aguardando} aguardando avaliação; ${existentes.aprovados} aprovados. " +
+                    "Cobertura dos períodos iniciados, conforme configuração e elegibilidade do SGE.", coberturaCompleta = true)
+        } catch (e: SessaoExpirada) { throw e }
+        catch (_: Exception) { existentes.copy(detalhe = existentes.detalhe + " Cobertura não verificada nesta consulta.") }
+    }
+
+    private fun ausentes(t: TurmaMonitorada, tipo: String, lista: Document): Int {
+        val gradeId = grade(t)
+        val form = Jsoup.parse(request("/PlanejamentoTurma/Editar/0", mapOf(
+            "tipoDeTurma" to "0", "tipoDeRegistroPedagogicoId" to tipo, "gradeEscolarId" to gradeId, "turmaId" to t.id)))
+        val configuracao = JSONObject(request("/PlanejamentoTurma/CarregarConfiguracoes", mapOf(
+            "gradeEscolarId" to gradeId, "turmaId" to t.id, "tipoDeRegistroPedagogicoId" to tipo, "componentesAssociados" to "[]")))
+        check(configuracao.has("exibirPeriodicidade") && !configuracao.getBoolean("exibirPeriodicidade")) {
+            "A periodicidade precisa ser definida pelo professor"
+        }
+        val periodicidade = form.selectFirst("#TipoPeriodicidade")?.attr("value")
+            ?.takeIf { it.isNotBlank() } ?: error("Periodicidade não identificada")
+        val periodoJson = JSONObject(request("/PlanejamentoTurma/CarreguePeriodos", mapOf(
+            "GradeEscolarId" to gradeId, "Periodicidade" to "", "TurmaId" to t.id, "TipoDeRegistroPedagogicoId" to tipo)))
+        val periodos = periodoJson.getJSONArray("periodos")
+        val calendario = Jsoup.parse(conteudosHtml[t.id + "/" + t.disciplina] ?: error("Calendário de aulas não verificado"))
+        val mesesComAula = SgeParsing.mesesComAula(calendario)
+        val limites = JSONObject(request("/NotasFaltas/ObtenhaInicioFimParametros", mapOf("turmaId" to t.id, "bimestre" to "", "mes" to "")))
+        val formato = DateTimeFormatter.ofPattern("dd/MM/uuuu")
+        val inicioLetivo = LocalDate.parse(limites.getString("dataInicio"), formato)
+        val fimLetivo = LocalDate.parse(limites.getString("dataFim"), formato)
+        val hoje = LocalDate.now()
+        val tabela = lista.selectFirst("#tabela_planejamentos") ?: error("Listagem ausente")
+        val headers = tabela.select("thead th").map { it.text().trim() }
+        val indicePeriodo = headers.indexOfFirst { it.equals("Período", true) }
+        check(indicePeriodo >= 0)
+        val periodosExistentes = tabela.select("tbody tr").mapNotNull {
+            it.select("td").getOrNull(indicePeriodo)?.text()?.trim()?.lowercase()
+        }.toSet()
+        val pei = form.selectFirst("#AlunosTurmaId") != null
+        // Read existing PEI assignments once, to avoid counting a student already covered.
+        val atribuicoes = mutableMapOf<String, MutableSet<String>>()
+        if (pei) {
+            val ids = tabela.select(".checkbox_item[data-id]").map { it.attr("data-id") }.distinct()
+            val editLinks = tabela.select("[onclick]").mapNotNull {
+                Regex("carregarPaginaEditarPlanejamento\\((\\d+)\\)").find(it.attr("onclick"))?.groupValues?.get(1)
+            }.distinct()
+            for (id in (ids + editLinks).distinct()) {
+                val registro = Jsoup.parse(request("/PlanejamentoTurma/Editar", mapOf("id" to id, "acessoPelaTurma" to "true", "tipoDeTurma" to "0")))
+                val alunos = registro.select("#AlunosTurmaId option[selected]").map { it.attr("value") }.filter { it.isNotBlank() }
+                val periods = registro.select("#Periodo option[selected]").map { it.attr("value") }.ifEmpty {
+                    registro.select("input#Periodo[value]").map { it.attr("value") }.filter { it.isNotBlank() }
+                }
+                check(alunos.isNotEmpty() && periods.isNotEmpty()) { "Vínculos do PEI não identificados" }
+                for (p in periods) atribuicoes.getOrPut(p) { mutableSetOf() }.addAll(alunos)
+            }
+        }
+        var ausentes = 0
+        for (i in 0 until periodos.length()) {
+            val periodo = periodos.getJSONObject(i)
+            val codigo = periodo.get("Codigo").toString()
+            val descricao = periodo.getString("Descricao")
+            val janela = SgeParsing.janela(descricao, codigo, inicioLetivo.year)
+            if (janela.first.isAfter(hoje) || janela.first.isAfter(fimLetivo) || janela.second.isBefore(inicioLetivo)) continue
+            val temAula = mesesComAula.any { month -> month >= YearMonth.from(janela.first) && month <= YearMonth.from(janela.second) }
+            if (!temAula) continue
+            if (!pei) {
+                if (descricao.trim().lowercase() !in periodosExistentes) ausentes++
+            } else {
+                val elegiveis = JSONObject(request("/PlanejamentoTurma/ObtenhaAlunosElegiveis", mapOf(
+                    "planejamentoId" to "0", "turmaId" to t.id, "tipoDeRegistroPedagogicoId" to tipo,
+                    "gradeEscolarId" to gradeId, "periodicidade" to periodicidade, "periodos" to codigo))).getJSONArray("alunos")
+                val alunos = (0 until elegiveis.length()).map { elegiveis.getJSONObject(it).get("Codigo").toString() }.toSet()
+                ausentes += (alunos - (atribuicoes[codigo] ?: emptySet())).size
+            }
+        }
+        return ausentes
     }
 }
 
@@ -101,6 +183,32 @@ object SgeParsing {
     private val dateRegex = Regex("\\d{2}/\\d{2}/\\d{4}")
     private val format = DateTimeFormatter.ofPattern("dd/MM/uuuu")
     private fun date(title: String) = LocalDate.parse(dateRegex.find(title)?.value ?: error("Data ausente"), format)
+    private val meses = listOf("janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro")
+    fun mesesComAula(doc: Document): Set<YearMonth> {
+        val cells = doc.select(".calendario .semana [data-original-title], .calendario .semana [title]")
+        check(cells.isNotEmpty()) { "Datas do calendário ausentes" }
+        val ano = date(cells.first()!!.attr("data-original-title").ifBlank { cells.first()!!.attr("title") }).year
+        return doc.select(".calendario .mes").mapNotNull { month ->
+            val numero = meses.indexOf(month.select(".mes-titulo").text().trim().lowercase()) + 1
+            val total = Regex("(\\d+)\\s+de\\s+(\\d+)\\s+registrados", RegexOption.IGNORE_CASE)
+                .find(month.select(".mes-subtitulo").text())?.groupValues?.get(2)?.toIntOrNull()
+            if (numero in 1..12 && total != null && total > 0) YearMonth.of(ano, numero) else null
+        }.toSet()
+    }
+    fun janela(descricao: String, codigo: String, ano: Int): Pair<LocalDate, LocalDate> {
+        val texto = descricao.trim().lowercase()
+        val mes = meses.indexOfFirst { texto.startsWith(it + " de ") } + 1
+        if (mes in 1..12) {
+            val y = Regex("\\b(20\\d{2})\\b").find(texto)?.value?.toInt() ?: ano
+            val ym = YearMonth.of(y, mes)
+            return ym.atDay(1) to ym.atEndOfMonth()
+        }
+        if (texto == "primeiro semestre") return LocalDate.of(ano, 1, 1) to LocalDate.of(ano, 6, 30)
+        if (texto == "segundo semestre") return LocalDate.of(ano, 7, 1) to LocalDate.of(ano, 12, 31)
+        val range = dateRegex.findAll(descricao).map { LocalDate.parse(it.value, format) }.toList()
+        if (range.size == 2) return range[0] to range[1]
+        error("Datas do período $codigo não identificadas")
+    }
     fun conteudos(html: String, disciplina: String, hoje: LocalDate): ResultadoModulo {
         val doc = Jsoup.parse(html)
         check(doc.select(".calendario .semana").isNotEmpty()) { "Calendário ausente" }
