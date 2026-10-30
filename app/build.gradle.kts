@@ -11,8 +11,8 @@ android {
         applicationId = "br.to.seduc.sgediariowidget"
         minSdk = 29
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "1.1-turmas"
     }
 
     sourceSets["main"].manifest.srcFile("../AndroidManifest.xml")
@@ -40,4 +40,6 @@ dependencies {
     implementation("androidx.glance:glance-material3:1.1.0")
     implementation("androidx.work:work-runtime-ktx:2.9.0")
     implementation("org.jsoup:jsoup:1.17.2")
+    testImplementation("junit:junit:4.13.2")
+    testImplementation("org.json:json:20240303")
 }
