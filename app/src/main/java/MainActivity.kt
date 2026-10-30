@@ -18,6 +18,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.glance.appwidget.updateAll
+import br.to.seduc.sgediariowidget.widget.DiarioGlanceWidget
+
 import br.to.seduc.sgediariowidget.data.*
 import br.to.seduc.sgediariowidget.worker.SgeSyncWorker
 import kotlinx.coroutines.delay
@@ -52,7 +55,7 @@ class MainActivity : ComponentActivity() {
             MaterialTheme(colorScheme = darkColorScheme(background = Color.Black, surface = Color(0xFF10151C))) {
                 var login by remember { mutableStateOf(false) }
                 var painel by remember { mutableStateOf(SgePainelStore.ler(this)) }
-                LaunchedEffect(Unit) {
+                LaunchedEffect(Unit) { DiarioGlanceWidget().updateAll(this@MainActivity);
                     while (true) {
                         painel = SgePainelStore.ler(this@MainActivity)
                         verificarSessao()
