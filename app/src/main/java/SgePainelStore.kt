@@ -52,7 +52,10 @@ object SgePainelStore {
             .put("sessaoAtiva", painel.sessaoAtiva).put("turmas", JSONArray().also { a ->
                 painel.turmas.forEach { a.put(it.json()) }
             })
-        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit().putString("painel_v2", j.toString()).apply()
+        // The widget is refreshed immediately after this call. Use commit so
+        // Glance cannot read the previous "syncing" state during that refresh.
+        check(context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit().putString("painel_v2", j.toString()).commit())
     }
     fun ler(context: Context): PainelSge = runCatching {
         val raw = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).getString("painel_v2", null)
@@ -62,9 +65,11 @@ object SgePainelStore {
         val carregado = PainelSge((0 until a.length()).map { ResultadoTurma.ler(a.getJSONObject(it)) },
             j.optString("mensagem"), j.optBoolean("sincronizando"), j.optBoolean("sessaoAtiva"),
             j.optLong("inicioConsulta"))
-        if (carregado.sincronizando && (carregado.inicioConsulta <= 0L || System.currentTimeMillis() - carregado.inicioConsulta > 5 * 60 * 1000L)) {
+        val expirou = carregado.sincronizando && (carregado.inicioConsulta <= 0L ||
+            System.currentTimeMillis() - carregado.inicioConsulta > 5 * 60 * 1000L)
+        if (expirou) {
             carregado.copy(mensagem = "A sincronização anterior foi interrompida. Toque em atualizar para tentar novamente.",
-                sincronizando = false)
+                sincronizando = false, inicioConsulta = 0L).also { salvar(context, it) }
         } else carregado
     }.getOrElse { PainelSge(mensagem = "Dados locais não puderam ser lidos. Sincronize novamente.") }
 }

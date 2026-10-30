@@ -26,7 +26,12 @@ class RefreshActionCallback : ActionCallback {
 }
 class DiarioGlanceWidget : GlanceAppWidget() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
-        val painel = SgePainelStore.ler(context)
+        val painelInicial = SgePainelStore.ler(context)
+        val painel = if (painelInicial.sincronizando && painelInicial.inicioConsulta == 0L) {
+            painelInicial.copy(
+                mensagem = "A sincronização anterior foi interrompida. Abra o app e toque em Sincronizar agora.",
+                sincronizando = false, inicioConsulta = 0L).also { SgePainelStore.salvar(context, it) }
+        } else painelInicial
         provideContent {
             Column(GlanceModifier.fillMaxSize().background(Color.Black).padding(12.dp)) {
                 Row(GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {

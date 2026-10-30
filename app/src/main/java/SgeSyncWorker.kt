@@ -8,6 +8,8 @@ import br.to.seduc.sgediariowidget.data.*
 import br.to.seduc.sgediariowidget.widget.DiarioGlanceWidget
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.CancellationException
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -28,13 +30,18 @@ class SgeSyncWorker(private val ctx: Context, params: WorkerParameters) : Corout
                 .getString("web_user_agent", null) ?: error("Abra o SGE no aplicativo antes de sincronizar.")
             val updatedCookies = mutableListOf<String>()
             val client = SgeReadClient(cookies, agent) { updatedCookies.add(it) }
-            val turmas = withContext(Dispatchers.IO) { client.turmas() }
+            val turmas = withTimeout(90_000L) {
+                withContext(Dispatchers.IO) { client.turmas() }
+            }
             val resultados = mutableListOf<ResultadoTurma>()
             for ((indice, turma) in turmas.withIndex()) {
                 mostrar(PainelSge(resultados.toList(), "Consultando ${indice + 1}/${turmas.size}: ${turma.nome} • ${turma.disciplina}", true, true, System.currentTimeMillis()))
-                val modulos = withContext(Dispatchers.IO) { listOf(
-                    client.conteudos(turma), client.frequencia(turma), client.planos(turma, "PLANO DE AULA"),
-                    client.planos(turma, "PLANO DE CURSO"), client.planos(turma, "PEI - Plano de Ensino Individualizado")) }
+                val modulos = withTimeout(90_000L) {
+                    withContext(Dispatchers.IO) { listOf(
+                        client.conteudos(turma), client.frequencia(turma), client.planos(turma, "PLANO DE AULA"),
+                        client.planos(turma, "PLANO DE CURSO"), client.planos(turma, "PEI - Plano de Ensino Individualizado"))
+                    }
+                }
                 resultados.add(ResultadoTurma(turma, modulos, LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd/MM HH:mm"))))
             }
             withContext(Dispatchers.Main) {
@@ -48,6 +55,10 @@ class SgeSyncWorker(private val ctx: Context, params: WorkerParameters) : Corout
                     if (parciais > 0) "$parciais consultas com cobertura parcial (*). Confira os detalhes." else
                         "Documentos ausentes e registros não enviados/reprovados conferidos nos períodos iniciados.", false, true))
             return Result.success()
+        } catch (e: TimeoutCancellationException) {
+            mostrar(antigo.copy(mensagem = "A consulta demorou mais de 90 segundos. Verifique a conexão e tente novamente.",
+                sincronizando = false, inicioConsulta = 0L))
+            return Result.failure()
         } catch (e: CancellationException) { throw e }
         catch (e: SessaoExpirada) {
             mostrar(antigo.copy(mensagem = "Sessão expirada. Entre novamente no SGE. Dados abaixo são da última consulta.", sincronizando = false, sessaoAtiva = false))

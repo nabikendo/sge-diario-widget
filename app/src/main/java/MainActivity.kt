@@ -19,9 +19,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.glance.appwidget.updateAll
-import br.to.seduc.sgediariowidget.widget.DiarioGlanceWidget
-
+import androidx.work.WorkManager
 import br.to.seduc.sgediariowidget.data.*
+import br.to.seduc.sgediariowidget.widget.DiarioGlanceWidget
 import br.to.seduc.sgediariowidget.worker.SgeSyncWorker
 import kotlinx.coroutines.delay
 import org.json.JSONTokener
@@ -33,6 +33,17 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val prefs = getSharedPreferences(SgePainelStore.PREFS_NAME, MODE_PRIVATE)
+        // Recover from a worker left behind by an older APK. A persisted
+        // "syncing" flag must never hide the real login/sync controls forever.
+        WorkManager.getInstance(this).cancelUniqueWork("sge_sync_now")
+        val painelInicial = SgePainelStore.ler(this)
+        if (painelInicial.sincronizando) {
+            SgePainelStore.salvar(this, painelInicial.copy(
+                sincronizando = false,
+                inicioConsulta = 0L,
+                mensagem = "A consulta anterior foi interrompida. Toque em Sincronizar agora para tentar novamente."
+            ))
+        }
         // Session cookies stay in Android's cookie store, outside SharedPreferences/backups.
         prefs.edit().remove("sge_cookies").apply()
         web = WebView(this).apply {
@@ -50,15 +61,18 @@ class MainActivity : ComponentActivity() {
         }
         val state = savedInstanceState?.getBundle("web_state")
         if (state == null || web.restoreState(state) == null) web.loadUrl(SgeSyncWorker.BASE + "/")
-        SgeSyncWorker.agendarPeriodico(this)
         setContent {
             MaterialTheme(colorScheme = darkColorScheme(background = Color.Black, surface = Color(0xFF10151C))) {
                 var login by remember { mutableStateOf(false) }
                 var painel by remember { mutableStateOf(SgePainelStore.ler(this)) }
-                LaunchedEffect(Unit) { DiarioGlanceWidget().updateAll(this@MainActivity);
+                LaunchedEffect(Unit) {
+                    DiarioGlanceWidget().updateAll(this@MainActivity)
                     while (true) {
-                        painel = SgePainelStore.ler(this@MainActivity)
-                        verificarSessao()
+                        val atualizado = SgePainelStore.ler(this@MainActivity)
+                        if (atualizado != painel) {
+                            painel = atualizado
+                            DiarioGlanceWidget().updateAll(this@MainActivity)
+                        }
                         delay(2500)
                     }
                 }
@@ -77,7 +91,15 @@ class MainActivity : ComponentActivity() {
                         if (!login) Column(Modifier.fillMaxSize().background(Color.Black)
                             .verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             Text(painel.mensagem)
-                            Button(onClick = { verificarSessao(); SgeSyncWorker.sincronizarAgora(this@MainActivity) }) {
+                            Button(onClick = {
+                                SgePainelStore.salvar(this@MainActivity, painel.copy(
+                                    sincronizando = true,
+                                    inicioConsulta = System.currentTimeMillis(),
+                                    mensagem = "Iniciando consulta manual…"
+                                ))
+                                painel = SgePainelStore.ler(this@MainActivity)
+                                SgeSyncWorker.sincronizarAgora(this@MainActivity)
+                            }) {
                                 Text(if (painel.sincronizando) "Consultando…" else "Sincronizar agora")
                             }
                             if (painel.sincronizando) LinearProgressIndicator(Modifier.fillMaxWidth())
@@ -105,11 +127,8 @@ class MainActivity : ComponentActivity() {
         if (!::web.isInitialized) return
         web.evaluateJavascript("Boolean(document.querySelector('#TurmaContextoId') || document.querySelector('#ProfessorId'))") { raw ->
             val active = runCatching { JSONTokener(raw).nextValue() == true }.getOrDefault(false)
-            if (active && !autenticado) {
-                autenticado = true
-                CookieManager.getInstance().flush()
-                SgeSyncWorker.sincronizarAgora(this)
-            } else if (!active && web.url?.contains("/Acesso/Entrar", true) == true) autenticado = false
+            autenticado = active
+            if (active) CookieManager.getInstance().flush()
         }
     }
     override fun onPause() { CookieManager.getInstance().flush(); super.onPause() }

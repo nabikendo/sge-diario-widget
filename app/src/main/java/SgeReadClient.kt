@@ -29,7 +29,11 @@ class SgeReadClient(cookies: String, private val userAgent: String, private val 
             throw IllegalStateException("Falha de rede em $path: ${e.message ?: e.javaClass.simpleName}", e)
         }
         jar.putAll(response.cookies())
-        response.headers("Set-Cookie").forEach(onCookie)
+        // CookieManager.setCookie expects the cookie pair, not the complete
+        // Set-Cookie header (which also contains Path/Expires/SameSite).
+        // Passing the header verbatim makes refreshed SGE sessions unreliable
+        // on Android WebView.
+        response.cookies().forEach { (name, value) -> onCookie("$name=$value") }
         if (response.url().path.contains("/Acesso/Entrar", true)) throw SessaoExpirada()
         val body = response.body()
         if (body.contains("id=\"login-form\"") || body.contains("id=\"btn-entrar\"")) throw SessaoExpirada()
@@ -41,7 +45,14 @@ class SgeReadClient(cookies: String, private val userAgent: String, private val 
         val home = Jsoup.parse(request("/"))
         // O SGE carrega esta tela em #content por AJAX. O GET direto da rota
         // retorna a página de entrada sem o formulário/identidade do professor.
-        val horario = run { val resposta = request("/horariodeauladoprofessor"); Jsoup.parse(runCatching { JSONObject(resposta).let { it.optString("html").ifBlank { it.optString("data") } }.takeIf { it.isNotBlank() } }.getOrNull() ?: resposta) }
+        // The portal loads this route with jQuery .load(), which normally
+        // returns a raw HTML fragment. Some deployments wrap fragments in JSON.
+        val horarioResposta = request("/horariodeauladoprofessor")
+        val horarioJson = runCatching { JSONObject(horarioResposta) }.getOrNull()
+        val horarioHtml = horarioJson?.optString("html")?.takeIf { it.isNotBlank() }
+            ?: horarioJson?.optString("data")?.takeIf { it.isNotBlank() }
+            ?: horarioResposta
+        val horario = Jsoup.parse(horarioHtml)
         check(horario.selectFirst("#idProfessor") != null || horario.selectFirst("#ProfessorId") != null) {
             "A página de horário não retornou o formulário esperado (resposta AJAX do SGE)."
         }
