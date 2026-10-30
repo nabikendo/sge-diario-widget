@@ -50,7 +50,12 @@ class SgeReadClient(cookies: String, private val userAgent: String, private val 
             val cells = row.select("td")
             if (cells.size != 3 || !cells[0].text().contains("às")) null else {
                 val nome = cells[2].text().trim()
-                val matches = options.filter { it.attr("data-turmadescricao") == nome }
+                // Elements.filter é o filtro estrutural do Jsoup (NodeFilter), não o
+                // filtro de coleções do Kotlin. Convertemos para Sequence antes de
+                // comparar o nome mostrado no quadro de horários.
+                val matches = options.asSequence()
+                    .filter { it.attr("data-turmadescricao") == nome }
+                    .toList()
                 check(matches.size == 1) { "Identificação ambígua da turma $nome" }
                 val opt = matches.single()
                 check(opt.attr("data-tipodaturmaenum") == "0") { "Tipo de turma ainda não suportado" }
