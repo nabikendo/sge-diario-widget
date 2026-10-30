@@ -42,9 +42,11 @@ class SgeSyncWorker(private val ctx: Context, params: WorkerParameters) : Corout
                 CookieManager.getInstance().flush()
             }
             val falhas = resultados.sumOf { r -> r.modulos.count { it.quantidade == null } }
+            val parciais = resultados.sumOf { r -> r.modulos.count { !it.coberturaCompleta } }
             mostrar(PainelSge(resultados, "${turmas.map { it.id }.distinct().size} turmas consultadas. " +
                 if (falhas > 0) "$falhas consultas não verificadas. Toque na turma para conferir os detalhes." else
-                    "* Planos/PEIs: estados dos registros existentes; cobertura de documentos ainda não criados não verificada.", false, true))
+                    if (parciais > 0) "$parciais consultas com cobertura parcial (*). Confira os detalhes." else
+                        "Documentos ausentes e registros não enviados/reprovados conferidos nos períodos iniciados.", false, true))
             return Result.success()
         } catch (e: CancellationException) { throw e }
         catch (e: SessaoExpirada) {
