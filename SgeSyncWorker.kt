@@ -30,7 +30,15 @@ class SgeSyncWorker(private val appContext: Context, params: WorkerParameters) :
             val conteudos = contarPagina("$baseUrl/conteudo?tipoDeTurma=Escolarizacao&turmaId=$turmaId", cookies, "Conteúdo", "Pendente")
             val frequencia = contarPagina("$baseUrl/frequenciadiaria/index/$turmaId", cookies, "Frequência", "Pendente")
             val planejamento = contarPagina("$baseUrl/planejamentoturma?turmaId=$turmaId", cookies, "Plano", "Pendente")
-            val atual = SgeSummary(conteudos, frequencia, planejamento, 0, 0, "Conteúdos, frequência e planejamento sincronizados; Plano de Curso e PEIs aguardam rota própria do SGE.", true)
+            val atual = SgeSummary(
+                conteudos = conteudos,
+                frequencia = frequencia,
+                planosAula = planejamento,
+                planoCurso = 0,
+                peis = 0,
+                detalhes = "Conteúdos, frequência e planejamento sincronizados; Plano de Curso e PEIs aguardam rota própria do SGE.",
+                sessaoAtiva = true
+            )
             SgeRepository.salvarResumo(appContext, atual)
             DiarioGlanceWidget().updateAll(appContext)
             Result.success()
