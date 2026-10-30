@@ -41,10 +41,7 @@ class SgeReadClient(cookies: String, private val userAgent: String, private val 
         val home = Jsoup.parse(request("/"))
         // O SGE carrega esta tela em #content por AJAX. O GET direto da rota
         // retorna a página de entrada sem o formulário/identidade do professor.
-        val horarioJson = JSONObject(request("/horariodeauladoprofessor"))
-        val horario = Jsoup.parse(horarioJson.optString("html").ifBlank {
-            horarioJson.optString("data")
-        })
+        val horario = run { val resposta = request("/horariodeauladoprofessor"); Jsoup.parse(runCatching { JSONObject(resposta).let { it.optString("html").ifBlank { it.optString("data") } }.takeIf { it.isNotBlank() } }.getOrNull() ?: resposta) }
         check(horario.selectFirst("#idProfessor") != null || horario.selectFirst("#ProfessorId") != null) {
             "A página de horário não retornou o formulário esperado (resposta AJAX do SGE)."
         }
