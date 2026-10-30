@@ -20,7 +20,7 @@ class SgeSyncWorker(private val ctx: Context, params: WorkerParameters) : Corout
     }
     override suspend fun doWork(): Result {
         val antigo = SgePainelStore.ler(ctx)
-        mostrar(antigo.copy(sincronizando = true, mensagem = "Consultando o horário do professor…"))
+        mostrar(antigo.copy(sincronizando = true, inicioConsulta = System.currentTimeMillis(), mensagem = "Consultando o horário do professor…"))
         try {
             val cookies = withContext(Dispatchers.Main) { CookieManager.getInstance().getCookie(BASE) }
             if (cookies.isNullOrBlank()) throw SessaoExpirada()
@@ -31,7 +31,7 @@ class SgeSyncWorker(private val ctx: Context, params: WorkerParameters) : Corout
             val turmas = withContext(Dispatchers.IO) { client.turmas() }
             val resultados = mutableListOf<ResultadoTurma>()
             for ((indice, turma) in turmas.withIndex()) {
-                mostrar(PainelSge(resultados.toList(), "Consultando ${indice + 1}/${turmas.size}: ${turma.nome} • ${turma.disciplina}", true, true))
+                mostrar(PainelSge(resultados.toList(), "Consultando ${indice + 1}/${turmas.size}: ${turma.nome} • ${turma.disciplina}", true, true, System.currentTimeMillis()))
                 val modulos = withContext(Dispatchers.IO) { listOf(
                     client.conteudos(turma), client.frequencia(turma), client.planos(turma, "PLANO DE AULA"),
                     client.planos(turma, "PLANO DE CURSO"), client.planos(turma, "PEI - Plano de Ensino Individualizado")) }
@@ -52,9 +52,17 @@ class SgeSyncWorker(private val ctx: Context, params: WorkerParameters) : Corout
         catch (e: SessaoExpirada) {
             mostrar(antigo.copy(mensagem = "Sessão expirada. Entre novamente no SGE. Dados abaixo são da última consulta.", sincronizando = false, sessaoAtiva = false))
             return Result.success()
-        } catch (_: Exception) {
-            mostrar(antigo.copy(mensagem = "Não foi possível consultar o horário. Confira a sessão e a conexão. Dados abaixo são da última consulta.", sincronizando = false))
+        } catch (e: Exception) {
+            // O SGE varia o formato de algumas telas. Exibir a etapa que falhou
+            // evita que uma resposta inesperada pareça, indevidamente, falta de rede.
+            val motivo = e.message?.replace(Regex("\\s+"), " ")?.take(140)
+                ?: e.javaClass.simpleName
+            mostrar(antigo.copy(mensagem = "Não foi possível consultar o horário: $motivo. Dados abaixo são da última consulta.", sincronizando = false))
             return if (runAttemptCount < 2) Result.retry() else Result.failure()
+        } finally {
+            // Refresh after every exit path, including cancellation/retry, so the
+            // launcher widget never stays visually stuck on a stale loading view.
+            withContext(Dispatchers.Main) { DiarioGlanceWidget().updateAll(ctx) }
         }
     }
     companion object {
@@ -65,7 +73,7 @@ class SgeSyncWorker(private val ctx: Context, params: WorkerParameters) : Corout
                 PeriodicWorkRequestBuilder<SgeSyncWorker>(2, TimeUnit.HOURS).setConstraints(rede()).build())
         }
         fun sincronizarAgora(context: Context) {
-            WorkManager.getInstance(context).enqueueUniqueWork("sge_sync_now", ExistingWorkPolicy.KEEP,
+            WorkManager.getInstance(context).enqueueUniqueWork("sge_sync_now", ExistingWorkPolicy.REPLACE,
                 OneTimeWorkRequestBuilder<SgeSyncWorker>().setConstraints(rede()).build())
         }
     }
