@@ -3,75 +3,68 @@ package br.to.seduc.sgediariowidget.worker
 import android.content.Context
 import android.webkit.CookieManager
 import androidx.glance.appwidget.updateAll
-import androidx.work.CoroutineWorker
-import androidx.work.ExistingPeriodicWorkPolicy
-import androidx.work.OneTimeWorkRequestBuilder
-import androidx.work.PeriodicWorkRequestBuilder
-import androidx.work.WorkManager
-import androidx.work.WorkerParameters
-import br.to.seduc.sgediariowidget.data.SgeRepository
-import br.to.seduc.sgediariowidget.data.SgeSummary
+import androidx.work.*
+import br.to.seduc.sgediariowidget.data.*
 import br.to.seduc.sgediariowidget.widget.DiarioGlanceWidget
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import org.jsoup.Jsoup
+import kotlinx.coroutines.CancellationException
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 import java.util.concurrent.TimeUnit
 
-class SgeSyncWorker(private val appContext: Context, params: WorkerParameters) : CoroutineWorker(appContext, params) {
-    override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
-        val baseUrl = "https://sge.seduc.to.pontoid.com.br"
-        val cookies = CookieManager.getInstance().getCookie(baseUrl)
-            ?: appContext.getSharedPreferences("sge_diario_prefs", Context.MODE_PRIVATE).getString("sge_cookies", null)
-        if (cookies.isNullOrBlank()) return@withContext marcarSessaoExpirada()
+class SgeSyncWorker(private val ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, params) {
+    private suspend fun mostrar(painel: PainelSge) {
+        SgePainelStore.salvar(ctx, painel)
+        DiarioGlanceWidget().updateAll(ctx)
+    }
+    override suspend fun doWork(): Result {
+        val antigo = SgePainelStore.ler(ctx)
+        mostrar(antigo.copy(sincronizando = true, mensagem = "Consultando o horário do professor…"))
         try {
-            val home = Jsoup.connect("$baseUrl/").header("Cookie", cookies).userAgent(USER_AGENT).timeout(15000).get()
-            if (home.location().contains("/Acesso/Entrar", true)) return@withContext marcarSessaoExpirada()
-            val turmaId = extrairTurmaId(home)
-            if (turmaId.isBlank()) return@withContext Result.retry()
-            val conteudos = contarPagina("$baseUrl/conteudo?tipoDeTurma=Escolarizacao&turmaId=$turmaId", cookies, "Conteúdo", "Pendente")
-            val frequencia = contarPagina("$baseUrl/frequenciadiaria/index/$turmaId", cookies, "Frequência", "Pendente")
-            val planejamento = contarPagina("$baseUrl/planejamentoturma?turmaId=$turmaId", cookies, "Plano", "Pendente")
-            val atual = SgeSummary(
-                conteudos = conteudos,
-                frequencia = frequencia,
-                planosAula = planejamento,
-                planoCurso = 0,
-                peis = 0,
-                detalhes = "Conteúdos, frequência e planejamento sincronizados; Plano de Curso e PEIs aguardam rota própria do SGE.",
-                sessaoAtiva = true
-            )
-            SgeRepository.salvarResumo(appContext, atual)
-            DiarioGlanceWidget().updateAll(appContext)
-            Result.success()
-        } catch (_: Exception) { Result.retry() }
-    }
-
-    private fun extrairTurmaId(home: org.jsoup.nodes.Document): String {
-        val onclick = home.select("a[data-acaonaturma=ConteudoAplicado]").attr("onclick")
-        return Regex("turmaId=(\\d+)").find(onclick)?.groupValues?.get(1) ?: ""
-    }
-
-    private fun contarPagina(url: String, cookies: String, modulo: String, status: String): Int {
-        val page = Jsoup.connect(url).header("Cookie", cookies).userAgent(USER_AGENT).timeout(15000).get()
-        val calendar = page.select(".mes-subtitulo span").mapNotNull { el ->
-            Regex("(\\d+)\\s+de\\s+(\\d+)\\s+registrados", RegexOption.IGNORE_CASE).find(el.text())?.let {
-                ((it.groupValues[2].toIntOrNull() ?: 0) - (it.groupValues[1].toIntOrNull() ?: 0)).coerceAtLeast(0)
+            val cookies = withContext(Dispatchers.Main) { CookieManager.getInstance().getCookie(BASE) }
+            if (cookies.isNullOrBlank()) throw SessaoExpirada()
+            val agent = ctx.getSharedPreferences(SgePainelStore.PREFS_NAME, Context.MODE_PRIVATE)
+                .getString("web_user_agent", null) ?: error("Abra o SGE no aplicativo antes de sincronizar.")
+            val updatedCookies = mutableListOf<String>()
+            val client = SgeReadClient(cookies, agent) { updatedCookies.add(it) }
+            val turmas = withContext(Dispatchers.IO) { client.turmas() }
+            val resultados = mutableListOf<ResultadoTurma>()
+            for ((indice, turma) in turmas.withIndex()) {
+                mostrar(PainelSge(resultados.toList(), "Consultando ${indice + 1}/${turmas.size}: ${turma.nome} • ${turma.disciplina}", true, true))
+                val modulos = withContext(Dispatchers.IO) { listOf(
+                    client.conteudos(turma), client.frequencia(turma), client.planos(turma, "PLANO DE AULA"),
+                    client.planos(turma, "PLANO DE CURSO"), client.planos(turma, "PEI - Plano de Ensino Individualizado")) }
+                resultados.add(ResultadoTurma(turma, modulos, LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd/MM HH:mm"))))
             }
+            withContext(Dispatchers.Main) {
+                updatedCookies.forEach { CookieManager.getInstance().setCookie(BASE, it) }
+                CookieManager.getInstance().flush()
+            }
+            val falhas = resultados.sumOf { r -> r.modulos.count { it.quantidade == null } }
+            mostrar(PainelSge(resultados, "${turmas.map { it.id }.distinct().size} turmas consultadas. " +
+                if (falhas > 0) "$falhas consultas não verificadas. Toque na turma para conferir os detalhes." else
+                    "* Planos/PEIs: estados dos registros existentes; cobertura de documentos ainda não criados não verificada.", false, true))
+            return Result.success()
+        } catch (e: CancellationException) { throw e }
+        catch (e: SessaoExpirada) {
+            mostrar(antigo.copy(mensagem = "Sessão expirada. Entre novamente no SGE. Dados abaixo são da última consulta.", sincronizando = false, sessaoAtiva = false))
+            return Result.success()
+        } catch (_: Exception) {
+            mostrar(antigo.copy(mensagem = "Não foi possível consultar o horário. Confira a sessão e a conexão. Dados abaixo são da última consulta.", sincronizando = false))
+            return if (runAttemptCount < 2) Result.retry() else Result.failure()
         }
-        if (calendar.isNotEmpty()) return calendar.sum()
-        return page.select(".badge-danger, .label-danger, tr:matches((?i)$modulo):matches((?i)$status)").distinctBy { it.outerHtml() }.size
     }
-
-    private suspend fun marcarSessaoExpirada(): Result {
-        val atual = SgeRepository.lerResumo(appContext)
-        SgeRepository.salvarResumo(appContext, atual.copy(sessaoAtiva = false, detalhes = "Sessão expirada. Abra o app e entre no SGE."))
-        DiarioGlanceWidget().updateAll(appContext)
-        return Result.success()
-    }
-
     companion object {
-        private const val USER_AGENT = "Mozilla/5.0 (Linux; Android 14; SM-S721B) AppleWebKit/537.36 Chrome/128.0.0.0 Mobile Safari/537.36"
-        fun agendarPeriodico(context: Context) { WorkManager.getInstance(context).enqueueUniquePeriodicWork("sge_periodic_sync", ExistingPeriodicWorkPolicy.KEEP, PeriodicWorkRequestBuilder<SgeSyncWorker>(2, TimeUnit.HOURS).build()) }
-        fun sincronizarAgora(context: Context) { WorkManager.getInstance(context).enqueue(OneTimeWorkRequestBuilder<SgeSyncWorker>().build()) }
+        const val BASE = "https://sge.seduc.to.pontoid.com.br"
+        private fun rede() = Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()
+        fun agendarPeriodico(context: Context) {
+            WorkManager.getInstance(context).enqueueUniquePeriodicWork("sge_periodic_sync", ExistingPeriodicWorkPolicy.UPDATE,
+                PeriodicWorkRequestBuilder<SgeSyncWorker>(2, TimeUnit.HOURS).setConstraints(rede()).build())
+        }
+        fun sincronizarAgora(context: Context) {
+            WorkManager.getInstance(context).enqueueUniqueWork("sge_sync_now", ExistingWorkPolicy.KEEP,
+                OneTimeWorkRequestBuilder<SgeSyncWorker>().setConstraints(rede()).build())
+        }
     }
 }
