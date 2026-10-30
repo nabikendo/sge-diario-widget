@@ -74,11 +74,11 @@ class MainActivity : ComponentActivity() {
                         if (!login) Column(Modifier.fillMaxSize().background(Color.Black)
                             .verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             Text(painel.mensagem)
-                            Button(onClick = { verificarSessao(); SgeSyncWorker.sincronizarAgora(this@MainActivity) }, enabled = !painel.sincronizando) {
+                            Button(onClick = { verificarSessao(); SgeSyncWorker.sincronizarAgora(this@MainActivity) }) {
                                 Text(if (painel.sincronizando) "Consultando…" else "Sincronizar agora")
                             }
                             if (painel.sincronizando) LinearProgressIndicator(Modifier.fillMaxWidth())
-                            Text("— Não verificado • * Somente registros existentes. Conteúdos e frequência contam dias pendentes até hoje.", style = MaterialTheme.typography.bodySmall)
+                            Text("— Não verificado • * Cobertura parcial: confira o detalhe. Conteúdos e frequência contam dias pendentes até hoje. Planos/PEIs incluem ausências quando a cobertura é verificada.", style = MaterialTheme.typography.bodySmall)
                             painel.turmas.forEach { resultado ->
                                 Card(Modifier.fillMaxWidth()) {
                                     Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
