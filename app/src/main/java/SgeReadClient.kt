@@ -21,14 +21,20 @@ class SgeReadClient(cookies: String, private val userAgent: String, private val 
     private val conteudosHtml = mutableMapOf<String, String>()
     private val base = "https://sge.seduc.to.pontoid.com.br"
     private fun request(path: String, params: Map<String, String> = emptyMap(), post: Boolean = false): String {
-        val response = Jsoup.connect(base + path).cookies(jar).header("X-Requested-With", "XMLHttpRequest")
+        val response = try {
+            Jsoup.connect(base + path).cookies(jar).header("X-Requested-With", "XMLHttpRequest")
             .userAgent(userAgent).data(params).timeout(30000).ignoreContentType(true).maxBodySize(12 * 1024 * 1024)
             .method(if (post) org.jsoup.Connection.Method.POST else org.jsoup.Connection.Method.GET).execute()
+        } catch (e: Exception) {
+            throw IllegalStateException("Falha de rede em $path: ${e.message ?: e.javaClass.simpleName}", e)
+        }
         jar.putAll(response.cookies())
         response.headers("Set-Cookie").forEach(onCookie)
         if (response.url().path.contains("/Acesso/Entrar", true)) throw SessaoExpirada()
         val body = response.body()
         if (body.contains("id=\"login-form\"") || body.contains("id=\"btn-entrar\"")) throw SessaoExpirada()
+        if (response.statusCode() !in 200..299) throw IllegalStateException("SGE respondeu HTTP ${response.statusCode()} em $path")
+        if (body.isBlank()) throw IllegalStateException("SGE retornou resposta vazia em $path")
         return body
     }
     fun turmas(): List<TurmaMonitorada> {
@@ -88,7 +94,10 @@ class SgeReadClient(cookies: String, private val userAgent: String, private val 
     }
     private fun consulta(block: () -> ResultadoModulo): ResultadoModulo = try { block() }
         catch (e: SessaoExpirada) { throw e }
-        catch (_: Exception) { ResultadoModulo(detalhe = "Não verificado: resposta indisponível ou formato inesperado do SGE.") }
+        catch (e: Exception) {
+            val causa = e.message?.replace(Regex("\\s+"), " ")?.take(180) ?: e.javaClass.simpleName
+            ResultadoModulo(detalhe = "Não verificado: $causa")
+        }
 
     fun conteudos(t: TurmaMonitorada): ResultadoModulo = consulta {
         val j = JSONObject(request("/Conteudo/CarregarDadosConteudoAplicado", mapOf(
@@ -126,7 +135,10 @@ class SgeReadClient(cookies: String, private val userAgent: String, private val 
                     "${existentes.aguardando} aguardando avaliação; ${existentes.aprovados} aprovados. " +
                     "Cobertura dos períodos iniciados, conforme configuração e elegibilidade do SGE.", coberturaCompleta = true)
         } catch (e: SessaoExpirada) { throw e }
-        catch (_: Exception) { existentes.copy(detalhe = existentes.detalhe + " Cobertura não verificada nesta consulta.") }
+        catch (e: Exception) {
+            val causa = e.message?.replace(Regex("\\s+"), " ")?.take(150) ?: e.javaClass.simpleName
+            existentes.copy(detalhe = existentes.detalhe + " Cobertura não verificada: $causa")
+        }
     }
 
     private fun ausentes(t: TurmaMonitorada, tipo: String, lista: Document): Int {
