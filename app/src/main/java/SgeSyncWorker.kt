@@ -21,6 +21,7 @@ class SgeSyncWorker(private val appContext: Context, params: WorkerParameters) :
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         val baseUrl = "https://sge.seduc.to.pontoid.com.br"
         val cookies = CookieManager.getInstance().getCookie(baseUrl)
+            ?: appContext.getSharedPreferences("sge_diario_prefs", Context.MODE_PRIVATE).getString("sge_cookies", null)
         if (cookies.isNullOrBlank()) return@withContext marcarSessaoExpirada()
         try {
             val home = Jsoup.connect("$baseUrl/").header("Cookie", cookies).userAgent(USER_AGENT).timeout(15000).get()
