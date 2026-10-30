@@ -33,14 +33,28 @@ class SgeReadClient(cookies: String, private val userAgent: String, private val 
     }
     fun turmas(): List<TurmaMonitorada> {
         val home = Jsoup.parse(request("/"))
-        val horario = Jsoup.parse(request("/horariodeauladoprofessor"))
-        val professor = horario.selectFirst("#idProfessor")?.attr("value")?.takeIf { it.isNotBlank() }
-            ?: horario.selectFirst("#ProfessorId option[selected]")?.attr("value")?.takeIf { it.isNotBlank() }
-            ?: horario.select("#ProfessorId option[value]:not([value=''])").singleOrNull()?.attr("value")
-            ?: error("Professor não identificado")
-        val tipo = horario.selectFirst("#Tipo option[selected]")?.attr("value")?.takeIf { it.isNotBlank() }
-            ?: horario.selectFirst("#Tipo option[value]:not([value=''])")?.attr("value")
-            ?: error("Tipo de horário não identificado")
+        // O SGE carrega esta tela em #content por AJAX. O GET direto da rota
+        // retorna a página de entrada sem o formulário/identidade do professor.
+        val horarioJson = JSONObject(request("/horariodeauladoprofessor"))
+        val horario = Jsoup.parse(horarioJson.optString("html").ifBlank {
+            horarioJson.optString("data")
+        })
+        check(horario.selectFirst("#idProfessor") != null || horario.selectFirst("#ProfessorId") != null) {
+            "A página de horário não retornou o formulário esperado (resposta AJAX do SGE)."
+        }
+        val professor = horario.selectFirst("#idProfessor")?.let { it.attr("value").ifBlank { it.attr("data-id") } }
+            ?.takeIf { it.isNotBlank() }
+            ?: horario.selectFirst("#ProfessorId")?.let { el ->
+                el.attr("value").ifBlank { el.selectFirst("option:checked")?.attr("value") ?: "" }
+            }?.takeIf { it.isNotBlank() }
+            ?: horario.select("[name='colaboradorId'], [name='ColaboradorId']").firstOrNull()?.attr("value")
+                ?.takeIf { it.isNotBlank() }
+            ?: error("O SGE não informou o identificador do professor no horário.")
+        val tipo = horario.selectFirst("#Tipo")?.let { el ->
+            el.attr("value").ifBlank { el.selectFirst("option:checked")?.attr("value") ?: "" }
+        }?.takeIf { it.isNotBlank() }
+            ?: horario.select("[name='Tipo'] option:checked").firstOrNull()?.attr("value")?.takeIf { it.isNotBlank() }
+            ?: error("O SGE não informou o tipo de horário selecionado.")
         val json = JSONObject(request("/HorarioDeAulaDoProfessor/QuadroHorarioProfessor", mapOf(
             "dataReferencia" to LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM/uuuu")),
             "tipo" to tipo, "colaboradorId" to professor, "escolaId" to "", "turno" to "", "somenteConflitos" to "false")))
