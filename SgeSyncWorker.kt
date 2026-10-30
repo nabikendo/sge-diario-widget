@@ -101,10 +101,26 @@ class SgeSyncWorker(
         return try {
             val page = Jsoup.connect(targetUrl)
                 .header("Cookie", cookies)
-                .timeout(12000)
+                .userAgent("Mozilla/5.0 (Linux; Android 14; SM-S721B) AppleWebKit/537.36 Chrome/128.0.0.0 Mobile Safari/537.36")
+                .timeout(15000)
                 .get()
-            val badges = page.select(".badge-danger, .label-danger, .text-danger, tr:contains($termoModulo):contains($termoStatus)")
-            badges.size
+
+            // SGE 3.0 calendar counters use: "registrados de total registrados".
+            // Each missing registration is a pending item.
+            val calendarPending = page.select(".mes-subtitulo span")
+                .mapNotNull { element ->
+                    val match = Regex("(\\d+)\\s+de\\s+(\\d+)\\s+registrados", RegexOption.IGNORE_CASE)
+                        .find(element.text()) ?: return@mapNotNull null
+                    val registered = match.groupValues[1].toIntOrNull() ?: return@mapNotNull null
+                    val total = match.groupValues[2].toIntOrNull() ?: return@mapNotNull null
+                    (total - registered).coerceAtLeast(0)
+                }
+            if (calendarPending.isNotEmpty()) return calendarPending.sum()
+
+            // Fallback for table/list modules whose status is rendered as a badge or row.
+            page.select(".badge-danger, .label-danger, tr:matches((?i)$termoModulo):matches((?i)$termoStatus)")
+                .distinctBy { it.outerHtml() }
+                .size
         } catch (_: Exception) {
             0
         }
