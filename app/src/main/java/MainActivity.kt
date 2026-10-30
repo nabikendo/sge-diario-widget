@@ -32,6 +32,8 @@ import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
 
+    private var sgeWebView: WebView? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         SgeSyncWorker.agendarPeriodico(this)
@@ -152,7 +154,7 @@ class MainActivity : ComponentActivity() {
                     AndroidView(
                         modifier = Modifier.fillMaxSize(),
                         factory = { ctx ->
-                            WebView(ctx).apply {
+                            sgeWebView ?: WebView(ctx).apply {
                                 settings.javaScriptEnabled = true
                                 settings.domStorageEnabled = true
                                 CookieManager.getInstance().setAcceptCookie(true)
@@ -160,6 +162,9 @@ class MainActivity : ComponentActivity() {
                                 webViewClient = object : WebViewClient() {
                                     override fun onPageFinished(view: WebView?, url: String?) {
                                         super.onPageFinished(view, url)
+                                        val cookies = CookieManager.getInstance().getCookie("https://sge.seduc.to.pontoid.com.br")
+                                        getSharedPreferences("sge_diario_prefs", MODE_PRIVATE).edit()
+                                            .putString("sge_cookies", cookies).apply()
                                         CookieManager.getInstance().flush()
                                         if (url != null && !url.contains("/Acesso/Entrar", ignoreCase = true)) {
                                             resumo = resumo.copy(sessaoAtiva = true)
@@ -168,8 +173,15 @@ class MainActivity : ComponentActivity() {
                                         }
                                     }
                                 }
+                                val savedCookies = getSharedPreferences("sge_diario_prefs", MODE_PRIVATE).getString("sge_cookies", null)
+                                if (!savedCookies.isNullOrBlank()) {
+                                    savedCookies.split("; ").forEach { item ->
+                                        val parts = item.split("=", limit = 2)
+                                        if (parts.size == 2) CookieManager.getInstance().setCookie("https://sge.seduc.to.pontoid.com.br", "${parts[0]}=${parts[1]}")
+                                    }
+                                }
                                 loadUrl("https://sge.seduc.to.pontoid.com.br/Acesso/Entrar")
-                            }
+                            }.also { sgeWebView = it }
                         }
                     )
                 }
