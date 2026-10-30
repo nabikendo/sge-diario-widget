@@ -61,7 +61,7 @@ class SgeSyncWorker(private val appContext: Context, params: WorkerParameters) :
         return page.select(".badge-danger, .label-danger, tr:matches((?i)$modulo):matches((?i)$status)").distinctBy { it.outerHtml() }.size
     }
 
-    private fun marcarSessaoExpirada(): Result {
+    private suspend fun marcarSessaoExpirada(): Result {
         val atual = SgeRepository.lerResumo(appContext)
         SgeRepository.salvarResumo(appContext, atual.copy(sessaoAtiva = false, detalhes = "Sessão expirada. Abra o app e entre no SGE."))
         DiarioGlanceWidget().updateAll(appContext)
