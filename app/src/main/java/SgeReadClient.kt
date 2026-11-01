@@ -84,22 +84,32 @@ class SgeReadClient(cookies: String, private val userAgent: String, private val 
             "dataReferencia" to LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM/uuuu")),
             "tipo" to tipo, "colaboradorId" to professor, "escolaId" to "", "turno" to "", "somenteConflitos" to "false")))
         val doc = Jsoup.parse(json.getString("html"))
-        val options = home.select("#TurmaContextoId option[data-turmadescricao]")
+        val todas = home.select("#TurmaContextoId option")
+        val options = todas.asSequence().filter { it.attr("value").isNotBlank() }.toList()
+        fun norm(x: String) = x.replace('\u00a0', ' ').trim().replace(Regex("\\s+"), " ").lowercase()
+        fun desc(o: org.jsoup.nodes.Element) = norm(o.attr("data-turmadescricao").ifBlank { o.text() })
+        historico.add("TurmaContextoId: opções=${todas.size}, com valor=${options.size}; amostra: " +
+            todas.take(5).joinToString(" ") { o ->
+                "[" + o.attributes().asList().joinToString(" ") { a -> a.key + "=" + a.value.take(40) } + " texto=" + o.text().take(40) + "]"
+            })
+        val nomesQuadro = doc.select("tr").mapNotNull { row ->
+            val c = row.select("td"); if (c.size == 3 && c[0].text().contains("às")) c[2].text().trim() else null
+        }.distinct()
+        historico.add("Turmas no quadro de horário: " + nomesQuadro.joinToString(" | "))
         val found = doc.select("tr").mapNotNull { row ->
             val cells = row.select("td")
             if (cells.size != 3 || !cells[0].text().contains("às")) null else {
                 val nome = cells[2].text().trim()
-                // Elements.filter é o filtro estrutural do Jsoup (NodeFilter), não o
-                // filtro de coleções do Kotlin. Convertemos para Sequence antes de
-                // comparar o nome mostrado no quadro de horários.
-                val matches = options.asSequence()
-                    .filter { it.attr("data-turmadescricao") == nome }
-                    .toList()
+                val alvo = norm(nome)
+                val exatas = options.filter { desc(it) == alvo }
+                val matches = exatas.ifEmpty { options.filter { val d = desc(it); d.isNotEmpty() && (d.startsWith(alvo) || alvo.startsWith(d)) } }
                 // A mesma turma pode aparecer em mais de uma opção (tipos diferentes).
-                // Só as de escolarização (tipo 0) são lidas; as demais são ignoradas.
-                val escolarizacao = matches.filter { it.attr("data-tipodaturmaenum") == "0" }
-                if (escolarizacao.isEmpty()) {
-                    historico.add("Turma ignorada (tipo não suportado): opções=" + matches.joinToString { "tipo=" + it.attr("data-tipodaturmaenum") })
+                // Só escolarização (tipo 0 ou não informado) é lida; as demais são ignoradas.
+                val escolarizacao = matches.filter { it.attr("data-tipodaturmaenum").let { t -> t == "0" || t.isBlank() } }
+                if (matches.isEmpty()) {
+                    throw IllegalStateException("Turma \"$nome\" do quadro não encontrada na lista de turmas do SGE")
+                } else if (escolarizacao.isEmpty()) {
+                    historico.add("Turma ignorada (tipo não suportado): " + matches.joinToString { "tipo=" + it.attr("data-tipodaturmaenum") })
                     null
                 } else {
                     val ids = escolarizacao.map { it.attr("value").substringBefore('_') }.distinct()

@@ -19,7 +19,7 @@ object SgeDiag {
     }
     private fun html(h: String): String = runCatching {
         val d = Jsoup.parse(h)
-        val ids = d.select("[id]").map { it.id() }.take(40)
+        val ids = d.select("[id]").map { it.id() }.filter { !it.startsWith("eNomenclatura") }.take(40)
         val selects = d.select("select").take(10).joinToString(",") {
             it.id().ifBlank { it.attr("name") } + "(" + it.select("option").size + ")"
         }
