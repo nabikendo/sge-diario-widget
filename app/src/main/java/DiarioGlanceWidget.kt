@@ -19,44 +19,78 @@ import br.to.seduc.sgediariowidget.worker.SgeSyncWorker
 class DiarioGlanceWidgetReceiver : GlanceAppWidgetReceiver() {
     override val glanceAppWidget: GlanceAppWidget = DiarioGlanceWidget()
 }
+
 class RefreshActionCallback : ActionCallback {
     override suspend fun onAction(context: Context, glanceId: GlanceId, parameters: ActionParameters) {
         SgeSyncWorker.sincronizarAgora(context)
     }
 }
+
 class DiarioGlanceWidget : GlanceAppWidget() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val painelInicial = SgePainelStore.ler(context)
         val painel = if (painelInicial.sincronizando && painelInicial.inicioConsulta == 0L) {
             painelInicial.copy(
                 mensagem = "A sincronização anterior foi interrompida. Abra o app e toque em Sincronizar agora.",
-                sincronizando = false, inicioConsulta = 0L).also { SgePainelStore.salvar(context, it) }
+                sincronizando = false,
+                inicioConsulta = 0L
+            ).also { SgePainelStore.salvar(context, it) }
         } else painelInicial
+
         provideContent {
-            Column(GlanceModifier.fillMaxSize().background(Color.Black).padding(12.dp)) {
+            Column(GlanceModifier.fillMaxSize().background(Color(0xFFF7F7F8)).padding(12.dp)) {
                 Row(GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Text("SGE • TURMAS", GlanceModifier.defaultWeight().clickable(actionStartActivity<MainActivity>()),
-                        style = TextStyle(color = ColorProvider(Color(0xFF38BDF8)), fontSize = 14.sp, fontWeight = FontWeight.Bold))
+                    Column(GlanceModifier.defaultWeight().clickable(actionStartActivity<MainActivity>())) {
+                        Text("SGE • DIÁRIO", style = TextStyle(
+                            color = ColorProvider(Color(0xFF77777D)), fontSize = 10.sp, fontWeight = FontWeight.Medium
+                        ))
+                        Text("Suas turmas", style = TextStyle(
+                            color = ColorProvider(Color(0xFF1C1C1E)), fontSize = 16.sp, fontWeight = FontWeight.Bold
+                        ))
+                    }
                     Text("↻", GlanceModifier.padding(8.dp).clickable(actionRunCallback<RefreshActionCallback>()),
-                        style = TextStyle(color = ColorProvider(Color.White), fontSize = 18.sp))
+                        style = TextStyle(color = ColorProvider(Color(0xFF3478F6)), fontSize = 20.sp))
                 }
-                Text(painel.mensagem, style = TextStyle(color = ColorProvider(Color.LightGray), fontSize = 10.sp), maxLines = 3)
-                Text("C: conteúdos • F: frequência • A: aula • P: curso • I: PEI",
-                    style = TextStyle(color = ColorProvider(Color.Gray), fontSize = 9.sp))
-                LazyColumn(GlanceModifier.fillMaxSize()) {
-                    painel.turmas.forEach { r ->
+                Text("Deslize para cima ou para baixo para trocar de turma",
+                    style = TextStyle(color = ColorProvider(Color(0xFF77777D)), fontSize = 10.sp))
+
+                if (painel.turmas.isEmpty()) {
+                    Text(painel.mensagem, GlanceModifier.padding(top = 12.dp),
+                        style = TextStyle(color = ColorProvider(Color(0xFF55555A)), fontSize = 12.sp), maxLines = 3)
+                }
+
+                LazyColumn(GlanceModifier.fillMaxSize().padding(top = 8.dp)) {
+                    painel.turmas.forEachIndexed { indice, r ->
                         item {
-                            Column(GlanceModifier.fillMaxWidth().padding(vertical = 6.dp).clickable(actionStartActivity<MainActivity>())) {
-                                Text("${r.turma.nome.substringBefore('/')} • ${r.turma.disciplina}",
-                                    style = TextStyle(color = ColorProvider(Color.White), fontSize = 12.sp))
-                                Text(listOf("C", "F", "A", "P", "I").mapIndexed { i, label ->
-                                    "$label ${r.modulos.getOrNull(i)?.resumo() ?: "—"}"
-                                }.joinToString("  "), style = TextStyle(color = ColorProvider(Color(0xFF38BDF8)), fontSize = 11.sp))
+                            Column(
+                                GlanceModifier.fillMaxWidth().padding(vertical = 5.dp)
+                                    .background(Color(0xFFFFFFFF)).cornerRadius(18.dp)
+                                    .clickable(actionStartActivity<MainActivity>()).padding(14.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                    Text("${r.turma.nome.substringBefore('/')} • ${r.turma.disciplina}",
+                                        GlanceModifier.defaultWeight(), style = TextStyle(
+                                            color = ColorProvider(Color(0xFF1C1C1E)), fontSize = 14.sp, fontWeight = FontWeight.Bold
+                                        ), maxLines = 1)
+                                    Text("${indice + 1}/${painel.turmas.size}", style = TextStyle(
+                                        color = ColorProvider(Color(0xFF8A8A90)), fontSize = 10.sp
+                                    ))
+                                }
+                                Text("C  ${r.modulos.getOrNull(0)?.resumo() ?: "—"}     F  ${r.modulos.getOrNull(1)?.resumo() ?: "—"}",
+                                    GlanceModifier.padding(top = 8.dp),
+                                    style = TextStyle(color = ColorProvider(Color(0xFF4C4C52)), fontSize = 12.sp))
+                                Text("A  ${r.modulos.getOrNull(2)?.resumo() ?: "—"}     P  ${r.modulos.getOrNull(3)?.resumo() ?: "—"}     I  ${r.modulos.getOrNull(4)?.resumo() ?: "—"}",
+                                    GlanceModifier.padding(top = 4.dp),
+                                    style = TextStyle(color = ColorProvider(Color(0xFF77777D)), fontSize = 11.sp))
                             }
                         }
                     }
-                    item { Text("— Não verificado • * Cobertura incompleta. Toque para detalhes.",
-                        style = TextStyle(color = ColorProvider(Color.Gray), fontSize = 9.sp)) }
+                    item {
+                        Text("C conteúdos • F frequência • A plano de aula • P plano de curso • I PEI. * cobertura parcial; — não verificado.",
+                            GlanceModifier.padding(vertical = 8.dp),
+                            style = TextStyle(color = ColorProvider(Color(0xFF77777D)), fontSize = 9.sp))
+                    }
                 }
             }
         }

@@ -93,10 +93,11 @@ class MainActivity : ComponentActivity() {
                 BackHandler(enabled = login) {
                     if (web.canGoBack()) web.goBack() else login = false
                 }
-                Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).padding(horizontal = if (larg >= 600) 28.dp else 12.dp, vertical = 12.dp)) {
-                    Text("SGE • Pendências por turma", style = MaterialTheme.typography.titleLarge)
+                Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).padding(horizontal = if (larg >= 600) 28.dp else 12.dp)) {
+                    Spacer(Modifier.height(10.dp))
+                    Text("Diário", style = MaterialTheme.typography.titleLarge)
+                    Text("Pendências por turma", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(Modifier.height(8.dp))
-                    Segmentado(listOf("Turmas", "SGE Web", "Coordenação"), if (login) 1 else if (coord) 2 else 0) { i -> login = i == 1; coord = i == 2 }
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         if (login) FilledTonalButton(onClick = { copiarPagina() }) { Text("Copiar página") }
                         TextButton(onClick = { ajustes = !ajustes }) { Text("Aparência") }
@@ -138,19 +139,40 @@ class MainActivity : ComponentActivity() {
                             if (painel.sincronizando) LinearProgressIndicator(Modifier.fillMaxWidth())
                             Text("— Não verificado • * Cobertura parcial: confira o detalhe. Conteúdos e frequência contam dias pendentes até hoje. Planos/PEIs incluem ausências quando a cobertura é verificada.", style = MaterialTheme.typography.bodySmall)
                             Grade(painel.turmas) { resultado ->
-                                Card(Modifier.fillMaxWidth()) {
-                                    Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                var detalhesAbertos by remember { mutableStateOf(false) }
+                                Card(
+                                    onClick = { detalhesAbertos = !detalhesAbertos },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = MaterialTheme.shapes.large,
+                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+                                ) {
+                                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                         Text("${resultado.turma.nome} • ${resultado.turma.disciplina}", style = MaterialTheme.typography.titleMedium)
-                                        Text(resultado.turma.escola, style = MaterialTheme.typography.bodySmall)
-                                        Text("Consulta: ${resultado.atualizado}", style = MaterialTheme.typography.bodySmall)
-                                        resultado.modulos.forEachIndexed { i, m ->
-                                            Text("${SgePainelStore.NOMES_MODULOS.getOrElse(i) { "Módulo" }}: ${m.resumo()}")
-                                            Text(m.detalhe, style = MaterialTheme.typography.bodySmall)
+                                        Text(resultado.turma.escola, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        Text(resultado.modulos.mapIndexed { i, m ->
+                                            "${listOf("C", "F", "A", "P", "I").getOrElse(i) { "•" }} ${m.resumo()}"
+                                        }.joinToString("   "), style = MaterialTheme.typography.bodyMedium)
+                                        Text("${if (detalhesAbertos) "Ocultar detalhes" else "Ver detalhes"}  ${if (detalhesAbertos) "⌃" else "⌄"}",
+                                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                                        if (detalhesAbertos) {
+                                            HorizontalDivider(color = MaterialTheme.colorScheme.outline)
+                                            Text("Consulta: ${resultado.atualizado}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                            resultado.modulos.forEachIndexed { i, m ->
+                                                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                                    Text("${SgePainelStore.NOMES_MODULOS.getOrElse(i) { "Módulo" }}: ${m.resumo()}", style = MaterialTheme.typography.bodyMedium)
+                                                    Text(m.detalhe, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                                }
+                                            }
                                         }
                                     }
                                 }
                             }
                         }
+                    }
+                    NavegacaoInferior(listOf("Turmas", "SGE Web", "Coordenação"), if (login) 1 else if (coord) 2 else 0) { i ->
+                        login = i == 1
+                        coord = i == 2
                     }
                 }
             }

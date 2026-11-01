@@ -22,20 +22,20 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 private val AppleClaro = lightColorScheme(
-    primary = Color(0xFF007AFF), onPrimary = Color.White, secondary = Color(0xFF8E8E93),
-    background = Color(0xFFF2F2F7), onBackground = Color.Black,
-    surface = Color.White, onSurface = Color.Black,
-    surfaceVariant = Color(0xFFE3E3E8), onSurfaceVariant = Color(0xFF6C6C70),
-    secondaryContainer = Color.White, onSecondaryContainer = Color.Black,
-    error = Color(0xFFFF3B30), tertiary = Color(0xFF34C759), outline = Color(0xFFC6C6C8)
+    primary = Color(0xFF3478F6), onPrimary = Color.White, secondary = Color(0xFF85858B),
+    background = Color(0xFFF7F7F8), onBackground = Color(0xFF1C1C1E),
+    surface = Color(0xFFFFFFFF), onSurface = Color(0xFF1C1C1E),
+    surfaceVariant = Color(0xFFF0F0F2), onSurfaceVariant = Color(0xFF707076),
+    secondaryContainer = Color(0xFFFFFFFF), onSecondaryContainer = Color(0xFF1C1C1E),
+    error = Color(0xFFE5484D), tertiary = Color(0xFF368A5B), outline = Color(0xFFE4E4E7)
 )
 private val AppleEscuro = darkColorScheme(
-    primary = Color(0xFF0A84FF), onPrimary = Color.White, secondary = Color(0xFF8E8E93),
-    background = Color.Black, onBackground = Color.White,
-    surface = Color(0xFF1C1C1E), onSurface = Color.White,
-    surfaceVariant = Color(0xFF2C2C2E), onSurfaceVariant = Color(0xFF8E8E93),
-    secondaryContainer = Color(0xFF636366), onSecondaryContainer = Color.White,
-    error = Color(0xFFFF453A), tertiary = Color(0xFF30D158), outline = Color(0xFF3A3A3C)
+    primary = Color(0xFF79A7FF), onPrimary = Color(0xFF101114), secondary = Color(0xFFA0A0A6),
+    background = Color(0xFF111113), onBackground = Color(0xFFF5F5F7),
+    surface = Color(0xFF1C1C1F), onSurface = Color(0xFFF5F5F7),
+    surfaceVariant = Color(0xFF29292D), onSurfaceVariant = Color(0xFFAAAAB0),
+    secondaryContainer = Color(0xFF303034), onSecondaryContainer = Color(0xFFF5F5F7),
+    error = Color(0xFFFF6B6B), tertiary = Color(0xFF70C492), outline = Color(0xFF39393E)
 )
 private val TipografiaApple = Typography(
     titleLarge = TextStyle(fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Bold, fontSize = 28.sp, lineHeight = 34.sp, letterSpacing = (-0.4).sp),
@@ -88,6 +88,36 @@ fun Segmentado(opcoes: List<String>, selecionado: Int, aoSelecionar: (Int) -> Un
                     color = if (sel) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
+        }
+    }
+}
+
+/** Navegação fixa e discreta, mantendo a área de conteúdo livre para rolagem. */
+@Composable
+fun NavegacaoInferior(opcoes: List<String>, selecionado: Int, aoSelecionar: (Int) -> Unit) {
+    NavigationBar(
+        containerColor = MaterialTheme.colorScheme.surface,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        tonalElevation = 0.dp
+    ) {
+        opcoes.forEachIndexed { i, texto ->
+            NavigationBarItem(
+                selected = selecionado == i,
+                onClick = { aoSelecionar(i) },
+                icon = {
+                    Text(listOf("▦", "◉", "▤")[i], style = MaterialTheme.typography.titleMedium,
+                        color = if (selecionado == i) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+                },
+                label = { Text(texto, maxLines = 1) },
+                alwaysShowLabel = true,
+                colors = NavigationBarItemDefaults.colors(
+                    selectedIconColor = MaterialTheme.colorScheme.primary,
+                    selectedTextColor = MaterialTheme.colorScheme.primary,
+                    indicatorColor = MaterialTheme.colorScheme.surfaceVariant,
+                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            )
         }
     }
 }
