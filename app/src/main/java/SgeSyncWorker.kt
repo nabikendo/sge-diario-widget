@@ -7,6 +7,7 @@ import androidx.work.*
 import br.to.seduc.sgediariowidget.data.*
 import br.to.seduc.sgediariowidget.widget.DiarioGlanceWidget
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.TimeoutCancellationException
@@ -73,7 +74,7 @@ class SgeSyncWorker(private val ctx: Context, params: WorkerParameters) : Corout
         } finally {
             // Refresh after every exit path, including cancellation/retry, so the
             // launcher widget never stays visually stuck on a stale loading view.
-            withContext(Dispatchers.Main) { DiarioGlanceWidget().updateAll(ctx) }
+            withContext(NonCancellable + Dispatchers.Main) { DiarioGlanceWidget().updateAll(ctx) }
         }
     }
     companion object {

@@ -5,6 +5,9 @@ on:
     branches: [ main, master ]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 concurrency:
   group: sge-widget-${{ github.ref }}
   cancel-in-progress: true
@@ -31,3 +34,12 @@ jobs:
         with:
           name: sge-diario-widget-apk
           path: app/build/outputs/apk/debug/app-debug.apk
+      - name: Publicar no Releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp app/build/outputs/apk/debug/app-debug.apk SGE-Diario-Widget.apk
+          gh release delete latest --cleanup-tag --yes || true
+          gh release create latest SGE-Diario-Widget.apk --target "$GITHUB_SHA" \
+            --title "SGE Diário Widget (última versão)" \
+            --notes "APK de teste gerado automaticamente. Baixe SGE-Diario-Widget.apk abaixo, em Assets."
