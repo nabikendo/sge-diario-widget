@@ -59,15 +59,17 @@ class SgeReadClient(cookies: String, private val userAgent: String, private val 
         val professor = horario.selectFirst("#idProfessor")?.let { it.attr("value").ifBlank { it.attr("data-id") } }
             ?.takeIf { it.isNotBlank() }
             ?: horario.selectFirst("#ProfessorId")?.let { el ->
-                el.attr("value").ifBlank { el.selectFirst("option:checked")?.attr("value") ?: "" }
+                el.attr("value").ifBlank { el.selectFirst("option[selected]")?.attr("value")
+                ?: el.selectFirst("option[value]:not([value=''])")?.attr("value") ?: "" }
             }?.takeIf { it.isNotBlank() }
             ?: horario.select("[name='colaboradorId'], [name='ColaboradorId']").firstOrNull()?.attr("value")
                 ?.takeIf { it.isNotBlank() }
             ?: error("O SGE não informou o identificador do professor no horário.")
         val tipo = horario.selectFirst("#Tipo")?.let { el ->
-            el.attr("value").ifBlank { el.selectFirst("option:checked")?.attr("value") ?: "" }
+            el.attr("value").ifBlank { el.selectFirst("option[selected]")?.attr("value")
+                ?: el.selectFirst("option[value]:not([value=''])")?.attr("value") ?: "" }
         }?.takeIf { it.isNotBlank() }
-            ?: horario.select("[name='Tipo'] option:checked").firstOrNull()?.attr("value")?.takeIf { it.isNotBlank() }
+            ?: horario.select("[name='Tipo'] option[selected]").firstOrNull()?.attr("value")?.takeIf { it.isNotBlank() }
             ?: error("O SGE não informou o tipo de horário selecionado.")
         val json = JSONObject(request("/HorarioDeAulaDoProfessor/QuadroHorarioProfessor", mapOf(
             "dataReferencia" to LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM/uuuu")),
