@@ -301,7 +301,7 @@ object SgeParsing {
     }
     fun janela(descricao: String, codigo: String, ano: Int): Pair<LocalDate, LocalDate> {
         val texto = descricao.trim().lowercase()
-        val mes = meses.indexOfFirst { texto.startsWith(it + " de ") } + 1
+        val mes = meses.indexOfFirst { texto.startsWith(it) } + 1
         if (mes in 1..12) {
             val y = Regex("\\b(20\\d{2})\\b").find(texto)?.value?.toInt() ?: ano
             val ym = YearMonth.of(y, mes)
