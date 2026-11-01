@@ -86,6 +86,7 @@ class MainActivity : ComponentActivity() {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Button(onClick = { login = false }, modifier = Modifier.weight(1f)) { Text("Turmas") }
                         Button(onClick = { login = true }, modifier = Modifier.weight(1f)) { Text("SGE Web") }
+                        if (login) Button(onClick = { copiarPagina() }, modifier = Modifier.weight(1f)) { Text("Copiar página") }
                     }
                     // The WebView stays attached when switching tabs, preserving the SGE document.
                     Box(Modifier.weight(1f)) {
@@ -157,6 +158,25 @@ class MainActivity : ComponentActivity() {
                     .edit().putString("turmas_contexto", v).apply()
             }
             depois()
+        }
+    }
+    /** Copia só a ESTRUTURA da página aberta no WebView (ids, colunas, rotas do menu), sem textos de células. */
+    private fun copiarPagina() {
+        if (!::web.isInitialized) return
+        val js = """(function(){function t(x){return (x||'').replace(/\s+/g,' ').trim().slice(0,40)}
+            function A(l){return Array.prototype.slice.call(l)}
+            var r={path:location.pathname,title:t(document.title)};
+            r.ids=A(document.querySelectorAll('[id]')).map(function(e){return e.id}).filter(function(i){return i.indexOf('eNomenclatura')!==0}).slice(0,80);
+            r.selects=A(document.querySelectorAll('select')).slice(0,15).map(function(s){return (s.id||s.name)+'('+s.options.length+')'});
+            r.tabelas=A(document.querySelectorAll('table')).slice(0,8).map(function(tb){return {id:tb.id,cab:A(tb.querySelectorAll('thead th')).map(function(h){return t(h.textContent)}),linhas:tb.querySelectorAll('tbody tr').length}});
+            r.menu=A(document.querySelectorAll('#left-panel a')).slice(0,100).map(function(a){var h=a.getAttribute('href')||'';return t(a.textContent)+' -> '+h.split('?')[0].slice(0,60)});
+            r.rotas=A(new Set(A(document.querySelectorAll('a[href],[data-url],[onclick]')).map(function(e){var s=e.getAttribute('href')||e.getAttribute('data-url')||e.getAttribute('onclick')||'';var m=s.match(/\/[A-Za-z]+(\/[A-Za-z]+)*/);return m?m[0]:null}).filter(Boolean))).slice(0,60);
+            return JSON.stringify(r)})()"""
+        web.evaluateJavascript(js) { raw ->
+            val txt = runCatching { JSONTokener(raw).nextValue() as? String }.getOrNull() ?: "(não foi possível ler a página)"
+            val cm = getSystemService(CLIPBOARD_SERVICE) as android.content.ClipboardManager
+            cm.setPrimaryClip(android.content.ClipData.newPlainText("pagina", txt))
+            Toast.makeText(this, "Estrutura da página copiada", Toast.LENGTH_SHORT).show()
         }
     }
     private fun verificarSessao() {
