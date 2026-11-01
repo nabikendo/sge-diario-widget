@@ -95,11 +95,20 @@ class SgeReadClient(cookies: String, private val userAgent: String, private val 
                 val matches = options.asSequence()
                     .filter { it.attr("data-turmadescricao") == nome }
                     .toList()
-                check(matches.size == 1) { "Identificação ambígua da turma $nome" }
-                val opt = matches.single()
-                check(opt.attr("data-tipodaturmaenum") == "0") { "Tipo de turma ainda não suportado" }
-                TurmaMonitorada(opt.attr("value").substringBefore('_'), nome,
-                    opt.attr("data-escoladescricao"), cells[1].text().trim())
+                // A mesma turma pode aparecer em mais de uma opção (tipos diferentes).
+                // Só as de escolarização (tipo 0) são lidas; as demais são ignoradas.
+                val escolarizacao = matches.filter { it.attr("data-tipodaturmaenum") == "0" }
+                if (escolarizacao.isEmpty()) {
+                    historico.add("Turma ignorada (tipo não suportado): opções=" + matches.joinToString { "tipo=" + it.attr("data-tipodaturmaenum") })
+                    null
+                } else {
+                    val ids = escolarizacao.map { it.attr("value").substringBefore('_') }.distinct()
+                    check(ids.size == 1) {
+                        "Identificação ambígua da turma $nome: " + escolarizacao.joinToString { "valor=" + it.attr("value") }
+                    }
+                    val opt = escolarizacao.first()
+                    TurmaMonitorada(ids.single(), nome, opt.attr("data-escoladescricao"), cells[1].text().trim())
+                }
             }
         }.distinct()
         check(found.isNotEmpty()) { "Horário sem turmas para a data de referência" }
