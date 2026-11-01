@@ -86,6 +86,12 @@ fun AppDiario(
                     Icon(SgeIcons.Back, "Voltar", Modifier.size(21.dp))
                 } else Icon(SgeIcons.Book, null, Modifier.padding(12.dp).size(22.dp), tint = MaterialTheme.colorScheme.primary)
                 Text(titulo, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                if (pagina == null && detalhe == null && aba != 2) IconButton(
+                    onClick = { if (aba == 1) aoVerificarTurmas(conhecidas.map { it.first }) else aoSincronizarPessoal() },
+                    enabled = !(if (aba == 1) coord.sincronizando else painel.sincronizando) && (aba != 1 || conhecidas.isNotEmpty())) {
+                    if (if (aba == 1) coord.sincronizando else painel.sincronizando) CircularProgressIndicator(Modifier.size(19.dp), strokeWidth = 2.dp)
+                    else Icon(SgeIcons.Refresh, if (aba == 1) "Verificar turmas" else "Atualizar diário", Modifier.size(21.dp))
+                }
                 if (webVisivel) IconButton(onClick = aoCopiarPagina) { Icon(SgeIcons.Export, "Copiar estrutura da página", Modifier.size(20.dp)) }
                 IconButton(onClick = { focus.clearFocus(); pagina = "ajuda" }) { Icon(SgeIcons.Info, "Legendas e ajuda", Modifier.size(21.dp)) }
                 IconButton(onClick = { focus.clearFocus(); pagina = "ajustes" }) { Icon(SgeIcons.Settings, "Ajustes", Modifier.size(21.dp)) }

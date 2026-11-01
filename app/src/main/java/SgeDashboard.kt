@@ -11,6 +11,7 @@ enum class EstadoGrupo { PENDENTE, CONFERIR, EM_DIA, SEM_DADOS }
 
 fun normalizarSge(texto: String): String = Normalizer.normalize(texto, Normalizer.Form.NFD)
     .replace(Regex("\\p{M}+"), "").replace('\u00a0', ' ').trim().replace(Regex("\\s+"), " ").lowercase()
+fun contarSge(n: Int, singular: String, plural: String) = "$n ${if (n == 1) singular else plural}"
 fun chaveResultado(r: ResultadoTurma) = chaveVinculo(r.turma.id, r.turma.disciplina)
 fun chaveVinculo(turmaId: String, componente: String) = "$turmaId|${normalizarSge(componente)}"
 
@@ -108,9 +109,9 @@ object SgeDashboard {
             }
             val subtitulo = when (por) {
                 Agrupamento.TURMA -> componentes.joinToString(" · ")
-                Agrupamento.COMPONENTE -> "${turmas.size} turma(s)"
+                Agrupamento.COMPONENTE -> contarSge(turmas.size, "turma", "turmas")
                 Agrupamento.PROFESSOR -> if (docentes.size > 1) docentes.joinToString(" · ") { it.nome }
-                    else "${turmas.size} turma(s) · ${componentes.size} componente(s)"
+                    else contarSge(turmas.size, "turma", "turmas") + " · " + contarSge(componentes.size, "componente", "componentes")
             }
             GrupoPendencias(key, titulo, subtitulo, itens, turmas.toSet(), docentes.map { it.id }.toSet(),
                 docentes.size > 1, itens.any { locais.containsKey(chaveResultado(it)) })

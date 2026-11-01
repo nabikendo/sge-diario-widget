@@ -11,7 +11,9 @@ data class PainelDocentes(
     val mensagem: String = "Atualize os vínculos para agrupar a coordenação por professor.",
     val sincronizando: Boolean = false,
     val inicio: Long = 0L
-)
+) {
+    fun opcoesDocentes(): List<DocenteRef> = (professores + locais.values.flatten()).distinctBy { it.id }.sortedBy { normalizarSge(it.nome) }
+}
 
 object SgeDocentesStore {
     private const val KEY = "vinculos_docentes_v1"

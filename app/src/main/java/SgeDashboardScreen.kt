@@ -2,6 +2,7 @@
 package br.to.seduc.sgediariowidget
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -11,7 +12,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -71,7 +71,7 @@ fun CartaoGrupo(grupo: GrupoPendencias, por: Agrupamento, abrir: () -> Unit) {
                                 style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }
                     }
-                    if (pendentes.size > 2) Text("+ ${pendentes.size - 2} módulo(s) com pendências", style = MaterialTheme.typography.labelSmall,
+                    if (pendentes.size > 2) Text("+ ${contarSge(pendentes.size - 2, "módulo", "módulos")} com pendências", style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             } else Text(when(grupo.estado) {
@@ -102,12 +102,11 @@ fun MensagemVazia(titulo: String, texto: String, acao: String? = null, aoAgir: (
     }
 }
 
-@Composable private fun NumeroResumo(numero: Int, titulo: String, icone: ImageVector, cor: Color, modifier: Modifier) {
+@Composable private fun NumeroResumo(numero: Int, titulo: String, cor: Color, modifier: Modifier) {
     Surface(modifier, color = cor.copy(alpha = .065f), shape = MaterialTheme.shapes.medium) {
-        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-            Icon(icone, null, Modifier.size(20.dp), tint = cor)
+        Row(Modifier.padding(13.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(numero.toString(), style = MaterialTheme.typography.headlineMedium, color = cor)
-            Text(titulo, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(titulo, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
@@ -121,6 +120,9 @@ fun TelaCartoes(
 ) {
     var busca by rememberSaveable(fonte.name) { mutableStateOf("") }
     var filtro by rememberSaveable(fonte.name) { mutableStateOf(0) }
+    var mostrarBusca by rememberSaveable(fonte.name) { mutableStateOf(false) }
+    var menuFiltro by remember { mutableStateOf(false) }
+    var mostrarMensagem by remember { mutableStateOf(false) }
     val escola = fonte == FontePainel.COORDENACAO
     val resultados = remember(escola, coord.turmas, painel.turmas) { if (escola) coord.turmas.flatMap { it.disciplinas } else painel.turmas }
     val grupos = remember(resultados, docentes, conhecidas, por, escola) {
@@ -149,24 +151,20 @@ fun TelaCartoes(
         }
         item(span = { GridItemSpan(maxLineSpan) }) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                NumeroResumo(pendentes, "turmas com pendências", SgeIcons.Clock, MaterialTheme.colorScheme.error, Modifier.weight(1f))
-                NumeroResumo(conferir, "turmas a conferir", SgeIcons.Info, corAlerta(), Modifier.weight(1f))
+                NumeroResumo(pendentes, if (pendentes == 1) "turma com pendências" else "turmas com pendências", MaterialTheme.colorScheme.error, Modifier.weight(1f))
+                NumeroResumo(conferir, if (conferir == 1) "turma a conferir" else "turmas a conferir", corAlerta(), Modifier.weight(1f))
             }
         }
         item(span = { GridItemSpan(maxLineSpan) }) {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Button(onClick = aoSincronizar, enabled = !carregando && (!escola || conhecidas.isNotEmpty()), shape = RoundedCornerShape(50.dp)) {
-                        if (carregando) CircularProgressIndicator(Modifier.size(17.dp), strokeWidth = 2.dp)
-                        else Icon(SgeIcons.Refresh, null, Modifier.size(17.dp))
-                        Spacer(Modifier.width(7.dp)); Text(if (carregando) "Consultando…" else if (escola) "Verificar turmas" else "Atualizar diário")
-                    }
-                    if (escola) OutlinedButton(onClick = aoCarregarTurmas, shape = RoundedCornerShape(50.dp)) { Text("Carregar turmas") }
-                    TextButton(onClick = aoAjuda) { Icon(SgeIcons.Info, null, Modifier.size(17.dp)); Spacer(Modifier.width(5.dp)); Text("Legendas") }
-                }
+            Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
                 if (carregando) LinearProgressIndicator(Modifier.fillMaxWidth())
-                Text(if (escola) coord.mensagem else painel.mensagem, style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text(if (escola) coord.mensagem else painel.mensagem,
+                        modifier = Modifier.weight(1f).clickable { mostrarMensagem = true }.padding(vertical = 4.dp),
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    if (escola) TextButton(onClick = aoCarregarTurmas) { Text(if (conhecidas.isEmpty()) "Carregar turmas" else "Reler turmas") }
+                }
             }
         }
         item(span = { GridItemSpan(maxLineSpan) }) {
@@ -175,29 +173,44 @@ fun TelaCartoes(
         }
         if (escola && por == Agrupamento.PROFESSOR) item(span = { GridItemSpan(maxLineSpan) }) {
             Surface(shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.primaryContainer) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text("Professores do horário", style = MaterialTheme.typography.titleSmall)
-                    Text("Os registros são da turma e do componente. Vários docentes no mesmo vínculo aparecem juntos, sem duplicar as pendências.",
-                        style = MaterialTheme.typography.bodySmall)
-                    Text(docentes.mensagem, style = MaterialTheme.typography.bodySmall)
-                    TextButton(onClick = aoAtualizarDocentes, enabled = conhecidas.isNotEmpty() && !docentes.sincronizando) {
-                        Text(if (docentes.sincronizando) "Lendo vínculos…" else "Atualizar vínculos docentes")
+                Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text("Professores do horário", style = MaterialTheme.typography.titleSmall)
+                        Text(docentes.mensagem, style = MaterialTheme.typography.bodySmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    }
+                    IconButton(onClick = aoAtualizarDocentes, enabled = conhecidas.isNotEmpty() && !docentes.sincronizando) {
+                        if (docentes.sincronizando) CircularProgressIndicator(Modifier.size(19.dp), strokeWidth = 2.dp)
+                        else Icon(SgeIcons.Refresh, "Atualizar vínculos docentes", Modifier.size(21.dp))
                     }
                 }
             }
         }
         item(span = { GridItemSpan(maxLineSpan) }) {
-            OutlinedTextField(value = busca, onValueChange = { busca = it }, modifier = Modifier.fillMaxWidth(), singleLine = true,
-                placeholder = { Text("Buscar ${por.titulo.lowercase()}") }, leadingIcon = { Icon(SgeIcons.Search, null, Modifier.size(19.dp)) },
-                trailingIcon = if (busca.isNotEmpty()) ({ IconButton(onClick = { busca = "" }) { Icon(SgeIcons.Close, "Limpar busca", Modifier.size(17.dp)) } }) else null,
-                shape = MaterialTheme.shapes.medium)
-        }
-        item(span = { GridItemSpan(maxLineSpan) }) {
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                listOf("Todas", "Pendências", "A conferir", "Em dia").forEachIndexed { i, label ->
-                    FilterChip(selected = filtro == i, onClick = { filtro = i }, label = { Text(label) }, shape = RoundedCornerShape(50.dp))
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text("${visiveis.size} ${if (visiveis.size == 1) "cartão" else "cartões"}", style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+                TextButton(onClick = { mostrarBusca = !mostrarBusca }) {
+                    Icon(SgeIcons.Search, null, Modifier.size(17.dp)); Spacer(Modifier.width(5.dp)); Text("Buscar")
+                }
+                Box {
+                    TextButton(onClick = { menuFiltro = true }) {
+                        Icon(SgeIcons.Settings, null, Modifier.size(17.dp)); Spacer(Modifier.width(5.dp))
+                        Text(listOf("Filtrar", "Pendências", "A conferir", "Em dia")[filtro])
+                    }
+                    DropdownMenu(expanded = menuFiltro, onDismissRequest = { menuFiltro = false }) {
+                        listOf("Todas as situações", "Pendências", "A conferir", "Em dia").forEachIndexed { i, label ->
+                            DropdownMenuItem(text = { Text(label) }, onClick = { filtro = i; menuFiltro = false },
+                                trailingIcon = if (filtro == i) ({ Icon(SgeIcons.Check, null, Modifier.size(17.dp)) }) else null)
+                        }
+                    }
                 }
             }
+        }
+        if (mostrarBusca || busca.isNotBlank()) item(span = { GridItemSpan(maxLineSpan) }) {
+            OutlinedTextField(value = busca, onValueChange = { busca = it }, modifier = Modifier.fillMaxWidth(), singleLine = true,
+                placeholder = { Text("Buscar ${por.titulo.lowercase()}") }, leadingIcon = { Icon(SgeIcons.Search, null, Modifier.size(19.dp)) },
+                trailingIcon = ({ IconButton(onClick = { busca = ""; mostrarBusca = false }) { Icon(SgeIcons.Close, "Fechar busca", Modifier.size(17.dp)) } }),
+                shape = MaterialTheme.shapes.medium)
         }
         if (grupos.isEmpty()) item(span = { GridItemSpan(maxLineSpan) }) {
             MensagemVazia(if (escola) "Conecte sua escola" else "Seu diário começa aqui",
@@ -212,4 +225,7 @@ fun TelaCartoes(
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
+    if (mostrarMensagem) AlertDialog(onDismissRequest = { mostrarMensagem = false }, title = { Text("Última atualização") },
+        text = { Text(if (escola) coord.mensagem else painel.mensagem) },
+        confirmButton = { TextButton(onClick = { mostrarMensagem = false }) { Text("Entendi") } })
 }

@@ -99,7 +99,7 @@ fun TelaDetalhes(grupo: GrupoPendencias, fonte: FontePainel, docentes: PainelDoc
                     }
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         Text(SgeDashboard.nomes[resumo.indice], style = MaterialTheme.typography.titleMedium)
-                        Text(if (resumo.quantidade == null) "Não verificado" else "${resumo.valor()} ${resumo.unidade()} pendentes",
+                        Text(if (resumo.quantidade == null) "Não verificado" else "${resumo.valor()} ${resumo.unidade()} ${if (resumo.quantidade == 1) "pendente" else "pendentes"}",
                             style = MaterialTheme.typography.bodyMedium, color = cor)
                     }
                     Icon(if (aberto) SgeIcons.Close else SgeIcons.Chevron, if (aberto) "Recolher" else "Ver detalhes",
@@ -140,7 +140,7 @@ fun VinculoDialog(resultado: ResultadoTurma, dados: PainelDocentes, cancelar: ()
     val iniciais = dados.locais[chaveResultado(resultado)] ?: dados.vinculos.filter {
         chaveVinculo(it.turmaId, it.componente) == chaveResultado(resultado)
     }.map { it.docente }.distinctBy { it.id }
-    var opcoes by remember { mutableStateOf((dados.professores + iniciais).distinctBy { it.id }) }
+    var opcoes by remember { mutableStateOf((dados.opcoesDocentes() + iniciais).distinctBy { it.id }) }
     var ids by remember { mutableStateOf(iniciais.map { it.id }.toSet()) }
     var busca by remember { mutableStateOf("") }
     var nomeNovo by remember { mutableStateOf("") }
@@ -163,10 +163,11 @@ fun VinculoDialog(resultado: ResultadoTurma, dados: PainelDocentes, cancelar: ()
                     }
                 }
                 OutlinedTextField(nomeNovo, { nomeNovo = it }, singleLine = true, label = { Text("Adicionar nome local") })
-                TextButton(enabled = nomeNovo.isNotBlank(), onClick = {
+                TextButton(enabled = nomeNovo.isNotBlank() && opcoes.none { normalizarSge(it.nome) == normalizarSge(nomeNovo) }, onClick = {
                     val p = DocenteRef("local:${UUID.randomUUID()}", nomeNovo.trim())
                     opcoes = opcoes + p; ids = ids + p.id; nomeNovo = ""
                 }) { Icon(SgeIcons.Plus, null, Modifier.size(15.dp)); Spacer(Modifier.width(5.dp)); Text("Adicionar à seleção") }
+                if (nomeNovo.isNotBlank() && opcoes.any { normalizarSge(it.nome) == normalizarSge(nomeNovo) }) Text("Este nome já está na lista. Marque o professor acima.", style = MaterialTheme.typography.bodySmall)
                 TextButton(onClick = { salvar(null) }) { Text("Usar vínculos do SGE") }
             }
         }, confirmButton = { Button(onClick = { salvar(opcoes.filter { it.id in ids }) }) { Text("Salvar vínculo") } },

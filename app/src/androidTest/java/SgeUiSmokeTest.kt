@@ -4,6 +4,7 @@ import android.graphics.Bitmap
 import android.content.ContentValues
 import android.provider.MediaStore
 import android.webkit.WebView
+import android.widget.FrameLayout
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -13,6 +14,12 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.DpSize
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.glance.ExperimentalGlanceApi
+import androidx.glance.appwidget.compose
+import br.to.seduc.sgediariowidget.widget.*
+import kotlinx.coroutines.runBlocking
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import br.to.seduc.sgediariowidget.data.*
@@ -95,4 +102,23 @@ class SgeUiSmokeTest {
         compose.onNodeWithText("Cartão em foco").assertExists()
         foto("05-galeria-widgets")
     }
+    @OptIn(ExperimentalGlanceApi::class)
+    @Test fun widgetsCompactosRenderizamDadosConhecidos() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        SgePainelStore.salvar(context, PainelSge(rs, "Dados ilustrativos."))
+        val resumo = runBlocking { ResumoGlanceWidget().compose(context, size = DpSize(170.dp, 170.dp)) }
+        val foco = runBlocking { FocoGlanceWidget().compose(context, size = DpSize(340.dp, 180.dp)) }
+        content {
+            Column(Modifier.fillMaxSize().padding(18.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
+                Text("Widgets compactos", style = MaterialTheme.typography.headlineMedium)
+                Text("Resumo do diário · 2 × 2", style = MaterialTheme.typography.labelLarge)
+                AndroidView(factory = { c -> FrameLayout(c).apply { addView(resumo.apply(c, this)) } }, modifier = Modifier.size(170.dp))
+                Text("Cartão em foco · 4 × 2", style = MaterialTheme.typography.labelLarge)
+                AndroidView(factory = { c -> FrameLayout(c).apply { addView(foco.apply(c, this)) } }, modifier = Modifier.width(340.dp).height(180.dp))
+            }
+        }
+        compose.onNodeWithText("Widgets compactos").assertIsDisplayed()
+        foto("06-widgets-compactos")
+    }
+
 }

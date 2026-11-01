@@ -60,6 +60,11 @@ class SgeDashboardTest {
         assertEquals(listOf(antiga), SgeDashboard.progresso(listOf(antiga, outra), emptyList(), setOf(chaveResultado(antiga))))
         assertEquals(listOf(nova), SgeDashboard.progresso(listOf(antiga, outra), listOf(nova), setOf(chaveResultado(antiga))))
     }
+    @Test fun professoresLocaisFicamDisponiveisParaOutrasTurmasComOMesmoId() {
+        val docente = DocenteRef("local:1", "Docente local")
+        val p = PainelDocentes(locais = mapOf("turma1|quimica" to listOf(docente), "turma2|fisica" to listOf(docente)))
+        assertEquals(listOf(docente), p.opcoesDocentes())
+    }
     @Test fun linhasRepetidasNaoInflamTotais() {
         val resultado = r("1", primeiro = ResultadoModulo(2, coberturaCompleta = true))
         assertEquals(2, SgeDashboard.resumir(listOf(resultado, resultado))[0].quantidade)

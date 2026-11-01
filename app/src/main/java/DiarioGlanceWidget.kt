@@ -144,17 +144,23 @@ open class SgeBaseWidget(private val tipo: TipoWidget) : GlanceAppWidget() {
             val pessoal = SgePainelStore.ler(context); val coord = SgeCoordStore.ler(context)
             val ocupado = if (config.fonte == FontePainel.PESSOAL) pessoal.sincronizando else coord.sincronizando
             val size = LocalSize.current
+            val focoIndice = grupos.indexOfFirst { it.chave == SgeWidgetStore.foco(context, widgetId) }.coerceAtLeast(0)
             val ajustar = actionStartActivity(Intent(context, WidgetConfigActivity::class.java).putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId))
             Column(GlanceModifier.fillMaxSize().background(c.fundo).cornerRadius(28.dp).padding(12.dp)) {
                 Row(GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Column(GlanceModifier.defaultWeight().clickable(abrir(context, config))) {
                         Text(if (config.fonte == FontePainel.COORDENACAO) "SGE · ESCOLA" else "SGE · MEU DIÁRIO",
                             style = TextStyle(color = ColorProvider(c.secundario), fontSize = 9.sp, fontWeight = FontWeight.Medium), maxLines = 1)
-                        Text(if (tipo == TipoWidget.FOCO) "Em foco" else tipo.titulo,
+                        Text(when(tipo) { TipoWidget.FOCO -> "Em foco · ${if (grupos.isEmpty()) 0 else focoIndice + 1}/${grupos.size}"
+                            TipoWidget.RESUMO -> if (config.fonte == FontePainel.COORDENACAO) "Minha escola" else "Meu diário"; else -> tipo.titulo },
                             style = TextStyle(color = ColorProvider(c.texto), fontSize = if (size.width < 200.dp) 13.sp else 16.sp, fontWeight = FontWeight.Bold), maxLines = 1)
                     }
+                    if (tipo == TipoWidget.FOCO && grupos.size > 1) {
+                        IconeWidget(R.drawable.ic_widget_up, "Recorte anterior", c.texto, actionRunCallback<AlternarFocoAction>(actionParametersOf(deltaKey to -1)))
+                        IconeWidget(R.drawable.ic_widget_down, "Próximo recorte", c.texto, actionRunCallback<AlternarFocoAction>(actionParametersOf(deltaKey to 1)))
+                    }
                     IconeWidget(R.drawable.ic_widget_settings, "Ajustar widget", c.secundario, ajustar)
-                    if (size.width >= 230.dp) IconeWidget(R.drawable.ic_widget_refresh, "Atualizar dados", c.acento, actionRunCallback<RefreshActionCallback>())
+                    if (size.width >= 230.dp && tipo != TipoWidget.FOCO) IconeWidget(R.drawable.ic_widget_refresh, "Atualizar dados", c.acento, actionRunCallback<RefreshActionCallback>())
                 }
                 when {
                     tipo == TipoWidget.RESUMO -> ResumoWidget(grupos, config, c, context, size.height < 180.dp, ocupado)
@@ -165,18 +171,11 @@ open class SgeBaseWidget(private val tipo: TipoWidget) : GlanceAppWidget() {
                         Text("Toque para ajustar", GlanceModifier.padding(top = 8.dp), style = TextStyle(color = ColorProvider(c.acento), fontSize = 11.sp))
                     }
                     tipo == TipoWidget.FOCO -> {
-                        val indice = grupos.indexOfFirst { it.chave == SgeWidgetStore.foco(context, widgetId) }.coerceAtLeast(0)
+                        val indice = focoIndice
                         val grupo = grupos[indice]
                         Column(GlanceModifier.defaultWeight().padding(top = 10.dp)) {
                             CartaoWidget(grupo, if (config.ocultarNomes) "Recorte ${indice + 1}" else grupo.titulo,
                                 config, c, context, compacto = size.height < 215.dp)
-                        }
-                        if (grupos.size > 1) Row(GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                            IconeWidget(R.drawable.ic_widget_up, "Recorte anterior", c.texto,
-                                actionRunCallback<AlternarFocoAction>(actionParametersOf(deltaKey to -1)))
-                            Text("${indice + 1} / ${grupos.size}", GlanceModifier.defaultWeight(), style = TextStyle(color = ColorProvider(c.secundario), fontSize = 10.sp))
-                            IconeWidget(R.drawable.ic_widget_down, "Próximo recorte", c.texto,
-                                actionRunCallback<AlternarFocoAction>(actionParametersOf(deltaKey to 1)))
                         }
                     }
                     else -> {
@@ -248,7 +247,7 @@ open class SgeBaseWidget(private val tipo: TipoWidget) : GlanceAppWidget() {
                     Text("a conferir", style = TextStyle(color = ColorProvider(c.secundario), fontSize = 10.sp))
                 }
             }
-            if (!compacto && !config.soAtencao) Text("${turmas.count { it.estado == EstadoGrupo.EM_DIA }} turma(s) com todos os módulos em dia", GlanceModifier.padding(top = 10.dp),
+            if (!compacto && !config.soAtencao) Text("${contarSge(turmas.count { it.estado == EstadoGrupo.EM_DIA }, "turma", "turmas")} com todos os módulos em dia", GlanceModifier.padding(top = 10.dp),
                 style = TextStyle(color = ColorProvider(c.ok), fontSize = 11.sp), maxLines = 2)
         }
     }
