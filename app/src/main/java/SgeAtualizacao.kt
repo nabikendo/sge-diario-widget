@@ -17,6 +17,7 @@ import androidx.compose.material3.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import br.to.seduc.sgediariowidget.data.readBytesLimitados
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -43,6 +44,19 @@ object PoliticaAtualizacao {
         return o
     }
     fun assinaturaPermitida(atuais: Set<String>, novas: Set<String>, historicoNovo: Set<String>): Boolean = atuais.isNotEmpty() && novas.isNotEmpty() && (atuais == novas || (atuais.size == 1 && novas.size == 1 && historicoNovo.containsAll(atuais)))
+}
+
+object SgeValidadorApk {
+    fun validar(ctx: Context, arquivo: File, o: OfertaAtualizacao, atual: android.content.pm.PackageInfo = ctx.packageManager.getPackageInfo(ctx.packageName, PackageManager.GET_SIGNING_CERTIFICATES)) {
+        require(arquivo.length() == o.tamanho) { "Tamanho do APK inválido." }
+        val digest = MessageDigest.getInstance("SHA-256")
+        arquivo.inputStream().use { entrada -> val buffer = ByteArray(32768); while(true) { val n=entrada.read(buffer);if(n<0)break;digest.update(buffer,0,n) } }
+        require(digest.digest().joinToString("") { "%02x".format(it) } == o.sha256) { "Integridade do APK inválida." }
+        val novo = ctx.packageManager.getPackageArchiveInfo(arquivo.absolutePath,PackageManager.GET_SIGNING_CERTIFICATES) ?: error("APK inválido.")
+        require(novo.packageName == ctx.packageName && novo.packageName == o.pacote && novo.longVersionCode == o.codigo && novo.longVersionCode > atual.longVersionCode && (novo.applicationInfo?.minSdkVersion ?: Int.MAX_VALUE) <= Build.VERSION.SDK_INT) { "APK incompatível com este aplicativo." }
+        fun certs(s: Array<android.content.pm.Signature>?): Set<String> = s.orEmpty().map { it.toCharsString() }.toSet()
+        require(PoliticaAtualizacao.assinaturaPermitida(certs(atual.signingInfo?.apkContentsSigners),certs(novo.signingInfo?.apkContentsSigners),certs(novo.signingInfo?.signingCertificateHistory))) { "A assinatura não corresponde ao aplicativo instalado." }
+    }
 }
 
 class SgeAtualizador(private val ctx: Context) {
@@ -91,7 +105,8 @@ class SgeAtualizador(private val ctx: Context) {
                 prefs.edit().putString("oferta",nova.json()).apply()
                 if (!manual && (prefs.getLong("adiar_codigo",-1) != nova.codigo || System.currentTimeMillis() >= prefs.getLong("adiar_ate",0))) aberto = true
             } else prefs.edit().remove("oferta").apply()
-        } catch (e: Exception) { mensagem = "Não foi possível verificar a atualização. Tente novamente com internet." }
+        } catch (e: CancellationException) { throw e }
+        catch (e: Exception) { mensagem = "Não foi possível verificar a atualização. Tente novamente com internet." }
         finally { ocupado = false }
     }
     private fun baixarJson(url: String): String {
@@ -112,7 +127,7 @@ class SgeAtualizador(private val ctx: Context) {
     fun baixar() {
         val o = oferta ?: return
         cancelarDownload()
-        val pasta = File(ctx.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS),"atualizacoes").apply { mkdirs() }
+        val pasta = File(checkNotNull(ctx.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)),"atualizacoes").apply { mkdirs() }
         pasta.listFiles()?.forEach { it.delete() }
         val dest = File(pasta,"atualizacao.apk")
         val r = DownloadManager.Request(Uri.parse(o.url)).setTitle("SGE Diário ${o.versao}").setDescription("Atualização solicitada por você")
@@ -146,11 +161,7 @@ class SgeAtualizador(private val ctx: Context) {
                     while (true) { val n = entrada.read(buffer); if (n < 0) break; tamanho += n; require(tamanho <= o.tamanho) { "Tamanho do APK inválido." }; hash.update(buffer,0,n); saida.write(buffer,0,n) }
                 } }
                 require(tamanho == o.tamanho && hash.digest().joinToString("") { "%02x".format(it) } == o.sha256) { "Integridade do APK inválida. Baixe novamente." }
-                val novo = ctx.packageManager.getPackageArchiveInfo(arquivo.absolutePath,PackageManager.GET_SIGNING_CERTIFICATES) ?: error("APK inválido.")
-                val atual = info
-                require(novo.packageName == ctx.packageName && novo.longVersionCode == o.codigo && novo.longVersionCode > atual.longVersionCode && (novo.applicationInfo?.minSdkVersion ?: Int.MAX_VALUE) <= Build.VERSION.SDK_INT) { "APK incompatível com este aplicativo." }
-                fun certs(s: Array<android.content.pm.Signature>?): Set<String> = s.orEmpty().map { it.toCharsString() }.toSet()
-                require(PoliticaAtualizacao.assinaturaPermitida(certs(atual.signingInfo?.apkContentsSigners),certs(novo.signingInfo?.apkContentsSigners),certs(novo.signingInfo?.signingCertificateHistory))) { "A assinatura não corresponde ao aplicativo instalado." }
+                SgeValidadorApk.validar(ctx,arquivo,o)
                 arquivo
             } catch (e: Exception) { arquivo.delete(); throw e }
         } } finally { ocupado = false }

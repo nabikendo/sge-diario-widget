@@ -19,4 +19,8 @@ class SgePerfilAgendaTest {
         assertEquals(24 * 60 * 60 * 1000L, SgeAgendaNoturna.atraso(ZonedDateTime.parse("2026-11-01T03:00:00-03:00[America/Fortaleza]")))
         assertEquals(23 * 60 * 60 * 1000L, SgeAgendaNoturna.atraso(ZonedDateTime.parse("2026-12-31T04:00:00Z[UTC]")))
     }
+    @Test fun horarioEscolhidoUsaProximaOcorrenciaNoFusoLocal() {
+        assertEquals(2*60*60*1000L,SgeAgendaNoturna.atraso(ZonedDateTime.parse("2026-11-01T02:00:00-03:00[America/Fortaleza]"),4))
+    }
+
 }

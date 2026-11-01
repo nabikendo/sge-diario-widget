@@ -96,6 +96,7 @@ object SgeRelatorioPdf {
                 (0..4).forEach { i -> val m = r.modulos.getOrNull(i) ?: ResultadoModulo()
                     val unidade = if (m.quantidade == null) "" else if (i < 2) if (m.quantidade == 1) " dia" else " dias" else if (m.quantidade == 1) " documento" else " documentos"
                     linha("${SgeDashboard.nomes[i]}: ${m.resumo()}$unidade${if (i >= 2) "; aguardando: ${m.aguardando}; aprovados: ${m.aprovados}" else ""}.", 10f)
+                    if ((m.quantidade ?: 0) > 0 || !m.coberturaCompleta) linha(m.detalhe, 9f, cor = Color.rgb(91, 97, 108))
                 }
             }
             y += 10f
@@ -107,16 +108,16 @@ object SgeRelatorioPdf {
                 if (!recibos) novaPagina()
                 linha("RECEBIMENTO E CIÊNCIA", 21f, true)
                 y += 10f
-                linha("Professor(a): ${grupo.titulo}", 14f, true)
+                linha("Professor(a): ${grupo.titulo.take(130)}", 14f, true)
                 if (escola.isNotBlank()) linha("Escola: $escola", 12f)
                 linha("Relatório gerado em ${agora.format(DateTimeFormatter.ofPattern("dd/MM/uuuu HH:mm"))}.", 10f)
-                if (recorte.isNotBlank()) linha("Recorte: $recorte", 10f)
+                if (recorte.isNotBlank()) linha("Recorte: ${recorte.take(180)}", 10f)
                 y += 12f
                 linha("Turmas e componentes contemplados", 13f, true)
                 // O recibo é uma folha de protocolo. A relação completa permanece no relatório anexo.
                 val itens = grupo.resultados.map { "${it.turma.nome} · ${it.turma.disciplina}" }.distinct()
-                itens.take(8).forEach { linha(it, 10f) }
-                if (itens.size > 8) linha("Mais ${itens.size - 8} item(ns), discriminados no relatório anexo.", 10f)
+                itens.take(6).forEach { linha(it.take(95), 10f) }
+                if (itens.size > 6) linha("Mais ${itens.size - 6} item(ns), discriminados no relatório anexo.", 10f)
                 y += 12f
                 linha("Declaro que recebo o relatório de acompanhamento do SGE Diário identificado acima e tomo ciência das informações, pendências e itens a conferir nele indicados.", 12f)
                 linha("Os dados refletem a última consulta de cada turma e componente. Itens não verificados ou com cobertura parcial exigem conferência no SGE. O recebimento não confirma a exatidão de itens não verificados.", 10f)

@@ -111,6 +111,13 @@ class MainActivity : FragmentActivity() {
             var papel by remember { mutableStateOf(prefs.getInt("papel", 0)) }
             var lembrete by remember { mutableStateOf(prefs.getBoolean("lembrete", false)) }
             val scope = rememberCoroutineScope()
+            DisposableEffect(this@MainActivity, webVisivel) {
+                val observer = androidx.lifecycle.LifecycleEventObserver { _, evento ->
+                    if (evento == Lifecycle.Event.ON_RESUME && !webVisivel && prefs.getBoolean("introducao_v2",false)) scope.launch { atualizador.verificar(false) }
+                }
+                lifecycle.addObserver(observer)
+                onDispose { lifecycle.removeObserver(observer) }
+            }
             DisposableEffect(prefs) {
                 val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, chave -> runOnUiThread {
                     if (chave == null || chave == "historico_semanal_v1") historico = SgeHistoricoStore.ler(this@MainActivity)

@@ -8,6 +8,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -62,7 +63,7 @@ fun descreverFiltro(f: FiltroAvancado, docentes: PainelDocentes): String = listO
     val filtrados = SgeOrganizacao.filtrar(rs,filtro,org,docentes)
     val grupos = if(professores) SgeOrganizacao.porProfessor(filtrados,docentes,filtro.professor) else SgeDashboard.agrupar(filtrados,Agrupamento.TURMA) + if(!filtro.ativo) conhecidas.filter { (id,_)->filtrados.none { it.turma.id==id } }.map { (id,nome)->GrupoPendencias("turma:$id",nome,"Sem consulta",emptyList(),setOf(id)) } else emptyList()
     val scroll = rememberScrollState()
-    LazyColumn(contentPadding=PaddingValues(20.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
+    LazyColumn(modifier=Modifier.testTag("mapa-lista"),contentPadding=PaddingValues(20.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
         item { Text("Mapa da escola",style=MaterialTheme.typography.displaySmall) }
         item { Text("Visão das pendências por turma ou professor. Deslize na horizontal para ver os módulos e toque numa célula para abrir os detalhes.") }
         item { BarraRecorte(filtro,filtrar) }
