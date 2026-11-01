@@ -2,7 +2,7 @@ name: Build SGE Widget APK
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ main, master, feat/ios-inspired-neutral-ui ]
   workflow_dispatch:
 
 permissions:
