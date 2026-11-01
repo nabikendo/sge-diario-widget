@@ -129,7 +129,8 @@ object SgeRelatorioTabela {
             rodape(); numero++
             pagina = pdf.startPage(PdfDocument.PageInfo.Builder(595, 842, numero).create()); canvas = pagina!!.canvas
             estilo(12f, true, AZUL)
-            canvas.drawText("SGE DIÁRIO  /  ${if (fonte == FontePainel.COORDENACAO) "COORDENAÇÃO" else "MEU DIÁRIO"}", L, 40f, tinta)
+            val perfilTxt = if (fonte == FontePainel.COORDENACAO) "COORDENAÇÃO" else "MEU DIÁRIO"
+            canvas.drawText("SGE DIÁRIO  /  $perfilTxt", L, 40f, tinta)
             tinta.color = Color.rgb(222, 226, 234); canvas.drawRect(L, 47f, L + W, 48f, tinta)
             y = 70f
         }

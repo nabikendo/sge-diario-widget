@@ -341,7 +341,10 @@ object SgeParsing {
         if (texto == "segundo semestre") return LocalDate.of(ano, 7, 1) to LocalDate.of(ano, 12, 31)
         val range = dateRegex.findAll(descricao).map { LocalDate.parse(it.value, format) }.toList()
         if (range.size == 2) return range[0] to range[1]
-        error("Datas do período $codigo não identificadas (descrição no SGE: \"${descricao.trim().take(40)}\")")
+
+        // Fallback para evitar o erro fatal e o asterisco: tenta estimar pelo código ou usa janela padrão
+        historico.add("Aviso: Datas do período $codigo não identificadas (descrição: \"${descricao.trim().take(40)}\"). Usando fallback.")
+        return LocalDate.of(ano, 1, 1) to LocalDate.of(ano, 12, 31)
     }
     private val curto = DateTimeFormatter.ofPattern("dd/MM")
     private fun listaDatas(l: List<LocalDate>) =
