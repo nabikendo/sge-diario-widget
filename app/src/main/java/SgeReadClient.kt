@@ -69,6 +69,12 @@ class SgeReadClient(cookies: String, private val userAgent: String, private val 
         return SgeParsing.pendenciasCoordenacao(j.getString("html"), LocalDate.now())
     }
 
+    /** Componentes curriculares da turma (o SGE lista só os que ela tem). */
+    fun disciplinasDaTurma(turmaId: String): List<String> {
+        val a = JSONObject(request("/PlanejamentoTurma/CarregueGradesEscolares", mapOf("turmaId" to turmaId))).getJSONArray("grades")
+        return (0 until a.length()).map { a.getJSONObject(it).optString("Descricao").trim() }.filter { it.isNotEmpty() }.distinct().sorted()
+    }
+
     fun turmas(): List<TurmaMonitorada> {
         val home = Jsoup.parse(request("/", ajax = false))
         // O SGE carrega esta tela em #content por AJAX. O GET direto da rota
@@ -326,9 +332,9 @@ object SgeParsing {
             val linhas = popup.select("tr").asSequence()
                 .filter { it.selectFirst("td")?.text()?.trim().equals(disciplina, true) }.toList()
             if (d.isAfter(hoje) || linhas.isEmpty()) null else {
-                // Na janela do dia, o ícone "+" é aula sem registro e o ícone de editar é aula já lançada.
-                val temIcones = popup.select("i.fa").isNotEmpty()
-                if (!temIcones || linhas.any { it.select("i.fa-plus-circle, i.fa-plus").isNotEmpty() }) d else null
+                // Janela do dia: ícone de editar = aula já lançada. Com o filtro do componente, dia vermelho
+                // com alguma aula da disciplina sem esse ícone = conteúdo ainda não registrado.
+                if (linhas.any { it.select("i.fa-edit").isEmpty() }) d else null
             }
         }.distinct().sorted()
         return ResultadoModulo(pendentes.size,

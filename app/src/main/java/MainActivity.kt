@@ -71,6 +71,7 @@ class MainActivity : ComponentActivity() {
                 var coord by remember { mutableStateOf(false) }
                 var coordPainel by remember { mutableStateOf(SgeCoordStore.ler(this)) }
                 var ajustes by remember { mutableStateOf(false) }
+                var turmasRaw by remember { mutableStateOf(prefs.getString("turmas_escola", "[]") ?: "[]") }
                 val larg = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp
                 var painel by remember { mutableStateOf(SgePainelStore.ler(this)) }
                 LaunchedEffect(Unit) {
@@ -83,7 +84,9 @@ class MainActivity : ComponentActivity() {
                         }
                         val c = SgeCoordStore.ler(this@MainActivity)
                         if (c != coordPainel) coordPainel = c
-                        if (login) extrairEscola()
+                        val tr = getSharedPreferences(SgePainelStore.PREFS_NAME, MODE_PRIVATE).getString("turmas_escola", "[]") ?: "[]"
+                        if (tr != turmasRaw) turmasRaw = tr
+                        if (login) { extrairEscola(); instalarHook() }
                         delay(2500)
                     }
                 }
@@ -111,7 +114,7 @@ class MainActivity : ComponentActivity() {
                     // The WebView stays attached when switching tabs, preserving the SGE document.
                     Box(Modifier.weight(1f)) {
                         AndroidView(factory = { web }, modifier = Modifier.fillMaxSize())
-                        if (!login && coord) PainelCoordenacao(coordPainel)
+                        if (!login && coord) PainelCoordenacao(coordPainel, turmasRaw)
                         if (!login && !coord) Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)
                             .verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             SelectionContainer { Text(painel.mensagem) }
@@ -160,8 +163,13 @@ class MainActivity : ComponentActivity() {
         return buildString {
             appendLine("SGE Diário v$v (coordenação)")
             appendLine("Mensagem: ${c.mensagem}")
-            appendLine("Turmas conhecidas pelo SGE Web: $n")
-            c.turmas.forEachIndexed { i, t -> appendLine("Turma ${i + 1}: ${t.erro ?: "${t.pendencias.size} aula(s) sem registro"}") }
+            appendLine("Turmas conhecidas: $n; verificadas: ${c.turmas.size}")
+            c.turmas.forEachIndexed { i, t ->
+                appendLine("Turma ${i + 1}: ${t.disciplinas.size} disciplina(s)")
+                t.disciplinas.forEach { d -> d.modulos.forEachIndexed { j, m ->
+                    if (m.quantidade == null || !m.coberturaCompleta) appendLine("  ${d.turma.disciplina} ${SgePainelStore.NOMES_MODULOS.getOrElse(j) { "Módulo" }}: ${m.resumo()} ${m.detalhe}")
+                } }
+            }
             appendLine(prefs.getString("diagnostico_v1", "(sem diagnóstico guardado)"))
         }
     }
@@ -216,6 +224,7 @@ class MainActivity : ComponentActivity() {
             function linhas(el){var d=document.createElement('div');d.innerHTML=el.getAttribute('data-content')||'';return A(d.querySelectorAll('tr')).map(function(tr){var tds=A(tr.querySelectorAll('td'));return {d:t(tds[0]&&tds[0].textContent),n:tds.length,tc:(tr.className||'').slice(0,30),b:tr.querySelectorAll('a,button').length,i:A(tr.querySelectorAll('i,.glyphicon')).map(function(x){return (x.className||'').slice(0,40)}).slice(0,3),x:tds.slice(1).map(function(c){var s=t(c.textContent);return (s.length<=12?s:'len'+s.length)+':'+(c.className||'').slice(0,20)})}})}
             var vd=dv.filter(function(e){return /verde/.test(e.className)}).slice(0,1);
             r.linhasVermelho=verm.length?linhas(verm[0]):[];r.linhasVerde=vd.length?linhas(vd[0]):[];
+            r.xhr=(window.__xhr||[]).slice(-40);
             return JSON.stringify(r)})()"""
         web.evaluateJavascript(js) { raw ->
             val txt = runCatching { JSONTokener(raw).nextValue() as? String }.getOrNull() ?: "(não foi possível ler a página)"
@@ -238,38 +247,61 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+    /** Registra os endereços das chamadas AJAX da página, para mapear telas novas (aparecem em "Copiar página"). */
+    private fun instalarHook() {
+        if (!::web.isInitialized) return
+        web.evaluateJavascript("""(function(){if(window.__hook)return;window.__hook=true;window.__xhr=[];
+            var o=XMLHttpRequest.prototype.open;XMLHttpRequest.prototype.open=function(m,u){try{
+            window.__xhr.push(m+' '+String(u).split('?')[0].slice(0,80));if(window.__xhr.length>60)window.__xhr.shift();}catch(e){}
+            return o.apply(this,arguments);};})()""", null)
+    }
     @Composable
-    fun PainelCoordenacao(p: CoordPainel) {
-        val hoje = java.time.LocalDate.now()
-        val curto = java.time.format.DateTimeFormatter.ofPattern("dd/MM")
+    fun PainelCoordenacao(p: CoordPainel, turmasRaw: String) {
+        val conhecidas = remember(turmasRaw) {
+            runCatching { org.json.JSONArray(turmasRaw).let { a -> (0 until a.length()).map { a.getJSONObject(it).let { o -> o.getString("v") to o.getString("t") } } } }
+                .getOrDefault(emptyList())
+        }
         Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text("Coordenação • aulas sem registro de conteúdo", style = MaterialTheme.typography.titleMedium)
-            SelectionContainer { Text(p.mensagem + if (p.atualizado.isNotBlank()) " Atualizado ${p.atualizado}." else "") }
-            Button(onClick = {
-                SgeCoordStore.salvar(this@MainActivity, p.copy(sincronizando = true, mensagem = "Iniciando consulta…"))
-                extrairEscola(); extrairTurmas { SgeSyncWorker.sincronizarAgora(this@MainActivity) }
-            }) { Text(if (p.sincronizando) "Consultando…" else "Sincronizar coordenação") }
+            Text("Coordenação • verificação por turma e disciplina", style = MaterialTheme.typography.titleMedium)
+            SelectionContainer { Text(p.mensagem) }
+            Text("Perfil Unidade escolar ativo. Abra Escola → Conteúdo Aplicado na aba SGE Web e toque em Carregar turmas.", style = MaterialTheme.typography.bodySmall)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FilledTonalButton(onClick = { extrairEscola(); Toast.makeText(this@MainActivity, "Lendo a lista de turmas…", Toast.LENGTH_SHORT).show() }) { Text("Carregar turmas") }
+                Button(enabled = conhecidas.isNotEmpty() && !p.sincronizando, onClick = {
+                    SgeCoordStore.salvar(this@MainActivity, p.copy(sincronizando = true, mensagem = "Na fila: ${conhecidas.size} turmas, uma por vez…"))
+                    SgeSyncWorker.verificarTurmas(this@MainActivity, conhecidas.map { it.first })
+                }) { Text("Verificar todas") }
+            }
             FilledTonalButton(onClick = {
                 val cm = getSystemService(CLIPBOARD_SERVICE) as android.content.ClipboardManager
                 cm.setPrimaryClip(android.content.ClipData.newPlainText("diagnostico", montarDiagnosticoCoord(p)))
                 Toast.makeText(this@MainActivity, "Diagnóstico copiado", Toast.LENGTH_SHORT).show()
             }) { Text("Copiar diagnóstico") }
             if (p.sincronizando) LinearProgressIndicator(Modifier.fillMaxWidth())
-            Text("Antes de sincronizar, abra Escola → Conteúdo Aplicado na aba SGE Web, com o perfil Unidade escolar ativo.", style = MaterialTheme.typography.bodySmall)
-            Grade(p.turmas) { t ->
+            Text("C conteúdos • F frequência • A plano de aula • P plano de curso • I PEI. * cobertura parcial, — não verificado.", style = MaterialTheme.typography.bodySmall)
+            Grade(conhecidas) { (id, nome) ->
+                val t = p.turmas.firstOrNull { it.id == id }
                 Card(Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(t.nome, style = MaterialTheme.typography.titleMedium)
-                        if (t.erro != null) Text("Não verificado: ${t.erro}", color = corAlerta())
-                        else if (t.pendencias.isEmpty()) Text("Em dia", color = corOk())
+                        Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                            Text(nome, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                            FilledTonalButton(enabled = !p.sincronizando, onClick = {
+                                SgeCoordStore.salvar(this@MainActivity, p.copy(sincronizando = true, mensagem = "Na fila: $nome…"))
+                                SgeSyncWorker.verificarTurmas(this@MainActivity, listOf(id))
+                            }) { Text(if (t == null) "Verificar" else "Atualizar") }
+                        }
+                        if (t == null) Text("Ainda não verificada.", style = MaterialTheme.typography.bodySmall)
                         else {
-                            Text("${t.pendencias.size} aula(s) sem registro", color = corErro())
-                            t.pendencias.groupBy { it.disciplina }.forEach { (disc, lista) ->
-                                val dias = java.time.temporal.ChronoUnit.DAYS.between(java.time.LocalDate.parse(lista.minOf { it.data }), hoje)
-                                val cor = if (dias > 7) corErro() else if (dias > 3) corAlerta() else corAtencao()
-                                Text("$disc (${lista.size}) • mais antiga há $dias dia(s)", color = cor)
-                                Text(lista.take(12).joinToString(", ") { java.time.LocalDate.parse(it.data).format(curto) + " " + it.hora }, style = MaterialTheme.typography.bodySmall)
+                            Text("Consulta: ${t.atualizado}", style = MaterialTheme.typography.bodySmall)
+                            t.disciplinas.forEach { d ->
+                                val q = d.modulos.map { it.quantidade }
+                                val total = q.sumOf { it ?: 0 }
+                                val cor = if (q.any { it == null }) corAlerta() else if (total > 0) corErro() else corOk()
+                                val rotulos = listOf("C", "F", "A", "P", "I")
+                                Text(d.turma.disciplina, style = MaterialTheme.typography.titleMedium)
+                                Text(d.modulos.mapIndexed { i, m -> "${rotulos[i]} ${m.resumo()}" }.joinToString(" • "), color = cor)
+                                d.modulos.take(2).filter { (it.quantidade ?: 0) > 0 }.forEach { Text(it.detalhe, style = MaterialTheme.typography.bodySmall) }
                             }
                         }
                     }
