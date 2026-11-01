@@ -95,7 +95,7 @@ class RefreshActionCallback : ActionCallback {
         } else {
             val p = SgeCoordStore.ler(context)
             val ids = if (c.grupo.isBlank()) SgeWidgetStore.conhecidas(context).map { it.first }
-                else SgeWidgetStore.grupos(context, c).flatMap { it.turmaIds }.distinct()
+                else SgeWidgetStore.grupos(context, c.copy(soAtencao = false)).flatMap { it.turmaIds }.distinct()
             if (ids.isNotEmpty() && !p.sincronizando) {
                 SgeCoordStore.salvar(context, p.copy(sincronizando = true, inicioConsulta = System.currentTimeMillis(), mensagem = "Atualizando ${ids.size} turma(s)…"))
                 SgeSyncWorker.verificarTurmas(context, ids)

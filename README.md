@@ -64,9 +64,9 @@ gradle testDebugUnitTest assembleDebug
 ## Roadmap e sugestões
 
 **Próximos passos já planejados**
-- [ ] Tela de detalhe: exibir as **datas** pendentes (ex.: conteúdo de 30/10) em vez de só a contagem.
-- [ ] Widget refeito: cores dinâmicas do sistema, tamanhos responsivos (2x2 total, 4x2 por módulo, 4x4 por turma).
-- [ ] Painel de **coordenação**: pendências por turma e disciplina (e por professor, se o SGE expuser).
+- [x] Tela de detalhes por módulo, com cobertura, avaliação e o texto das datas informado pelo SGE.
+- [x] Seis widgets com tamanho adaptável, tema claro/escuro e configuração por instância.
+- [x] Coordenação por turma, componente e vínculo docente (SGE ou ajuste local explícito).
 - [ ] Ícone com Material You (cores dinâmicas e camada monocromática).
 
 **Ideias**

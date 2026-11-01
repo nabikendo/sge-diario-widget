@@ -1,6 +1,8 @@
 package br.to.seduc.sgediariowidget
 
 import android.graphics.Bitmap
+import android.content.ContentValues
+import android.provider.MediaStore
 import android.webkit.WebView
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
@@ -17,7 +19,6 @@ import br.to.seduc.sgediariowidget.data.*
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
-import java.io.File
 
 @RunWith(AndroidJUnit4::class)
 class SgeUiSmokeTest {
@@ -41,8 +42,15 @@ class SgeUiSmokeTest {
     }
     private fun foto(nome: String) {
         compose.waitForIdle()
-        val dir = File(InstrumentationRegistry.getInstrumentation().targetContext.getExternalFilesDir(null), "ui-previews").apply { mkdirs() }
-        File(dir, "$nome.png").outputStream().use { compose.onRoot().captureToImage().asAndroidBitmap().compress(Bitmap.CompressFormat.PNG, 100, it) }
+        val resolver = InstrumentationRegistry.getInstrumentation().targetContext.contentResolver
+        val uri = checkNotNull(resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, ContentValues().apply {
+            put(MediaStore.Images.Media.DISPLAY_NAME, "$nome.png")
+            put(MediaStore.Images.Media.MIME_TYPE, "image/png")
+            put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures/SGEPreview")
+        }))
+        checkNotNull(resolver.openOutputStream(uri)).use {
+            check(compose.onRoot().captureToImage().asAndroidBitmap().compress(Bitmap.CompressFormat.PNG, 100, it))
+        }
     }
     @Test fun cartaoAbreDetalheDoModulo() {
         content {
