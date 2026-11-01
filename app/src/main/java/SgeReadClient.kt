@@ -159,7 +159,18 @@ class SgeReadClient(cookies: String, private val userAgent: String, private val 
         val response = JSONObject(request("/NotasFaltas/ListarFrequencia", mapOf(
             "turmaId" to t.id, "gradeEscolarId" to grade(t), "bimestre" to "", "mes" to "",
             "dataInicial" to inicio.format(format), "dataFinal" to fim.format(format), "frequenciaNaoConcluida" to "true"), true))
-        SgeParsing.frequencia(response.getString("html"), fim)
+        val htmlFreq = response.optString("html")
+        if (htmlFreq.isBlank()) {
+            // Sem tabela: o SGE pode estar informando que não há registros, ou uma falha.
+            val msg = listOf("mensagem", "Mensagem", "message", "erro").firstNotNullOfOrNull { k ->
+                response.optString(k).takeIf { it.isNotBlank() }
+            }
+            val vazio = msg != null && Regex("nenhum|não há|nao ha|sem registro|não encontr", RegexOption.IGNORE_CASE).containsMatchIn(msg)
+            if (vazio) return@consulta ResultadoModulo(0, "O SGE informou: ${msg!!.take(120)}", coberturaCompleta = true)
+            error("O SGE respondeu sem a tabela de frequência (campos: ${response.keys().asSequence().joinToString(",")}" +
+                (msg?.let { "; mensagem: ${it.take(120)}" } ?: "") + ")")
+        }
+        SgeParsing.frequencia(htmlFreq, fim)
     }
     fun planos(t: TurmaMonitorada, tipoNome: String): ResultadoModulo = consulta {
         val page = Jsoup.parse(request("/planejamentoturma", mapOf("turmaId" to t.id)))
