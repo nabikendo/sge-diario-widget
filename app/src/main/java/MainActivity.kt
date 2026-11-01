@@ -100,7 +100,7 @@ class MainActivity : ComponentActivity() {
                                     mensagem = "Iniciando consulta manual…"
                                 ))
                                 painel = SgePainelStore.ler(this@MainActivity)
-                                SgeSyncWorker.sincronizarAgora(this@MainActivity)
+                                extrairTurmas { SgeSyncWorker.sincronizarAgora(this@MainActivity) }
                             }) {
                                 Text(if (painel.sincronizando) "Consultando…" else "Sincronizar agora")
                             }
@@ -144,11 +144,26 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    /** O SGE monta #TurmaContextoId no navegador; guardamos a lista lida do WebView logado para o Worker. */
+    private fun extrairTurmas(depois: () -> Unit) {
+        if (!::web.isInitialized) { depois(); return }
+        val js = """(function(){var s=document.querySelector('#TurmaContextoId');if(!s)return null;
+            return JSON.stringify(Array.prototype.slice.call(s.options).filter(function(o){return o.value;}).map(function(o){
+            return {v:o.value,d:o.getAttribute('data-turmadescricao')||o.text.trim(),e:o.getAttribute('data-escoladescricao')||'',t:o.getAttribute('data-tipodaturmaenum')||''};}));})()"""
+        web.evaluateJavascript(js) { raw ->
+            runCatching {
+                val v = JSONTokener(raw).nextValue()
+                if (v is String && v.length > 2) getSharedPreferences(SgePainelStore.PREFS_NAME, MODE_PRIVATE)
+                    .edit().putString("turmas_contexto", v).apply()
+            }
+            depois()
+        }
+    }
     private fun verificarSessao() {
         if (!::web.isInitialized) return
         web.evaluateJavascript("Boolean(document.querySelector('#TurmaContextoId') || document.querySelector('#ProfessorId'))") { raw ->
             val active = runCatching { JSONTokener(raw).nextValue() == true }.getOrDefault(false)
-            if (active) CookieManager.getInstance().flush()
+            if (active) { CookieManager.getInstance().flush(); extrairTurmas {}; web.postDelayed({ extrairTurmas {} }, 3000) }
         }
     }
     override fun onPause() { CookieManager.getInstance().flush(); super.onPause() }

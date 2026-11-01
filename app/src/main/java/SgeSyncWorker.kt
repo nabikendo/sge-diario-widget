@@ -31,7 +31,7 @@ class SgeSyncWorker(private val ctx: Context, params: WorkerParameters) : Corout
             val agent = ctx.getSharedPreferences(SgePainelStore.PREFS_NAME, Context.MODE_PRIVATE)
                 .getString("web_user_agent", null) ?: error("Abra o SGE no aplicativo antes de sincronizar.")
             val updatedCookies = mutableListOf<String>()
-            val client = SgeReadClient(cookies, agent) { updatedCookies.add(it) }
+            val client = SgeReadClient(cookies, agent, ctx.getSharedPreferences(SgePainelStore.PREFS_NAME, Context.MODE_PRIVATE).getString("turmas_contexto", null)) { updatedCookies.add(it) }
             cliente = client
             val turmas = withTimeout(90_000L) {
                 withContext(Dispatchers.IO) { client.turmas() }
