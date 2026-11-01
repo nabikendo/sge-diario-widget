@@ -16,6 +16,7 @@ import org.json.JSONArray
 /** Uma consulta de horário por tarefa evita que uma escola inteira estoure o tempo do Worker. */
 class SgeDocentesWorker(private val ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, params) {
     override suspend fun doWork(): Result {
+        val geracao = SgeSessaoStore.geracao(ctx)
         val id = inputData.getString("professor_id")
         val ultimo = inputData.getBoolean("ultimo", false)
         val cookiesAtualizados = mutableListOf<String>()
@@ -71,8 +72,9 @@ class SgeDocentesWorker(private val ctx: Context, params: WorkerParameters) : Co
             return if (e is SessaoExpirada || id == null) Result.failure() else Result.success()
         } finally {
             withContext(NonCancellable + Dispatchers.Main) {
-                cookiesAtualizados.forEach { CookieManager.getInstance().setCookie(SgeSyncWorker.BASE, it) }
-                CookieManager.getInstance().flush()
+                if (SgeSessaoStore.geracao(ctx) == geracao) {
+                    cookiesAtualizados.forEach { CookieManager.getInstance().setCookie(SgeSyncWorker.BASE, it) }; CookieManager.getInstance().flush()
+                }
                 SgeWidgets.atualizar(ctx)
             }
         }

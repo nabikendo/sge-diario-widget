@@ -35,8 +35,8 @@ class SgeHistoricoTest {
         val b = SgeHistorico.registrar(a, FontePainel.COORDENACAO, listOf(r(n = null)), hoje)
         val raw = SgeHistorico.json(b); assertFalse(raw.contains("texto que")); assertEquals(b, SgeHistorico.ler(raw))
     }
-    @Test fun retencaoMantemSomenteJanelaDe35Dias() {
-        val a = SgeHistorico.registrar(emptyList(), FontePainel.PESSOAL, listOf(r()), hoje.minusDays(35))
+    @Test fun retencaoMantemSeteDiasEMaisUmParaComparacao() {
+        val a = SgeHistorico.registrar(emptyList(), FontePainel.PESSOAL, listOf(r()), hoje.minusDays(8))
         val b = SgeHistorico.registrar(a, FontePainel.PESSOAL, listOf(r()), hoje)
         assertEquals(listOf(hoje), b.map { it.data })
     }

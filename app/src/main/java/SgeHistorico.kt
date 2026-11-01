@@ -19,7 +19,7 @@ data class DiaHistorico(val data: LocalDate, val fonte: FontePainel, val medicoe
     }
 }
 object SgeHistorico {
-    const val DIAS_RETIDOS = 35L
+    const val DIAS_RETIDOS = 8L
     fun registrar(anteriores: List<DiaHistorico>, fonte: FontePainel, resultados: List<ResultadoTurma>, hoje: LocalDate): List<DiaHistorico> {
         if (resultados.isEmpty()) return anteriores
         val novas = resultados.distinctBy(::chaveResultado).map { r -> MedicaoHistorica(chaveResultado(r), r.turma.id,
@@ -33,14 +33,14 @@ object SgeHistorico {
     }
     fun json(dias: List<DiaHistorico>): String = JSONArray().also { a -> dias.forEach { d -> a.put(JSONObject()
         .put("dia", d.data.toString()).put("fonte", d.fonte.name).put("medicoes", JSONArray().also { ms -> d.medicoes.forEach { m ->
-            ms.put(JSONObject().put("chave", m.chave).put("turma", m.turmaId).put("modulos", JSONArray().also { mm -> m.modulos.forEach { mm.put(it.json()) } }))
+            ms.put(JSONObject().put("chave", m.chave).put("turma", m.turmaId).put("modulos", JSONArray().also { mm -> m.modulos.forEach { mm.put(JSONArray().put(it.quantidade ?: JSONObject.NULL).put(it.aguardando).put(it.aprovados).put(it.coberturaCompleta)) } }))
         } })) } }.toString()
     fun ler(raw: String): List<DiaHistorico> {
         val a = JSONArray(raw)
         return (0 until a.length()).map { i -> val d = a.getJSONObject(i); val ms = d.getJSONArray("medicoes")
             DiaHistorico(LocalDate.parse(d.getString("dia")), FontePainel.valueOf(d.getString("fonte")), (0 until ms.length()).map { j ->
                 val m = ms.getJSONObject(j); val mm = m.getJSONArray("modulos")
-                MedicaoHistorica(m.getString("chave"), m.getString("turma"), (0 until mm.length()).map { ResultadoModulo.ler(mm.getJSONObject(it)) })
+                MedicaoHistorica(m.getString("chave"), m.getString("turma"), (0 until mm.length()).map { k -> mm.getJSONArray(k).let { v -> ResultadoModulo(if (v.isNull(0)) null else v.getInt(0), "", v.getInt(1), v.getInt(2), v.getBoolean(3)) } })
             }) }
     }
 }

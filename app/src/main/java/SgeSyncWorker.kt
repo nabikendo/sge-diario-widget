@@ -22,6 +22,7 @@ class SgeSyncWorker(private val ctx: Context, params: WorkerParameters) : Corout
         SgeWidgets.atualizar(ctx)
     }
     override suspend fun doWork(): Result {
+        val geracao = SgeSessaoStore.geracao(ctx)
         val antigo = SgePainelStore.ler(ctx)
         val alvo = inputData.getString("coord_alvo")
         val coordenacao = alvo != null
@@ -99,7 +100,7 @@ class SgeSyncWorker(private val ctx: Context, params: WorkerParameters) : Corout
             // Refresh after every exit path, including cancellation/retry, so the
             // launcher widget never stays visually stuck on a stale loading view.
             withContext(NonCancellable + Dispatchers.Main) {
-                updatedCookies.forEach { CookieManager.getInstance().setCookie(BASE, it) }; CookieManager.getInstance().flush()
+                if (SgeSessaoStore.geracao(ctx) == geracao) { updatedCookies.forEach { CookieManager.getInstance().setCookie(BASE, it) }; CookieManager.getInstance().flush() }
                 SgeWidgets.atualizar(ctx)
             }
         }

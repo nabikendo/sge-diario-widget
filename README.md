@@ -127,7 +127,7 @@ A leitura de vínculos no SGE real depende do perfil Unidade escolar e precisa s
 ## Evolução em avaliação após 1.6
 
 - Larguras a partir de 840 dp exibem lista e detalhe simultâneos. O cartão selecionado fica destacado; a lista mantém a rolagem.
-- Ajustes → Histórico semanal mostra consultas concluídas neste aparelho. Mantém 35 dias localmente e exibe sete; não recupera consultas anteriores à atualização. A comparação exige os mesmos vínculos turma/componente e cobertura completa no módulo.
+- Ajustes → Histórico semanal mostra consultas concluídas neste aparelho. Mantém oito dias localmente e exibe sete (o dia adicional permite a comparação do primeiro dia da semana); não recupera consultas anteriores à atualização. A comparação exige os mesmos vínculos turma/componente e cobertura completa no módulo.
 - Compartilhar nos detalhes oferece texto (seletor nativo, incluindo WhatsApp) e PDF A4 paginado. O agrupamento por professor usa os vínculos já existentes. O PDF preserva símbolos de cobertura, separa dias/documentos e não lista alunos.
 - Proteger coordenação é opcional. Usa biometria forte (Android 10+) ou credencial do aparelho (Android 11+), exige autenticação para ativar/desativar e bloqueia novamente em segundo plano. Protege também SGE Web, histórico escolar, diagnósticos e configuração de widgets. Widgets da escola ficam sem nomes e contagens enquanto a proteção está ativa. É um bloqueio local de acesso; não altera o login nem as permissões no SGE.
 - Verificação noturna é opcional: agenda a partir das 03h com rede e bateria suficiente. O Android pode adiar. Só enfileira turmas conhecidas com sessão Unidade escolar, não troca o perfil e não substitui uma fila manual em andamento. O estado da última tentativa aparece nos Ajustes.

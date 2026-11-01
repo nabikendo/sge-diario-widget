@@ -19,6 +19,7 @@ object SgeAgendaNoturna {
 }
 class SgeNoturnoWorker(private val ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, params) {
     override suspend fun doWork(): Result {
+        val geracao = SgeSessaoStore.geracao(ctx)
         val prefs = ctx.getSharedPreferences(SgePainelStore.PREFS_NAME, Context.MODE_PRIVATE)
         if (!prefs.getBoolean("coord_noturna", false)) return Result.success()
         val ids = SgeWidgetStore.conhecidas(ctx).map { it.first }.distinct()
@@ -38,7 +39,7 @@ class SgeNoturnoWorker(private val ctx: Context, params: WorkerParameters) : Cor
         } catch (e: CancellationException) { if (e !is TimeoutCancellationException) throw e; status("Verificação noturna: tempo de consulta esgotado.") }
         catch (e: SessaoExpirada) { SgeSessaoStore.salvar(ctx, PerfilSge.EXPIRADO); status("Verificação noturna: entre novamente no SGE Web.") }
         catch (e: Exception) { status("Verificação noturna: não foi possível consultar a escola. Tente uma verificação manual.") }
-        finally { withContext(NonCancellable + Dispatchers.Main) { cookiesAtualizados.forEach { CookieManager.getInstance().setCookie(SgeSyncWorker.BASE, it) }; CookieManager.getInstance().flush() } }
+        finally { withContext(NonCancellable + Dispatchers.Main) { if (SgeSessaoStore.geracao(ctx) == geracao) { cookiesAtualizados.forEach { CookieManager.getInstance().setCookie(SgeSyncWorker.BASE, it) }; CookieManager.getInstance().flush() } } }
         return Result.success()
     }
     private fun status(texto: String) { ctx.getSharedPreferences(SgePainelStore.PREFS_NAME, Context.MODE_PRIVATE).edit().putString("coord_noturna_status", texto).apply() }

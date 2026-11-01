@@ -75,7 +75,7 @@ object SgeRelatorioPdf {
             if (grupo.vinculoLocal) linha("Agrupamento com vínculos informados no aparelho.", 10f)
             linha("Resumo por módulo", 14f, true)
             grupo.modulos.forEach { m ->
-                linha("${SgeDashboard.nomes[m.indice]}: ${m.valor()}${if (m.quantidade == null) "" else " ${m.unidade()}"}. Aguardando avaliação: ${m.aguardando}; aprovados: ${m.aprovados}.")
+                linha("${SgeDashboard.nomes[m.indice]}: ${m.valor()}${if (m.quantidade == null) "" else " ${m.unidade()}"}${if (m.indice >= 2) "; aguardando avaliação: ${m.aguardando}; aprovados: ${m.aprovados}" else ""}.")
             }
             y += 8f
             linha("Detalhes por turma e componente", 14f, true)
@@ -84,7 +84,8 @@ object SgeRelatorioPdf {
                 y += 7f; linha("${r.turma.nome} · ${r.turma.disciplina}", 12f, true)
                 linha("Consulta: ${r.atualizado}", 9f)
                 (0..4).forEach { i -> val m = r.modulos.getOrNull(i) ?: ResultadoModulo()
-                    linha("${SgeDashboard.nomes[i]}: ${m.resumo()}${if (m.quantidade == null) "" else if (i < 2) " dia(s)" else " documento(s)"}; aguardando: ${m.aguardando}; aprovados: ${m.aprovados}.", 10f)
+                    val unidade = if (m.quantidade == null) "" else if (i < 2) if (m.quantidade == 1) " dia" else " dias" else if (m.quantidade == 1) " documento" else " documentos"
+                    linha("${SgeDashboard.nomes[i]}: ${m.resumo()}$unidade${if (i >= 2) "; aguardando: ${m.aguardando}; aprovados: ${m.aprovados}" else ""}.", 10f)
                 }
             }
             y += 10f
