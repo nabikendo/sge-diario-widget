@@ -1,52 +1,39 @@
 package br.to.seduc.sgediariowidget
 
 import android.annotation.SuppressLint
+import android.content.Intent
+import android.content.SharedPreferences
 import android.os.Bundle
-import android.widget.Toast
 import android.webkit.CookieManager
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.widget.Toast
 import androidx.activity.ComponentActivity
-import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.selection.SelectionContainer
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.viewinterop.AndroidView
-import androidx.glance.appwidget.updateAll
-import androidx.work.WorkManager
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.material3.MaterialTheme
+import androidx.core.view.WindowCompat
+import androidx.lifecycle.lifecycleScope
 import br.to.seduc.sgediariowidget.data.*
-import br.to.seduc.sgediariowidget.widget.DiarioGlanceWidget
+import br.to.seduc.sgediariowidget.widget.SgeWidgets
+import br.to.seduc.sgediariowidget.widget.SgeWidgetStore
 import br.to.seduc.sgediariowidget.worker.SgeSyncWorker
+import br.to.seduc.sgediariowidget.worker.SgeDocentesWorker
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import org.json.JSONTokener
 
 class MainActivity : ComponentActivity() {
     private lateinit var web: WebView
+    private val pedidoWidget = mutableStateOf<PedidoWidget?>(null)
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val prefs = getSharedPreferences(SgePainelStore.PREFS_NAME, MODE_PRIVATE)
-        // Recover from a worker left behind by an older APK. A persisted
-        // "syncing" flag must never hide the real login/sync controls forever.
-        WorkManager.getInstance(this).cancelUniqueWork("sge_sync_now")
         SgeSyncWorker.agendarPeriodico(this)
-        val painelInicial = SgePainelStore.ler(this)
-        if (painelInicial.sincronizando) {
-            SgePainelStore.salvar(this, painelInicial.copy(
-                sincronizando = false,
-                inicioConsulta = 0L,
-                mensagem = "A consulta anterior foi interrompida. Toque em Sincronizar agora para tentar novamente."
-            ))
-        }
-        // Session cookies stay in Android's cookie store, outside SharedPreferences/backups.
+        // Cookies permanecem no CookieManager; o app nunca copia a senha do formulário.
         prefs.edit().remove("sge_cookies").apply()
         web = WebView(this).apply {
             settings.javaScriptEnabled = true
@@ -56,106 +43,96 @@ class MainActivity : ComponentActivity() {
             prefs.edit().putString("web_user_agent", settings.userAgentString).apply()
             webViewClient = object : WebViewClient() {
                 override fun onPageFinished(view: WebView?, url: String?) {
-                    CookieManager.getInstance().flush()
-                    verificarSessao()
+                    CookieManager.getInstance().flush(); verificarSessao(); extrairEscola(); instalarHook()
                 }
             }
         }
         val state = savedInstanceState?.getBundle("web_state")
         if (state == null || web.restoreState(state) == null) web.loadUrl(SgeSyncWorker.BASE + "/")
+        receberDestino(intent)
+        val versao = runCatching { packageManager.getPackageInfo(packageName, 0).versionName }.getOrNull() ?: "Prévia"
         setContent {
             var tema by remember { mutableStateOf(prefs.getInt("tema", 0)) }
-            var estilo by remember { mutableStateOf(prefs.getInt("estilo", 0)) }
-            SgeTema(tema, estilo) {
-                var login by remember { mutableStateOf(false) }
-                var coord by remember { mutableStateOf(false) }
-                var coordPainel by remember { mutableStateOf(SgeCoordStore.ler(this)) }
-                var ajustes by remember { mutableStateOf(false) }
-                var turmasRaw by remember { mutableStateOf(prefs.getString("turmas_escola", "[]") ?: "[]") }
-                val larg = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp
-                var painel by remember { mutableStateOf(SgePainelStore.ler(this)) }
-                LaunchedEffect(Unit) {
-                    DiarioGlanceWidget().updateAll(this@MainActivity)
-                    while (true) {
-                        val atualizado = SgePainelStore.ler(this@MainActivity)
-                        if (atualizado != painel) {
-                            painel = atualizado
-                            DiarioGlanceWidget().updateAll(this@MainActivity)
-                        }
-                        val c = SgeCoordStore.ler(this@MainActivity)
-                        if (c != coordPainel) coordPainel = c
-                        val tr = getSharedPreferences(SgePainelStore.PREFS_NAME, MODE_PRIVATE).getString("turmas_escola", "[]") ?: "[]"
-                        if (tr != turmasRaw) turmasRaw = tr
-                        if (login) { extrairEscola(); instalarHook() }
-                        delay(2500)
+            var cor by remember { mutableStateOf(prefs.getInt("estilo", 0)) }
+            var painel by remember { mutableStateOf(SgePainelStore.ler(this)) }
+            var coord by remember { mutableStateOf(SgeCoordStore.ler(this)) }
+            var docentes by remember { mutableStateOf(SgeDocentesStore.ler(this)) }
+            var conhecidas by remember { mutableStateOf(SgeWidgetStore.conhecidas(this)) }
+            var webVisivel by remember { mutableStateOf(false) }
+            val scope = rememberCoroutineScope()
+            DisposableEffect(prefs) {
+                val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, _ -> runOnUiThread {
+                    painel = SgePainelStore.ler(this@MainActivity)
+                    coord = SgeCoordStore.ler(this@MainActivity)
+                    docentes = SgeDocentesStore.ler(this@MainActivity)
+                    conhecidas = SgeWidgetStore.conhecidas(this@MainActivity)
+                    tema = prefs.getInt("tema", 0); cor = prefs.getInt("estilo", 0)
+                } }
+                prefs.registerOnSharedPreferenceChangeListener(listener)
+                onDispose { prefs.unregisterOnSharedPreferenceChangeListener(listener) }
+            }
+            LaunchedEffect(Unit) { SgeWidgets.atualizar(this@MainActivity) }
+            LaunchedEffect(webVisivel) {
+                while (webVisivel) { extrairEscola(); instalarHook(); delay(4000) }
+            }
+            SgeTema(tema, cor) {
+                val scheme = MaterialTheme.colorScheme
+                SideEffect {
+                    window.statusBarColor = scheme.background.toArgb(); window.navigationBarColor = scheme.background.toArgb()
+                    WindowCompat.getInsetsController(window, window.decorView).apply {
+                        isAppearanceLightStatusBars = scheme.background.luminance() > .5f
+                        isAppearanceLightNavigationBars = scheme.background.luminance() > .5f
                     }
                 }
-                BackHandler(enabled = login) {
-                    if (web.canGoBack()) web.goBack() else login = false
-                }
-                Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).padding(horizontal = if (larg >= 600) 28.dp else 12.dp, vertical = 12.dp)) {
-                    Text("SGE • Pendências por turma", style = MaterialTheme.typography.titleLarge)
-                    Spacer(Modifier.height(8.dp))
-                    Segmentado(listOf("Turmas", "SGE Web", "Coordenação"), if (login) 1 else if (coord) 2 else 0) { i -> login = i == 1; coord = i == 2 }
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        if (login) FilledTonalButton(onClick = { copiarPagina() }) { Text("Copiar página") }
-                        TextButton(onClick = { ajustes = !ajustes }) { Text("Aparência") }
-                    }
-                    if (ajustes) Card(Modifier.fillMaxWidth()) {
-                        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text("Tema", style = MaterialTheme.typography.titleMedium)
-                            Segmentado(listOf("Sistema", "Claro", "Escuro"), tema) { tema = it; prefs.edit().putInt("tema", it).apply() }
-                            Text("Estilo", style = MaterialTheme.typography.titleMedium)
-                            Segmentado(listOf("Apple", "Cores do sistema"), estilo) { estilo = it; prefs.edit().putInt("estilo", it).apply() }
-                        }
-                    }
-                    Spacer(Modifier.height(8.dp))
-
-                    // The WebView stays attached when switching tabs, preserving the SGE document.
-                    Box(Modifier.weight(1f)) {
-                        AndroidView(factory = { web }, modifier = Modifier.fillMaxSize())
-                        if (!login && coord) PainelCoordenacao(coordPainel, turmasRaw)
-                        if (!login && !coord) Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)
-                            .verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                            SelectionContainer { Text(painel.mensagem) }
-                            Button(onClick = {
-                                SgePainelStore.salvar(this@MainActivity, painel.copy(
-                                    sincronizando = true,
-                                    inicioConsulta = System.currentTimeMillis(),
-                                    mensagem = "Iniciando consulta manual…"
-                                ))
-                                painel = SgePainelStore.ler(this@MainActivity)
-                                extrairEscola(); extrairTurmas { SgeSyncWorker.sincronizarAgora(this@MainActivity) }
-                            }) {
-                                Text(if (painel.sincronizando) "Consultando…" else "Sincronizar agora")
-                            }
-                            Button(onClick = {
-                                val cm = getSystemService(CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                                cm.setPrimaryClip(android.content.ClipData.newPlainText("diagnostico", montarDiagnostico(painel)))
-                                Toast.makeText(this@MainActivity, "Diagnóstico copiado", Toast.LENGTH_SHORT).show()
-                            }) { Text("Copiar diagnóstico") }
-
-                            if (painel.sincronizando) LinearProgressIndicator(Modifier.fillMaxWidth())
-                            Text("— Não verificado • * Cobertura parcial: confira o detalhe. Conteúdos e frequência contam dias pendentes até hoje. Planos/PEIs incluem ausências quando a cobertura é verificada.", style = MaterialTheme.typography.bodySmall)
-                            Grade(painel.turmas) { resultado ->
-                                Card(Modifier.fillMaxWidth()) {
-                                    Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                        Text("${resultado.turma.nome} • ${resultado.turma.disciplina}", style = MaterialTheme.typography.titleMedium)
-                                        Text(resultado.turma.escola, style = MaterialTheme.typography.bodySmall)
-                                        Text("Consulta: ${resultado.atualizado}", style = MaterialTheme.typography.bodySmall)
-                                        resultado.modulos.forEachIndexed { i, m ->
-                                            Text("${SgePainelStore.NOMES_MODULOS.getOrElse(i) { "Módulo" }}: ${m.resumo()}")
-                                            Text(m.detalhe, style = MaterialTheme.typography.bodySmall)
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
+                AppDiario(web, painel, coord, docentes, conhecidas, !prefs.getBoolean("introducao_v2", false), pedidoWidget.value,
+                    tema, cor, versao,
+                    { prefs.edit().putInt("tema", it).apply(); scope.launch { SgeWidgets.atualizar(this@MainActivity) } },
+                    { prefs.edit().putInt("estilo", it).apply(); scope.launch { SgeWidgets.atualizar(this@MainActivity) } },
+                    { prefs.edit().putBoolean("introducao_v2", true).apply() },
+                    { sincronizarPessoal() }, { verificarTurmas(it) },
+                    { extrairEscola(); Toast.makeText(this@MainActivity, "Lendo as turmas da página do SGE…", Toast.LENGTH_SHORT).show() },
+                    { SgeDocentesWorker.atualizar(this@MainActivity) },
+                    { escola -> copiarTexto(if (escola) montarDiagnosticoCoord(coord) else montarDiagnostico(painel), "Diagnóstico copiado") },
+                    { copiarPagina() },
+                    { resultado, ps -> SgeDocentesStore.vincularLocal(this@MainActivity, resultado, ps); scope.launch { SgeWidgets.atualizar(this@MainActivity) } },
+                    { tipo -> if (!SgeWidgets.fixar(this@MainActivity, tipo)) Toast.makeText(this@MainActivity,
+                        "Abra o seletor de widgets da tela inicial e procure SGE Diário.", Toast.LENGTH_LONG).show() },
+                    { compartilhar(it) }, { webVisivel = it })
             }
         }
     }
+    private fun sincronizarPessoal() {
+        val p = SgePainelStore.ler(this)
+        if (p.sincronizando) return
+        SgePainelStore.salvar(this, p.copy(sincronizando = true, inicioConsulta = System.currentTimeMillis(), mensagem = "Iniciando consulta…"))
+        extrairEscola(); extrairTurmas { SgeSyncWorker.sincronizarAgora(this) }
+    }
+    private fun verificarTurmas(ids: List<String>) {
+        if (ids.isEmpty() || SgeCoordStore.ler(this).sincronizando) return
+        SgeCoordStore.salvar(this, SgeCoordStore.ler(this).copy(sincronizando = true, inicioConsulta = System.currentTimeMillis(),
+            mensagem = "Na fila: ${ids.size} turma(s), uma por vez…"))
+        SgeSyncWorker.verificarTurmas(this, ids.distinct())
+    }
+    private fun copiarTexto(texto: String, mensagem: String) {
+        val cm = getSystemService(CLIPBOARD_SERVICE) as android.content.ClipboardManager
+        cm.setPrimaryClip(android.content.ClipData.newPlainText("SGE Diário", texto))
+        Toast.makeText(this, mensagem, Toast.LENGTH_SHORT).show()
+    }
+    private fun compartilhar(g: GrupoPendencias) {
+        val texto = buildString {
+            appendLine("SGE Diário · ${g.titulo}"); appendLine(g.subtitulo)
+            g.modulos.forEach { appendLine("${SgeDashboard.nomes[it.indice]}: ${it.valor()} ${it.unidade()}; aguardando avaliação: ${it.aguardando}") }
+            appendLine("* cobertura parcial; — não verificado. Dados da última consulta.")
+        }
+        startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, texto), "Compartilhar resumo"))
+    }
+    private fun receberDestino(intent: Intent?) {
+        if (intent?.hasExtra("sge_fonte") != true) return
+        runCatching { PedidoWidget(FontePainel.valueOf(intent.getStringExtra("sge_fonte")!!),
+            Agrupamento.valueOf(intent.getStringExtra("sge_por") ?: "TURMA"), intent.getStringExtra("sge_grupo").orEmpty()) }
+            .getOrNull()?.let { pedidoWidget.value = it }
+    }
+    override fun onNewIntent(intent: Intent) { super.onNewIntent(intent); setIntent(intent); receberDestino(intent) }
     private fun montarDiagnosticoCoord(c: CoordPainel): String {
         val prefs = getSharedPreferences(SgePainelStore.PREFS_NAME, MODE_PRIVATE)
         val v = runCatching { packageManager.getPackageInfo(packageName, 0).versionName }.getOrNull()
@@ -255,61 +232,6 @@ class MainActivity : ComponentActivity() {
             window.__xhr.push(m+' '+String(u).split('?')[0].slice(0,80));if(window.__xhr.length>60)window.__xhr.shift();}catch(e){}
             return o.apply(this,arguments);};})()""", null)
     }
-    @Composable
-    fun PainelCoordenacao(p: CoordPainel, turmasRaw: String) {
-        val conhecidas = remember(turmasRaw) {
-            runCatching { org.json.JSONArray(turmasRaw).let { a -> (0 until a.length()).map { a.getJSONObject(it).let { o -> o.getString("v") to o.getString("t") } } } }
-                .getOrDefault(emptyList())
-        }
-        Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text("Coordenação • verificação por turma e disciplina", style = MaterialTheme.typography.titleMedium)
-            SelectionContainer { Text(p.mensagem) }
-            Text("Perfil Unidade escolar ativo. Abra Escola → Conteúdo Aplicado na aba SGE Web e toque em Carregar turmas.", style = MaterialTheme.typography.bodySmall)
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                FilledTonalButton(onClick = { extrairEscola(); Toast.makeText(this@MainActivity, "Lendo a lista de turmas…", Toast.LENGTH_SHORT).show() }) { Text("Carregar turmas") }
-                Button(enabled = conhecidas.isNotEmpty() && !p.sincronizando, onClick = {
-                    SgeCoordStore.salvar(this@MainActivity, p.copy(sincronizando = true, mensagem = "Na fila: ${conhecidas.size} turmas, uma por vez…"))
-                    SgeSyncWorker.verificarTurmas(this@MainActivity, conhecidas.map { it.first })
-                }) { Text("Verificar todas") }
-            }
-            FilledTonalButton(onClick = {
-                val cm = getSystemService(CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                cm.setPrimaryClip(android.content.ClipData.newPlainText("diagnostico", montarDiagnosticoCoord(p)))
-                Toast.makeText(this@MainActivity, "Diagnóstico copiado", Toast.LENGTH_SHORT).show()
-            }) { Text("Copiar diagnóstico") }
-            if (p.sincronizando) LinearProgressIndicator(Modifier.fillMaxWidth())
-            Text("C conteúdos • F frequência • A plano de aula • P plano de curso • I PEI. * cobertura parcial, — não verificado.", style = MaterialTheme.typography.bodySmall)
-            Grade(conhecidas) { (id, nome) ->
-                val t = p.turmas.firstOrNull { it.id == id }
-                Card(Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                            Text(nome, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                            FilledTonalButton(enabled = !p.sincronizando, onClick = {
-                                SgeCoordStore.salvar(this@MainActivity, p.copy(sincronizando = true, mensagem = "Na fila: $nome…"))
-                                SgeSyncWorker.verificarTurmas(this@MainActivity, listOf(id))
-                            }) { Text(if (t == null) "Verificar" else "Atualizar") }
-                        }
-                        if (t == null) Text("Ainda não verificada.", style = MaterialTheme.typography.bodySmall)
-                        else {
-                            Text("Consulta: ${t.atualizado}", style = MaterialTheme.typography.bodySmall)
-                            t.disciplinas.forEach { d ->
-                                val q = d.modulos.map { it.quantidade }
-                                val total = q.sumOf { it ?: 0 }
-                                val cor = if (q.any { it == null }) corAlerta() else if (total > 0) corErro() else corOk()
-                                val rotulos = listOf("C", "F", "A", "P", "I")
-                                Text(d.turma.disciplina, style = MaterialTheme.typography.titleMedium)
-                                Text(d.modulos.mapIndexed { i, m -> "${rotulos[i]} ${m.resumo()}" }.joinToString(" • "), color = cor)
-                                d.modulos.take(2).filter { (it.quantidade ?: 0) > 0 }.forEach { Text(it.detalhe, style = MaterialTheme.typography.bodySmall) }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
     private fun verificarSessao() {
         if (!::web.isInitialized) return
         web.evaluateJavascript("Boolean(document.querySelector('#TurmaContextoId') || document.querySelector('#ProfessorId') || document.querySelector('#left-panel'))") { raw ->

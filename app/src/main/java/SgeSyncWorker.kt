@@ -2,10 +2,9 @@ package br.to.seduc.sgediariowidget.worker
 
 import android.content.Context
 import android.webkit.CookieManager
-import androidx.glance.appwidget.updateAll
 import androidx.work.*
 import br.to.seduc.sgediariowidget.data.*
-import br.to.seduc.sgediariowidget.widget.DiarioGlanceWidget
+import br.to.seduc.sgediariowidget.widget.SgeWidgets
 import org.json.JSONArray
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
@@ -20,7 +19,7 @@ import java.util.concurrent.TimeUnit
 class SgeSyncWorker(private val ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, params) {
     private suspend fun mostrar(painel: PainelSge) {
         SgePainelStore.salvar(ctx, painel)
-        DiarioGlanceWidget().updateAll(ctx)
+        SgeWidgets.atualizar(ctx)
     }
     override suspend fun doWork(): Result {
         val antigo = SgePainelStore.ler(ctx)
@@ -56,7 +55,7 @@ class SgeSyncWorker(private val ctx: Context, params: WorkerParameters) : Corout
             }
             val resultados = mutableListOf<ResultadoTurma>()
             for ((indice, turma) in turmas.withIndex()) {
-                mostrar(PainelSge(resultados.toList(), "Consultando ${indice + 1}/${turmas.size}: ${turma.nome} • ${turma.disciplina}", true, true, System.currentTimeMillis()))
+                mostrar(PainelSge(SgeDashboard.progresso(antigo.turmas, resultados, turmas.map { chaveVinculo(it.id, it.disciplina) }.toSet()), "Consultando ${indice + 1}/${turmas.size}: ${turma.nome} • ${turma.disciplina}", true, true, System.currentTimeMillis()))
                 val modulos = withTimeout(90_000L) {
                     withContext(Dispatchers.IO) { listOf(
                         client.conteudos(turma), client.frequencia(turma), client.planos(turma, "PLANO DE AULA"),
@@ -100,7 +99,7 @@ class SgeSyncWorker(private val ctx: Context, params: WorkerParameters) : Corout
             }
             // Refresh after every exit path, including cancellation/retry, so the
             // launcher widget never stays visually stuck on a stale loading view.
-            withContext(NonCancellable + Dispatchers.Main) { DiarioGlanceWidget().updateAll(ctx) }
+            withContext(NonCancellable + Dispatchers.Main) { SgeWidgets.atualizar(ctx) }
         }
     }
     private suspend fun avisar(coordenacao: Boolean, p: PainelSge) {
@@ -118,16 +117,17 @@ class SgeSyncWorker(private val ctx: Context, params: WorkerParameters) : Corout
         }
         val nome = o.getString("t")
         val agora = { LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd/MM HH:mm")) }
-        fun gravar(t: CoordTurma, msg: String, ocupado: Boolean) {
-            painel = painel.copy(turmas = painel.turmas.filter { it.id != alvo } + t, mensagem = msg, sincronizando = ocupado)
+        suspend fun gravar(t: CoordTurma, msg: String, ocupado: Boolean) {
+            painel = painel.copy(turmas = painel.turmas.filter { it.id != alvo } + t, mensagem = msg, sincronizando = ocupado, inicioConsulta = if (ocupado) System.currentTimeMillis() else 0L)
             SgeCoordStore.salvar(ctx, painel)
+            SgeWidgets.atualizar(ctx)
         }
         val anterior = painel.turmas.firstOrNull { it.id == alvo } ?: CoordTurma(alvo, nome)
         gravar(anterior, "Lendo as disciplinas de $nome…", true)
         val nomes = withTimeout(60_000L) { withContext(Dispatchers.IO) { client.disciplinasDaTurma(alvo) } }
         val feitas = mutableListOf<ResultadoTurma>()
         for ((i, d) in nomes.withIndex()) {
-            gravar(CoordTurma(alvo, nome, feitas.toList(), null, anterior.atualizado), "Consultando $nome • $d (${i + 1}/${nomes.size})", true)
+            gravar(CoordTurma(alvo, nome, SgeDashboard.progresso(anterior.disciplinas, feitas, nomes.map { chaveVinculo(alvo, it) }.toSet()), null, anterior.atualizado), "Consultando $nome • $d (${i + 1}/${nomes.size})", true)
             val t = TurmaMonitorada(alvo, nome, "", d)
             val modulos = try {
                 withTimeout(180_000L) { withContext(Dispatchers.IO) { listOf(
