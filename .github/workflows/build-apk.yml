@@ -38,8 +38,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cp app/build/outputs/apk/debug/app-debug.apk SGE-Diario-Widget.apk
+          cp app/build/outputs/apk/debug/app-debug.apk SGE-Diario-teste.apk
           gh release delete latest --cleanup-tag --yes || true
-          gh release create latest SGE-Diario-Widget.apk --target "$GITHUB_SHA" \
-            --title "SGE Diário Widget (última versão)" \
-            --notes "APK de teste gerado automaticamente. Baixe SGE-Diario-Widget.apk abaixo, em Assets."
+          gh release create latest SGE-Diario-teste.apk --prerelease --target "$GITHUB_SHA" \
+            --title "Canal de testes (última versão)" \
+            --notes "APK de teste gerado automaticamente. Baixe SGE-Diario-teste.apk abaixo, em Assets. Para uso diário, prefira a versão estável (tag vX.Y)."

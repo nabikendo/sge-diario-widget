@@ -93,6 +93,7 @@ class SgeSyncWorker(private val ctx: Context, params: WorkerParameters) : Corout
         if (lista.length() == 0) {
             SgeCoordStore.salvar(ctx, CoordPainel(mensagem = "Perfil Unidade escolar detectado, mas o app ainda não conhece as turmas. " +
                 "Abra Escola → Conteúdo Aplicado na aba SGE Web, volte e toque em Sincronizar coordenação."))
+            guardarDiagnostico("Coordenação: lista de turmas ainda vazia", client)
             mostrar(antigo.copy(sincronizando = false, inicioConsulta = 0L))
             return Result.success()
         }
@@ -112,7 +113,7 @@ class SgeSyncWorker(private val ctx: Context, params: WorkerParameters) : Corout
         val falhas = resultados.count { it.erro != null }
         SgeCoordStore.salvar(ctx, CoordPainel(resultados, "${resultados.size} turmas consultadas" + (if (falhas > 0) ". $falhas com erro." else "."),
             LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd/MM HH:mm")), false))
-        if (falhas > 0) guardarDiagnostico("Coordenação: turmas com erro", client)
+        guardarDiagnostico("Coordenação: resumo da consulta", client)
         mostrar(antigo.copy(sincronizando = false, inicioConsulta = 0L))
         return Result.success()
     }

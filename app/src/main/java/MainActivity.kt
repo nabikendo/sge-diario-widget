@@ -64,10 +64,14 @@ class MainActivity : ComponentActivity() {
         val state = savedInstanceState?.getBundle("web_state")
         if (state == null || web.restoreState(state) == null) web.loadUrl(SgeSyncWorker.BASE + "/")
         setContent {
-            MaterialTheme(colorScheme = darkColorScheme(background = Color.Black, surface = Color(0xFF10151C))) {
+            var tema by remember { mutableStateOf(prefs.getInt("tema", 0)) }
+            var estilo by remember { mutableStateOf(prefs.getInt("estilo", 0)) }
+            SgeTema(tema, estilo) {
                 var login by remember { mutableStateOf(false) }
                 var coord by remember { mutableStateOf(false) }
                 var coordPainel by remember { mutableStateOf(SgeCoordStore.ler(this)) }
+                var ajustes by remember { mutableStateOf(false) }
+                val larg = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp
                 var painel by remember { mutableStateOf(SgePainelStore.ler(this)) }
                 LaunchedEffect(Unit) {
                     DiarioGlanceWidget().updateAll(this@MainActivity)
@@ -86,19 +90,29 @@ class MainActivity : ComponentActivity() {
                 BackHandler(enabled = login) {
                     if (web.canGoBack()) web.goBack() else login = false
                 }
-                Column(Modifier.fillMaxSize().background(Color.Black).padding(12.dp)) {
+                Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).padding(horizontal = if (larg >= 600) 28.dp else 12.dp, vertical = 12.dp)) {
                     Text("SGE • Pendências por turma", style = MaterialTheme.typography.titleLarge)
+                    Spacer(Modifier.height(8.dp))
+                    Segmentado(listOf("Turmas", "SGE Web", "Coordenação"), if (login) 1 else if (coord) 2 else 0) { i -> login = i == 1; coord = i == 2 }
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(onClick = { login = false; coord = false }, modifier = Modifier.weight(1f)) { Text("Turmas") }
-                        Button(onClick = { login = true; coord = false }, modifier = Modifier.weight(1f)) { Text("SGE Web") }
-                        Button(onClick = { login = false; coord = true }, modifier = Modifier.weight(1f)) { Text("Coord.") }
-                        if (login) Button(onClick = { copiarPagina() }, modifier = Modifier.weight(1f)) { Text("Copiar") }
+                        if (login) FilledTonalButton(onClick = { copiarPagina() }) { Text("Copiar página") }
+                        TextButton(onClick = { ajustes = !ajustes }) { Text("Aparência") }
                     }
+                    if (ajustes) Card(Modifier.fillMaxWidth()) {
+                        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text("Tema", style = MaterialTheme.typography.titleMedium)
+                            Segmentado(listOf("Sistema", "Claro", "Escuro"), tema) { tema = it; prefs.edit().putInt("tema", it).apply() }
+                            Text("Estilo", style = MaterialTheme.typography.titleMedium)
+                            Segmentado(listOf("Apple", "Cores do sistema"), estilo) { estilo = it; prefs.edit().putInt("estilo", it).apply() }
+                        }
+                    }
+                    Spacer(Modifier.height(8.dp))
+
                     // The WebView stays attached when switching tabs, preserving the SGE document.
                     Box(Modifier.weight(1f)) {
                         AndroidView(factory = { web }, modifier = Modifier.fillMaxSize())
                         if (!login && coord) PainelCoordenacao(coordPainel)
-                        if (!login && !coord) Column(Modifier.fillMaxSize().background(Color.Black)
+                        if (!login && !coord) Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)
                             .verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             SelectionContainer { Text(painel.mensagem) }
                             Button(onClick = {
@@ -120,7 +134,7 @@ class MainActivity : ComponentActivity() {
 
                             if (painel.sincronizando) LinearProgressIndicator(Modifier.fillMaxWidth())
                             Text("— Não verificado • * Cobertura parcial: confira o detalhe. Conteúdos e frequência contam dias pendentes até hoje. Planos/PEIs incluem ausências quando a cobertura é verificada.", style = MaterialTheme.typography.bodySmall)
-                            painel.turmas.forEach { resultado ->
+                            Grade(painel.turmas) { resultado ->
                                 Card(Modifier.fillMaxWidth()) {
                                     Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                                         Text("${resultado.turma.nome} • ${resultado.turma.disciplina}", style = MaterialTheme.typography.titleMedium)
@@ -139,6 +153,19 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+    private fun montarDiagnosticoCoord(c: CoordPainel): String {
+        val prefs = getSharedPreferences(SgePainelStore.PREFS_NAME, MODE_PRIVATE)
+        val v = runCatching { packageManager.getPackageInfo(packageName, 0).versionName }.getOrNull()
+        val n = runCatching { org.json.JSONArray(prefs.getString("turmas_escola", "[]")).length() }.getOrDefault(0)
+        return buildString {
+            appendLine("SGE Diário v$v (coordenação)")
+            appendLine("Mensagem: ${c.mensagem}")
+            appendLine("Turmas conhecidas pelo SGE Web: $n")
+            c.turmas.forEachIndexed { i, t -> appendLine("Turma ${i + 1}: ${t.erro ?: "${t.pendencias.size} aula(s) sem registro"}") }
+            appendLine(prefs.getString("diagnostico_v1", "(sem diagnóstico guardado)"))
+        }
+    }
+
     private fun montarDiagnostico(p: PainelSge): String {
         val prefs = getSharedPreferences(SgePainelStore.PREFS_NAME, MODE_PRIVATE)
         val v = runCatching { packageManager.getPackageInfo(packageName, 0).versionName }.getOrNull()
@@ -215,7 +242,7 @@ class MainActivity : ComponentActivity() {
     fun PainelCoordenacao(p: CoordPainel) {
         val hoje = java.time.LocalDate.now()
         val curto = java.time.format.DateTimeFormatter.ofPattern("dd/MM")
-        Column(Modifier.fillMaxSize().background(Color.Black).verticalScroll(rememberScrollState()),
+        Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text("Coordenação • aulas sem registro de conteúdo", style = MaterialTheme.typography.titleMedium)
             SelectionContainer { Text(p.mensagem + if (p.atualizado.isNotBlank()) " Atualizado ${p.atualizado}." else "") }
@@ -223,19 +250,24 @@ class MainActivity : ComponentActivity() {
                 SgeCoordStore.salvar(this@MainActivity, p.copy(sincronizando = true, mensagem = "Iniciando consulta…"))
                 extrairEscola(); extrairTurmas { SgeSyncWorker.sincronizarAgora(this@MainActivity) }
             }) { Text(if (p.sincronizando) "Consultando…" else "Sincronizar coordenação") }
+            FilledTonalButton(onClick = {
+                val cm = getSystemService(CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                cm.setPrimaryClip(android.content.ClipData.newPlainText("diagnostico", montarDiagnosticoCoord(p)))
+                Toast.makeText(this@MainActivity, "Diagnóstico copiado", Toast.LENGTH_SHORT).show()
+            }) { Text("Copiar diagnóstico") }
             if (p.sincronizando) LinearProgressIndicator(Modifier.fillMaxWidth())
             Text("Antes de sincronizar, abra Escola → Conteúdo Aplicado na aba SGE Web, com o perfil Unidade escolar ativo.", style = MaterialTheme.typography.bodySmall)
-            p.turmas.forEach { t ->
+            Grade(p.turmas) { t ->
                 Card(Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text(t.nome, style = MaterialTheme.typography.titleMedium)
-                        if (t.erro != null) Text("Não verificado: ${t.erro}", color = Color(0xFFF59E0B))
-                        else if (t.pendencias.isEmpty()) Text("Em dia", color = Color(0xFF34D399))
+                        if (t.erro != null) Text("Não verificado: ${t.erro}", color = corAlerta())
+                        else if (t.pendencias.isEmpty()) Text("Em dia", color = corOk())
                         else {
-                            Text("${t.pendencias.size} aula(s) sem registro", color = Color(0xFFF87171))
+                            Text("${t.pendencias.size} aula(s) sem registro", color = corErro())
                             t.pendencias.groupBy { it.disciplina }.forEach { (disc, lista) ->
                                 val dias = java.time.temporal.ChronoUnit.DAYS.between(java.time.LocalDate.parse(lista.minOf { it.data }), hoje)
-                                val cor = if (dias > 7) Color(0xFFF87171) else if (dias > 3) Color(0xFFF59E0B) else Color(0xFFFDE68A)
+                                val cor = if (dias > 7) corErro() else if (dias > 3) corAlerta() else corAtencao()
                                 Text("$disc (${lista.size}) • mais antiga há $dias dia(s)", color = cor)
                                 Text(lista.take(12).joinToString(", ") { java.time.LocalDate.parse(it.data).format(curto) + " " + it.hora }, style = MaterialTheme.typography.bodySmall)
                             }

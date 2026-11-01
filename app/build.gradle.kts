@@ -11,8 +11,8 @@ android {
         applicationId = "br.to.seduc.sgediariowidget"
         minSdk = 29
         targetSdk = 34
-        versionCode = 3
-        versionName = "1.2"
+        versionCode = (findProperty("codigo") as String?)?.toIntOrNull() ?: 3
+        versionName = (findProperty("versao") as String?) ?: "1.2"
     }
 
     sourceSets["main"].manifest.srcFile("../AndroidManifest.xml")
@@ -24,6 +24,28 @@ android {
             storePassword = "android"
             keyAlias = "androiddebugkey"
             keyPassword = "android"
+        }
+        create("release") {
+            val arquivo = System.getenv("KEYSTORE_FILE")
+            if (arquivo != null) {
+                storeFile = file(arquivo)
+                storePassword = System.getenv("KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("KEY_ALIAS")
+                keyPassword = System.getenv("KEY_PASSWORD")
+            }
+        }
+    }
+
+    // Canal de testes (debug, sufixo .teste) e canal estável (release, chave própria) coexistem no aparelho.
+    buildTypes {
+        debug {
+            applicationIdSuffix = ".teste"
+            resValue("string", "app_name", "SGE Diário (teste)")
+        }
+        release {
+            resValue("string", "app_name", "SGE Diário")
+            isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 
