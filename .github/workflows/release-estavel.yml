@@ -1,6 +1,9 @@
 name: Release estável
 
 on:
+  push:
+    branches: [ main ]
+    paths: [ 'release/versao.txt' ]
   workflow_dispatch:
     inputs:
       versao:
@@ -10,11 +13,24 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: sge-release-estavel
+  cancel-in-progress: false
+
 jobs:
   release:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
+      - name: Definir versão
+        id: versao
+        env:
+          SGE_VERSAO_MANUAL: ${{ inputs.versao }}
+        run: |
+          SGE_VERSAO="${SGE_VERSAO_MANUAL:-$(cat release/versao.txt)}"
+          [[ "$SGE_VERSAO" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ ]] || { echo 'Versão inválida.'; exit 1; }
+          echo "numero=$SGE_VERSAO" >> "$GITHUB_OUTPUT"
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
@@ -28,16 +44,18 @@ jobs:
         run: echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
       - name: Testes e APK assinado
         env:
+          SGE_VERSAO: ${{ steps.versao.outputs.numero }}
           KEYSTORE_FILE: ${{ runner.temp }}/release.jks
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-        run: gradle testDebugUnitTest assembleRelease -Pversao=${{ inputs.versao }} -Pcodigo=${{ github.run_number }} --no-daemon --stacktrace
+        run: gradle testDebugUnitTest assembleRelease "-Pversao=$SGE_VERSAO" -Pcodigo=${{ github.run_number }} --no-daemon --stacktrace
       - name: Publicar versão estável
         env:
+          SGE_VERSAO: ${{ steps.versao.outputs.numero }}
           GH_TOKEN: ${{ github.token }}
         run: |
-          cp app/build/outputs/apk/release/app-release.apk "SGE-Diario-${{ inputs.versao }}.apk"
-          gh release create "v${{ inputs.versao }}" "SGE-Diario-${{ inputs.versao }}.apk" --latest --target "$GITHUB_SHA" \
-            --title "SGE Diário ${{ inputs.versao }}" \
-            --notes "Versão estável, assinada com chave própria. Atualizações futuras serão instaladas por cima."
+          cp app/build/outputs/apk/release/app-release.apk "SGE-Diario-$SGE_VERSAO.apk"
+          gh release create "v$SGE_VERSAO" "SGE-Diario-$SGE_VERSAO.apk" --latest --target "$GITHUB_SHA" \
+            --title "SGE Diário $SGE_VERSAO" \
+            --notes "Painel em cartões, detalhes por módulo, coordenação por turma/componente/professor, introdução, legendas e seis widgets configuráveis. Versão estável assinada com a chave do app principal."

@@ -29,7 +29,7 @@ A lista de turmas (`#TurmaContextoId`) é montada por JavaScript no SGE, então 
 ## Instalação
 
 1. Abra a aba **Releases** deste repositório.
-2. Baixe `SGE-Diario-Widget.apk` em **Assets** e instale (permita instalar apps desta fonte).
+2. Baixe o APK da versão estável em **Assets** e instale (permita instalar apps desta fonte).
 3. Abra o app, siga a introdução e entre no SGE na aba **SGE Web**. Volte para **Meu diário** e toque no ícone de atualização do cabeçalho.
 4. Em **Ajustes → Galeria de widgets**, escolha um formato e configure seu recorte. Também é possível adicioná-lo pelo seletor de widgets do aparelho.
 
@@ -85,9 +85,9 @@ gradle testDebugUnitTest assembleDebug
 
 MIT. Veja o arquivo [LICENSE](LICENSE).
 
-## Prévia do novo painel
+## Novo painel
 
-O branch `feat/ios-inspired-neutral-ui` contém a reformulação em avaliação no PR #2.
+O PR #2 incorpora a reformulação aprovada à `main`, publicada na versão estável 1.5. A alteração de `release/versao.txt` na `main` inicia a compilação assinada; o workflow Release estável também permite disparo manual.
 O APK de debug tem pacote `.teste` e nome **SGE Diário (teste)**, independente da versão estável.
 Cada compilação mostra `1.3-preview.N` nos Ajustes e entrega `SGE-Diario-previa-N.apk` no artefato do Actions.
 
