@@ -44,9 +44,9 @@ fun EmblemaEstado(estado: EstadoGrupo) {
 }
 
 @Composable
-fun CartaoGrupo(grupo: GrupoPendencias, por: Agrupamento, abrir: () -> Unit) {
+fun CartaoGrupo(grupo: GrupoPendencias, por: Agrupamento, selecionado: Boolean = false, abrir: () -> Unit) {
     Surface(onClick = abrir, color = MaterialTheme.colorScheme.surface, shape = MaterialTheme.shapes.large,
-        border = BorderStroke(.6.dp, MaterialTheme.colorScheme.outlineVariant), shadowElevation = .5.dp) {
+        border = BorderStroke(if (selecionado) 1.5.dp else .6.dp, if (selecionado) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant), shadowElevation = .5.dp) {
         Column(Modifier.fillMaxWidth().padding(19.dp), verticalArrangement = Arrangement.spacedBy(13.dp)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Surface(color = MaterialTheme.colorScheme.surfaceVariant, shape = MaterialTheme.shapes.small) {
@@ -116,7 +116,7 @@ fun TelaCartoes(
     fonte: FontePainel, painel: PainelSge, coord: CoordPainel, docentes: PainelDocentes,
     conhecidas: List<Pair<String, String>>, por: Agrupamento, aoAgrupar: (Agrupamento) -> Unit,
     aoAbrir: (GrupoPendencias) -> Unit, aoSincronizar: () -> Unit, aoCarregarTurmas: () -> Unit,
-    aoAtualizarDocentes: () -> Unit, aoAbrirSge: () -> Unit, aoAjuda: () -> Unit
+    aoAtualizarDocentes: () -> Unit, aoAbrirSge: () -> Unit, aoAjuda: () -> Unit, selecionada: String? = null
 ) {
     var busca by rememberSaveable(fonte.name) { mutableStateOf("") }
     var filtro by rememberSaveable(fonte.name) { mutableStateOf(0) }
@@ -219,7 +219,7 @@ fun TelaCartoes(
         } else if (visiveis.isEmpty()) item(span = { GridItemSpan(maxLineSpan) }) {
             MensagemVazia("Nenhum cartão neste filtro", "Mude a busca ou o estado selecionado para visualizar outros resultados.")
         }
-        items(visiveis, key = { it.chave }) { grupo -> CartaoGrupo(grupo, por) { aoAbrir(grupo) } }
+        items(visiveis, key = { it.chave }) { grupo -> CartaoGrupo(grupo, por, selecionado = grupo.chave == selecionada) { aoAbrir(grupo) } }
         item(span = { GridItemSpan(maxLineSpan) }) {
             Text("As contagens se referem à última consulta. Aguardando avaliação aparece nos detalhes e não conta como pendência do professor.",
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)

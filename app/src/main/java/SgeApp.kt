@@ -21,6 +21,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.viewinterop.AndroidView
 import br.to.seduc.sgediariowidget.data.*
 import br.to.seduc.sgediariowidget.widget.TipoWidget
@@ -39,7 +40,11 @@ fun AppDiario(
     aoAdicionarWidget: (TipoWidget) -> Unit, aoCompartilhar: (GrupoPendencias) -> Unit,
     aoWebVisivel: (Boolean) -> Unit,
     papel: Int = 0, lembrete: Boolean = false, aoPapel: (Int) -> Unit = {}, aoLembrete: (Boolean) -> Unit = {},
-    aoSair: () -> Unit = {}, aoLimpar: () -> Unit = {}, aoUrl: (String) -> Unit = {}
+    aoSair: () -> Unit = {}, aoLimpar: () -> Unit = {}, aoUrl: (String) -> Unit = {},
+    historico: List<DiaHistorico> = emptyList(), perfil: PerfilSge = PerfilSge.DESCONHECIDO,
+    bloqueioCoord: Boolean = false, coordDesbloqueada: Boolean = false, aoDesbloquear: () -> Unit = {},
+    aoBloqueio: (Boolean) -> Unit = {}, noturna: Boolean = false, aoNoturna: (Boolean) -> Unit = {}, statusNoturno: String = "",
+    aoPdf: (GrupoPendencias, FontePainel) -> Unit = { _, _ -> }
 ) {
     val visiveis = remember(papel) { when (papel) { 1 -> setOf(0, 2); 2 -> setOf(1, 2); else -> setOf(0, 1, 2) } }
     var aba by rememberSaveable { mutableStateOf(if (papel == 2) 1 else 0) }
@@ -50,6 +55,7 @@ fun AppDiario(
     var porCoord by rememberSaveable { mutableStateOf(Agrupamento.TURMA) }
     var detalhe by remember { mutableStateOf<GrupoPendencias?>(null) }
     var fonteDetalhe by remember { mutableStateOf(FontePainel.PESSOAL) }
+    var fonteHistorico by rememberSaveable { mutableStateOf(FontePainel.PESSOAL) }
     var vincular by remember { mutableStateOf<ResultadoTurma?>(null) }
     val focus = LocalFocusManager.current
     val largo = LocalConfiguration.current.screenWidthDp >= 840
@@ -74,7 +80,9 @@ fun AppDiario(
                 .firstOrNull { it.chave == atual.chave }?.let { detalhe = it }
         }
     }
-    val webVisivel = aba == 2 && pagina == null && detalhe == null && !intro
+    val autorizado = !bloqueioCoord || coordDesbloqueada
+    val protegida = !autorizado && pagina == null && (aba == 1 || aba == 2 || (detalhe != null && fonteDetalhe == FontePainel.COORDENACAO))
+    val webVisivel = aba == 2 && pagina == null && detalhe == null && !intro && autorizado
     LaunchedEffect(webVisivel) { aoWebVisivel(webVisivel) }
     BackHandler(enabled = intro || pagina != null || detalhe != null || aba != 0) {
         when { intro -> { intro = false; aoIntroduzido() }
@@ -85,7 +93,7 @@ fun AppDiario(
     }
     val titulo = when {
         pagina == "ajustes" -> "Ajustes"; pagina == "ajuda" -> "Como interpretar"
-        pagina == "widgets" -> "Widgets"; pagina == "sobre" -> "Sobre"; detalhe != null -> "Detalhes"; aba == 2 -> "SGE Web"; else -> "Diário"
+        pagina == "historico" -> "Histórico"; pagina == "widgets" -> "Widgets"; pagina == "sobre" -> "Sobre"; detalhe != null && !largo -> "Detalhes"; aba == 2 -> "SGE Web"; else -> "Diário"
     }
     Box(Modifier.fillMaxSize()) {
         // Com a introdução aberta, o app por trás fica desfocado (Android 12+).
@@ -96,10 +104,15 @@ fun AppDiario(
                 if (pagina != null || detalhe != null) IconButton(onClick = { if (pagina != null) pagina = null else detalhe = null }) {
                     Icon(SgeIcons.Back, "Voltar", Modifier.size(21.dp))
                 } else Icon(SgeIcons.Book, null, Modifier.padding(12.dp).size(22.dp), tint = MaterialTheme.colorScheme.primary)
-                Text(titulo, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                Column(Modifier.weight(1f)) {
+                    Text(titulo, style = MaterialTheme.typography.titleMedium)
+                    Text("SGE · ${perfil.titulo}", style = MaterialTheme.typography.labelSmall,
+                        color = if (perfil == PerfilSge.EXPIRADO) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
                 if (pagina == null && detalhe == null && aba != 2) IconButton(
                     onClick = { if (aba == 1) aoVerificarTurmas(conhecidas.map { it.first }) else aoSincronizarPessoal() },
-                    enabled = !(if (aba == 1) coord.sincronizando else painel.sincronizando) && (aba != 1 || conhecidas.isNotEmpty())) {
+                    enabled = !protegida && !(if (aba == 1) coord.sincronizando else painel.sincronizando) && (aba != 1 || conhecidas.isNotEmpty())) {
                     if (if (aba == 1) coord.sincronizando else painel.sincronizando) CircularProgressIndicator(Modifier.size(19.dp), strokeWidth = 2.dp)
                     else Icon(SgeIcons.Refresh, if (aba == 1) "Verificar turmas" else "Atualizar diário", Modifier.size(21.dp))
                 }
@@ -113,28 +126,49 @@ fun AppDiario(
                     it.visibility = if (webVisivel) View.VISIBLE else View.INVISIBLE
                     it.importantForAccessibility = if (webVisivel) View.IMPORTANT_FOR_ACCESSIBILITY_AUTO else View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
                 })
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) { Box(Modifier.widthIn(max = if (pagina != null || detalhe != null) 820.dp else 1180.dp).fillMaxSize()) {
-                AnimatedContent(targetState = RotaSge(aba, pagina, detalhe, fonteDetalhe),
-                    contentKey = { it.pagina ?: it.grupo?.let { g -> "detalhe:${g.chave}" } ?: "aba:${it.aba}" },
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) { Box(Modifier.widthIn(max = if (pagina != null || (detalhe != null && !largo)) 820.dp else 1440.dp).fillMaxSize()) {
+                if (protegida) TelaCoordenacaoProtegida(aoDesbloquear) else AnimatedContent(targetState = RotaSge(aba, pagina, detalhe, fonteDetalhe),
+                    contentKey = { it.pagina ?: if (largo && it.aba != 2) "aba:${it.aba}" else it.grupo?.let { g -> "detalhe:${g.chave}" } ?: "aba:${it.aba}" },
                     transitionSpec = { (fadeIn(tween(170)) + slideInHorizontally(tween(200)) { it / 14 }) togetherWith fadeOut(tween(100)) },
                     label = "navegacao") { rota ->
                     when {
                         rota.pagina == "ajustes" -> TelaAjustes(tema, cor, versao, aoTema, aoCor, { pagina = "widgets" }, { pagina = "ajuda" },
                             { intro = true }, { aoCopiarDiagnostico(aba == 1) },
-                            papel, aoPapel, lembrete, aoLembrete, { pagina = "sobre" }, aoSair, aoLimpar)
+                            papel, aoPapel, lembrete, aoLembrete, { pagina = "sobre" }, aoSair, aoLimpar,
+                            { fonteHistorico = if (aba == 1) FontePainel.COORDENACAO else FontePainel.PESSOAL; pagina = "historico" },
+                            bloqueioCoord, aoBloqueio, noturna, aoNoturna, statusNoturno)
+                        rota.pagina == "historico" -> TelaHistorico(historico, fonteHistorico, { fonteHistorico = it }, !autorizado, aoDesbloquear)
                         rota.pagina == "sobre" -> TelaSobre(versao, aoUrl)
                         rota.pagina == "ajuda" -> TelaAjuda()
                         rota.pagina == "widgets" -> TelaWidgets(aoAdicionarWidget)
-                        rota.grupo != null -> TelaDetalhes(rota.grupo, rota.fonte, docentes,
-                            { if (rota.fonte == FontePainel.COORDENACAO) aoVerificarTurmas(rota.grupo.turmaIds.toList()) else aoSincronizarPessoal() },
-                            { detalhe = null; pagina = null; aba = 2 }, { vincular = it }, { aoCompartilhar(rota.grupo) })
-                        rota.aba != 2 -> saveable.SaveableStateProvider("painel:${rota.aba}") {
+                        rota.aba != 2 -> {
                             val fonte = if (rota.aba == 1) FontePainel.COORDENACAO else FontePainel.PESSOAL
-                            TelaCartoes(fonte, painel, coord, docentes, conhecidas, if (rota.aba == 1) porCoord else porPessoal,
-                                { if (rota.aba == 1) porCoord = it else porPessoal = it },
-                                { fonteDetalhe = fonte; detalhe = it; focus.clearFocus() },
-                                { if (rota.aba == 1) aoVerificarTurmas(conhecidas.map { it.first }) else aoSincronizarPessoal() },
-                                aoCarregarTurmas, aoAtualizarDocentes, { aba = 2 }, { pagina = "ajuda" })
+                            @Composable fun lista() {
+                                saveable.SaveableStateProvider("painel:${rota.aba}") {
+                                    TelaCartoes(fonte, painel, coord, docentes, conhecidas, if (rota.aba == 1) porCoord else porPessoal,
+                                        { if (rota.aba == 1) porCoord = it else porPessoal = it; detalhe = null },
+                                        { fonteDetalhe = fonte; detalhe = it; focus.clearFocus() },
+                                        { if (rota.aba == 1) aoVerificarTurmas(conhecidas.map { it.first }) else aoSincronizarPessoal() },
+                                        aoCarregarTurmas, aoAtualizarDocentes, { aba = 2 }, { pagina = "ajuda" },
+                                        selecionada = if (largo) rota.grupo?.chave else null)
+                                }
+                            }
+                            @Composable fun detalhes(g: GrupoPendencias) {
+                                TelaDetalhes(g, rota.fonte, docentes,
+                                    { if (rota.fonte == FontePainel.COORDENACAO) aoVerificarTurmas(g.turmaIds.toList()) else aoSincronizarPessoal() },
+                                    { detalhe = null; pagina = null; aba = 2 }, { vincular = it }, { aoCompartilhar(g) }, { aoPdf(g, rota.fonte) })
+                            }
+                            if (largo) Row(Modifier.fillMaxSize()) {
+                                Box(Modifier.weight(.43f).fillMaxHeight()) { lista() }
+                                VerticalDivider(Modifier.fillMaxHeight())
+                                Box(Modifier.weight(.57f).fillMaxHeight()) {
+                                    if (rota.grupo != null) detalhes(rota.grupo) else Column(Modifier.fillMaxSize().padding(30.dp), verticalArrangement = Arrangement.Center) {
+                                        Icon(SgeIcons.Cards, null, Modifier.size(38.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        Spacer(Modifier.height(16.dp)); Text("Escolha um cartão", style = MaterialTheme.typography.headlineSmall)
+                                        Text("Os detalhes aparecem aqui. A lista permanece ao lado para você trocar de turma, componente ou professor.", style = MaterialTheme.typography.bodyMedium)
+                                    }
+                                }
+                            } else if (rota.grupo != null) detalhes(rota.grupo) else lista()
                         }
                         else -> Spacer(Modifier.fillMaxSize())
                     }
@@ -148,7 +182,7 @@ fun AppDiario(
             intro = false; aoIntroduzido(); pagina = null
             if (abrirSge) { detalhe = null; aba = 2 }
         }
-        vincular?.let { resultado -> VinculoDialog(resultado, docentes, { vincular = null }) { ps ->
+        vincular?.takeIf { autorizado }?.let { resultado -> VinculoDialog(resultado, docentes, { vincular = null }) { ps ->
             aoSalvarVinculo(resultado, ps); vincular = null; detalhe = null
         } }
     }

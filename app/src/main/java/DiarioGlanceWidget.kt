@@ -151,11 +151,11 @@ open class SgeBaseWidget(private val tipo: TipoWidget) : GlanceAppWidget() {
                     Column(GlanceModifier.defaultWeight().clickable(abrir(context, config))) {
                         Text(if (config.fonte == FontePainel.COORDENACAO) "SGE · ESCOLA" else "SGE · MEU DIÁRIO",
                             style = TextStyle(color = ColorProvider(c.secundario), fontSize = 9.sp, fontWeight = FontWeight.Medium), maxLines = 1)
-                        Text(when(tipo) { TipoWidget.FOCO -> "Em foco · ${if (grupos.isEmpty()) 0 else focoIndice + 1}/${grupos.size}"
+                        Text(when(tipo) { TipoWidget.FOCO -> if (config.fonte == FontePainel.COORDENACAO && SgeSessaoStore.protegida(context)) "Em foco" else "Em foco · ${if (grupos.isEmpty()) 0 else focoIndice + 1}/${grupos.size}"
                             TipoWidget.RESUMO -> if (config.fonte == FontePainel.COORDENACAO) "Minha escola" else "Meu diário"; else -> tipo.titulo },
                             style = TextStyle(color = ColorProvider(c.texto), fontSize = if (size.width < 200.dp) 13.sp else 16.sp, fontWeight = FontWeight.Bold), maxLines = 1)
                     }
-                    if (tipo == TipoWidget.FOCO && grupos.size > 1) {
+                    if (tipo == TipoWidget.FOCO && grupos.size > 1 && !(config.fonte == FontePainel.COORDENACAO && SgeSessaoStore.protegida(context))) {
                         IconeWidget(R.drawable.ic_widget_up, "Recorte anterior", c.texto, actionRunCallback<AlternarFocoAction>(actionParametersOf(deltaKey to -1)))
                         IconeWidget(R.drawable.ic_widget_down, "Próximo recorte", c.texto, actionRunCallback<AlternarFocoAction>(actionParametersOf(deltaKey to 1)))
                     }
@@ -163,6 +163,10 @@ open class SgeBaseWidget(private val tipo: TipoWidget) : GlanceAppWidget() {
                     if (size.width >= 230.dp && tipo != TipoWidget.FOCO) IconeWidget(R.drawable.ic_widget_refresh, "Atualizar dados", c.acento, actionRunCallback<RefreshActionCallback>())
                 }
                 when {
+                    config.fonte == FontePainel.COORDENACAO && SgeSessaoStore.protegida(context) -> Column(GlanceModifier.fillMaxSize().clickable(abrir(context, config)).padding(top = 14.dp)) {
+                        Text("Coordenação protegida", style = TextStyle(color = ColorProvider(c.texto), fontSize = 15.sp, fontWeight = FontWeight.Bold))
+                        Text("Abra o app e confirme sua identidade.", style = TextStyle(color = ColorProvider(c.secundario), fontSize = 12.sp), maxLines = 3)
+                    }
                     tipo == TipoWidget.RESUMO -> ResumoWidget(grupos, config, c, context, size.height < 180.dp, ocupado)
                     grupos.isEmpty() -> Column(GlanceModifier.fillMaxSize().clickable(ajustar).padding(top = 14.dp)) {
                         Text(if (config.grupo.isNotBlank()) "Este recorte não está disponível na última consulta."

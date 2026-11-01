@@ -178,10 +178,32 @@ fun TelaWidgets(adicionar: (TipoWidget) -> Unit) {
 fun TelaAjustes(tema: Int, cor: Int, versao: String, aoTema: (Int) -> Unit, aoCor: (Int) -> Unit,
     aoWidgets: () -> Unit, aoAjuda: () -> Unit, aoIntroducao: () -> Unit, aoDiagnostico: () -> Unit,
     papel: Int, aoPapel: (Int) -> Unit, lembrete: Boolean, aoLembrete: (Boolean) -> Unit,
-    aoSobre: () -> Unit, aoSair: () -> Unit, aoLimpar: () -> Unit) {
+    aoSobre: () -> Unit, aoSair: () -> Unit, aoLimpar: () -> Unit,
+    aoHistorico: () -> Unit = {}, bloqueio: Boolean = false, aoBloqueio: (Boolean) -> Unit = {},
+    noturna: Boolean = false, aoNoturna: (Boolean) -> Unit = {}, statusNoturno: String = "") {
     var confirmar by remember { mutableStateOf(0) }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
         Text("Do seu jeito.", style = MaterialTheme.typography.displaySmall)
+        Surface(color = MaterialTheme.colorScheme.surface, shape = MaterialTheme.shapes.large) {
+            Column(Modifier.padding(19.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Proteger coordenação", style = MaterialTheme.typography.titleMedium)
+                        Text("Biometria e, no Android 11+, credencial do aparelho. Protege a coordenação, o SGE Web, os diagnósticos e os widgets. Bloqueia novamente em segundo plano.", style = MaterialTheme.typography.bodySmall)
+                    }
+                    Switch(bloqueio, aoBloqueio)
+                }
+                HorizontalDivider()
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Verificação noturna", style = MaterialTheme.typography.titleMedium)
+                        Text("A partir das 03h, com internet e bateria suficiente, consulta as turmas conhecidas da escola. Exige sessão Unidade escolar. O Android pode adiar a execução.", style = MaterialTheme.typography.bodySmall)
+                    }
+                    Switch(noturna, aoNoturna)
+                }
+                if (statusNoturno.isNotBlank()) Text(statusNoturno, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
         Surface(color = MaterialTheme.colorScheme.surface, shape = MaterialTheme.shapes.large) {
             Column(Modifier.padding(19.dp), verticalArrangement = Arrangement.spacedBy(15.dp)) {
                 Text("Aparência", style = MaterialTheme.typography.titleMedium)
@@ -213,6 +235,7 @@ fun TelaAjustes(tema: Int, cor: Int, versao: String, aoTema: (Int) -> Unit, aoCo
         }
         Surface(color = MaterialTheme.colorScheme.surface, shape = MaterialTheme.shapes.large) {
             Column(Modifier.padding(8.dp)) {
+                LinhaAjuste("Histórico semanal", "Consultas e contagens dos últimos sete dias", SgeIcons.Clock, aoHistorico)
                 LinhaAjuste("Galeria de widgets", "Seis formatos e recortes independentes", SgeIcons.Cards, aoWidgets)
                 LinhaAjuste("Como interpretar", "Módulos, estados e símbolos", SgeIcons.Info, aoAjuda)
                 LinhaAjuste("Ver introdução", "O funcionamento do app em três passos", SgeIcons.Book, aoIntroducao)
@@ -222,7 +245,7 @@ fun TelaAjustes(tema: Int, cor: Int, versao: String, aoTema: (Int) -> Unit, aoCo
         Surface(color = MaterialTheme.colorScheme.surface, shape = MaterialTheme.shapes.large) {
             Column(Modifier.padding(8.dp)) {
                 LinhaAjuste("Sair do SGE", "Encerra a sessão neste aparelho", SgeIcons.Globe) { confirmar = 1 }
-                LinhaAjuste("Apagar dados locais", "Painéis, vínculos e diagnósticos guardados aqui", SgeIcons.Close) { confirmar = 2 }
+                LinhaAjuste("Apagar dados locais", "Painéis, histórico, vínculos e diagnósticos guardados aqui", SgeIcons.Close) { confirmar = 2 }
             }
         }
         Surface(color = MaterialTheme.colorScheme.surface, shape = MaterialTheme.shapes.large) {
@@ -235,7 +258,7 @@ fun TelaAjustes(tema: Int, cor: Int, versao: String, aoTema: (Int) -> Unit, aoCo
     if (confirmar != 0) AlertDialog(onDismissRequest = { confirmar = 0 },
         title = { Text(if (confirmar == 1) "Sair do SGE?" else "Apagar dados locais?") },
         text = { Text(if (confirmar == 1) "A sessão será encerrada neste aparelho. Você precisará entrar de novo no SGE Web."
-            else "Os painéis e vínculos guardados neste aparelho serão apagados. Suas preferências são mantidas. O SGE não é alterado.") },
+            else "Os painéis, histórico e vínculos guardados neste aparelho serão apagados. Suas preferências são mantidas. O SGE não é alterado.") },
         confirmButton = { Button(onClick = { if (confirmar == 1) aoSair() else aoLimpar(); confirmar = 0 }) { Text(if (confirmar == 1) "Sair" else "Apagar") } },
         dismissButton = { TextButton(onClick = { confirmar = 0 }) { Text("Cancelar") } })
 }

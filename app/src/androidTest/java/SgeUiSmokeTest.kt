@@ -1,6 +1,12 @@
 package br.to.seduc.sgediariowidget
 
 import android.graphics.Bitmap
+import android.graphics.pdf.PdfRenderer
+import android.os.ParcelFileDescriptor
+import androidx.core.content.FileProvider
+import java.io.File
+import java.time.LocalDate
+import org.junit.Assume.assumeTrue
 import android.content.ContentValues
 import android.provider.MediaStore
 import android.webkit.WebView
@@ -119,6 +125,87 @@ class SgeUiSmokeTest {
         }
         compose.onNodeWithText("Widgets compactos").assertIsDisplayed()
         foto("06-widgets-compactos")
+    }
+
+    @Composable private fun appExemplo(bloqueio: Boolean = false, liberada: Boolean = false, desbloquear: () -> Unit = {}, papel: Int = 0) {
+        val context = LocalContext.current
+        val web = remember { WebView(context).apply { loadData("<html><body>SGE de demonstração</body></html>", "text/html", "utf-8") } }
+        DisposableEffect(web) { onDispose { web.destroy() } }
+        AppDiario(web, PainelSge(rs, "Consulta ilustrativa."), coord, docentes, rs.map { it.turma.id to it.turma.nome },
+            false, null, 1, 0, "prévia ilustrativa", {}, {}, {}, {}, {}, {}, {}, {}, {}, { _, _ -> }, {}, {}, {},
+            papel = papel, perfil = PerfilSge.COORDENACAO, bloqueioCoord = bloqueio, coordDesbloqueada = liberada, aoDesbloquear = desbloquear)
+    }
+    @Test fun coordenacaoProtegidaNaoExibeDadosAntesDeAutenticar() {
+        var liberada by mutableStateOf(false)
+        content { appExemplo(bloqueio = true, liberada = liberada, desbloquear = { liberada = true }, papel = 2) }
+        compose.onNodeWithText("Coordenação protegida").assertIsDisplayed()
+        compose.onNodeWithText("13.01").assertDoesNotExist()
+        foto("07-coordenacao-protegida")
+        compose.onNodeWithText("Desbloquear").performClick()
+        compose.onNode(hasScrollAction()).performScrollToNode(hasText("13.01"))
+        compose.onNodeWithText("13.01").assertExists()
+        compose.runOnIdle { liberada = false }
+        compose.onNodeWithText("13.01").assertDoesNotExist()
+    }
+    @Test fun tabletMantemListaAoTrocarDetalhes() {
+        assumeTrue(InstrumentationRegistry.getInstrumentation().targetContext.resources.configuration.screenWidthDp >= 840)
+        content { appExemplo() }
+        compose.onNodeWithText("Escolha um cartão").assertIsDisplayed()
+        compose.onNode(hasScrollAction()).performScrollToNode(hasText("13.01"))
+        compose.onNodeWithText("13.01").performClick()
+        compose.onNodeWithText("PENDÊNCIAS POR MÓDULO").assertExists()
+        compose.onNodeWithText("Seu diário").assertExists()
+        foto("08-tablet-lista-detalhe")
+        compose.onAllNodes(hasScrollAction())[0].performScrollToNode(hasText("23.01"))
+        compose.onNodeWithText("23.01").performClick()
+        compose.onAllNodesWithText("23.01").assertCountEquals(2)
+    }
+    @Test fun historicoPreservaCoberturaNaoVerificada() {
+        val hoje = LocalDate.of(2026, 11, 1)
+        val r = rs.first().copy(modulos = rs.first().modulos.mapIndexed { i, m -> if (i == 2) ResultadoModulo() else m })
+        val dias = SgeHistorico.registrar(emptyList(), FontePainel.PESSOAL, listOf(r), hoje)
+        content { TelaHistorico(dias, FontePainel.PESSOAL, {}, false, {}, hoje) }
+        compose.onNodeWithText("Plano de aula: —", substring = true).assertExists()
+        foto("09-historico")
+    }
+    @Test fun relatorioPdfPaginaEAcessoPeloFileProvider() {
+        val ctx = InstrumentationRegistry.getInstrumentation().targetContext
+        val registros = (1..36).map { resultado(it.toString(), "Química", 2, it == 2) }
+        val g = SgeDashboard.agrupar(registros, Agrupamento.COMPONENTE).single().copy(titulo = "Docente de exemplo · relatório de demonstração")
+        val arquivo = SgeRelatorioPdf.criar(File(ctx.cacheDir, "relatorios"), g, FontePainel.COORDENACAO)
+        PdfRenderer(ParcelFileDescriptor.open(arquivo, ParcelFileDescriptor.MODE_READ_ONLY)).use { check(it.pageCount >= 3) }
+        val uri = FileProvider.getUriForFile(ctx, "${ctx.packageName}.arquivos", arquivo)
+        ctx.contentResolver.openInputStream(uri)!!.use { val inicio = ByteArray(4); check(it.read(inicio) == 4 && String(inicio) == "%PDF") }
+        val resolver = ctx.contentResolver
+        val destino = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, ContentValues().apply {
+            put(MediaStore.Downloads.DISPLAY_NAME, "relatorio-professor-exemplo.pdf")
+            put(MediaStore.Downloads.MIME_TYPE, "application/pdf")
+            put(MediaStore.Downloads.RELATIVE_PATH, "Download/SGEPreview")
+        })!!
+        resolver.openOutputStream(destino)!!.use { out -> arquivo.inputStream().use { it.copyTo(out) } }
+    }
+
+    @OptIn(ExperimentalGlanceApi::class)
+    @Test fun widgetDaCoordenacaoOcultaDadosQuandoProtegido() {
+        val ctx = InstrumentationRegistry.getInstrumentation().targetContext
+        val prefs = ctx.getSharedPreferences(SgePainelStore.PREFS_NAME, android.content.Context.MODE_PRIVATE)
+        SgeCoordStore.salvar(ctx, coord); SgeDocentesStore.salvar(ctx, docentes)
+        prefs.edit().putBoolean("coord_biometria", true).commit()
+        try {
+            val rv = runBlocking { ProfessorGlanceWidget().compose(ctx, size = DpSize(340.dp, 240.dp)) }
+            lateinit var painel: FrameLayout
+            content { AndroidView(factory = { c -> FrameLayout(c).apply { painel = this; addView(rv.apply(c, this)) } }, modifier = Modifier.width(340.dp).height(240.dp)) }
+            compose.runOnIdle {
+                fun textos(v: android.view.View): List<String> = when(v) {
+                    is android.widget.TextView -> listOf(v.text.toString())
+                    is android.view.ViewGroup -> (0 until v.childCount).flatMap { textos(v.getChildAt(it)) }
+                    else -> emptyList()
+                }
+                val texto = textos(painel).joinToString(" ")
+                check(texto.contains("Coordenação protegida")); check(!texto.contains("Docente de exemplo")); check(!texto.contains("13.01"))
+            }
+            foto("10-widget-protegido")
+        } finally { prefs.edit().remove("coord_biometria").commit() }
     }
 
 }
