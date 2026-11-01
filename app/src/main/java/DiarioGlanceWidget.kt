@@ -105,14 +105,14 @@ class RefreshActionCallback : ActionCallback {
     }
 }
 
-private data class CoresWidget(val fundo: Color, val cartao: Color, val texto: Color, val secundario: Color, val chip: Color,
+private data class CoresWidget(val fundo: Int, val cartao: Int, val texto: Color, val secundario: Color, val chip: Color,
     val acento: Color, val pendente: Color, val conferir: Color, val ok: Color)
 private fun cores(context: Context): CoresWidget {
     val tema = context.getSharedPreferences(SgePainelStore.PREFS_NAME, Context.MODE_PRIVATE).getInt("tema", 0)
     val escuro = when(tema) { 1 -> false; 2 -> true; else -> (context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES }
-    return if (escuro) CoresWidget(Color(0xFF14171D), Color(0xFF20252E), Color(0xFFF2F3F6), Color(0xFFA7AFBD),
+    return if (escuro) CoresWidget(R.drawable.widget_fundo_escuro, R.drawable.widget_cartao_escuro, Color(0xFFF2F3F6), Color(0xFFA7AFBD),
         Color(0xFF2B323D), Color(0xFF9DBFFF), Color(0xFFF3A698), Color(0xFFE0BB78), Color(0xFF9DCEB4))
-    else CoresWidget(Color(0xFFF2F4F7), Color.White, Color(0xFF171B23), Color(0xFF6C7583),
+    else CoresWidget(R.drawable.widget_fundo_claro, R.drawable.widget_cartao_claro, Color(0xFF171B23), Color(0xFF6C7583),
         Color(0xFFECEFF4), Color(0xFF316BCD), Color(0xFFB34A42), Color(0xFF92651E), Color(0xFF347B5C))
 }
 private fun estadoTexto(e: EstadoGrupo) = when(e) {
@@ -146,7 +146,7 @@ open class SgeBaseWidget(private val tipo: TipoWidget) : GlanceAppWidget() {
             val size = LocalSize.current
             val focoIndice = grupos.indexOfFirst { it.chave == SgeWidgetStore.foco(context, widgetId) }.coerceAtLeast(0)
             val ajustar = actionStartActivity(Intent(context, WidgetConfigActivity::class.java).putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId))
-            Column(GlanceModifier.fillMaxSize().background(c.fundo).cornerRadius(28.dp).padding(12.dp)) {
+            Column(GlanceModifier.fillMaxSize().background(ImageProvider(c.fundo)).cornerRadius(28.dp).padding(12.dp)) {
                 Row(GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Column(GlanceModifier.defaultWeight().clickable(abrir(context, config))) {
                         Text(if (config.fonte == FontePainel.COORDENACAO) "SGE · ESCOLA" else "SGE · MEU DIÁRIO",
@@ -204,7 +204,7 @@ open class SgeBaseWidget(private val tipo: TipoWidget) : GlanceAppWidget() {
 }
 
 @Composable private fun CartaoWidget(grupo: GrupoPendencias, titulo: String, config: ConfigWidget, c: CoresWidget, context: Context, compacto: Boolean) {
-    Column(GlanceModifier.fillMaxWidth().background(c.cartao).cornerRadius(20.dp).clickable(abrir(context, config, grupo.chave)).padding(13.dp)) {
+    Column(GlanceModifier.fillMaxWidth().background(ImageProvider(c.cartao)).cornerRadius(20.dp).clickable(abrir(context, config, grupo.chave)).padding(13.dp)) {
         Row(GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text(titulo, GlanceModifier.defaultWeight(), style = TextStyle(color = ColorProvider(c.texto), fontSize = if (compacto) 14.sp else 17.sp, fontWeight = FontWeight.Bold), maxLines = 2)
             Text("›", GlanceModifier.padding(start = 5.dp), style = TextStyle(color = ColorProvider(c.secundario), fontSize = 20.sp))
@@ -216,7 +216,7 @@ open class SgeBaseWidget(private val tipo: TipoWidget) : GlanceAppWidget() {
             Row(GlanceModifier.fillMaxWidth().padding(top = 10.dp)) { ValorWidget("Conteúdos", ms[0], c); ValorWidget("Frequência", ms[1], c) }
             Row(GlanceModifier.fillMaxWidth().padding(top = 8.dp)) { ValorWidget("Aula", ms[2], c); ValorWidget("Curso", ms[3], c); ValorWidget("PEI", ms[4], c) }
         } else Text(ms.filter { (it.quantidade ?: 0) > 0 || !it.completa }.take(2).joinToString(" · ") {
-            "${SgeDashboard.nomes[it.indice]} ${it.valor()}"
+            "${SgeDashboard.nomes[it.indice]} ${it.valor()}${if (it.quantidade == null) "" else " ${it.unidade()}"}"
         }.ifBlank { "Cinco módulos verificados" }, GlanceModifier.padding(top = 6.dp), style = TextStyle(color = ColorProvider(c.secundario), fontSize = 10.sp), maxLines = 2)
         if (ms.any { !it.completa } && !compacto) Text("* parcial · — não verificado", GlanceModifier.padding(top = 7.dp), style = TextStyle(color = ColorProvider(c.conferir), fontSize = 9.sp))
     }
