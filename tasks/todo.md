@@ -29,13 +29,19 @@
 - Alterações futuras de `release/versao.txt` na `main` disparam a publicação estável; o disparo manual continua disponível.
 
 ## Evolução após v1.6 — períodos adiados pelo usuário
-- [ ] Tela lista/detalhe simultânea em largura útil de tablet, preservando navegação no celular.
-- [ ] Histórico local de sete dias, sem converter desconhecidos em zero e comparando apenas escopos/coberturas compatíveis.
-- [ ] Exportar agrupamentos, inclusive por professor, em PDF paginado e texto pelo compartilhamento nativo (WhatsApp).
-- [ ] Bloqueio opcional da coordenação por biometria/credencial, com novo bloqueio em segundo plano e widgets protegidos.
-- [ ] Consulta noturna opcional às 03h, condicionada à sessão escolar, rede e bateria; sem alterar o SGE.
-- [ ] Selo do perfil realmente observado no SGE, separado da preferência de uso.
-- [ ] Preservar atributos Set-Cookie e retirar aceitação desnecessária de cookies de terceiros.
-- [ ] Testes JVM, interface no emulador, PDF renderizado e APK da prévia.
+- [x] Tela lista/detalhe simultânea em largura útil de tablet, preservando navegação no celular.
+- [x] Histórico local de sete dias, sem converter desconhecidos em zero e comparando apenas escopos/coberturas compatíveis.
+- [x] Exportar agrupamentos, inclusive por professor, em PDF paginado e texto pelo compartilhamento nativo (WhatsApp).
+- [x] Bloqueio opcional da coordenação por biometria/credencial, com novo bloqueio em segundo plano e widgets protegidos.
+- [x] Consulta noturna opcional às 03h, condicionada à sessão escolar, rede e bateria; sem alterar o SGE.
+- [x] Selo do perfil realmente observado no SGE, separado da preferência de uso.
+- [x] Preservar atributos Set-Cookie e retirar aceitação desnecessária de cookies de terceiros.
+- [x] Testes JVM, interface no emulador, PDF renderizado e APK da prévia.
 
 O erro de datas dos períodos permanece sem correção nesta etapa; a cobertura parcial continua explícita em painéis, histórico e relatórios. O targetSdk permanece 34; a migração de SDK fica fora desta evolução.
+
+### Conferência desta evolução
+- Prévia 80: 39 testes JVM aprovados, 10 testes de interface no tablet Android 14 aprovados e nove no celular Android 10 aprovados (o teste exclusivo de tela larga é ignorado no celular).
+- Capturas reais com dados ilustrativos revisadas: lista/detalhe, histórico e bloqueios.
+- PDF A4 de oito páginas validado pelo PdfRenderer e FileProvider, renderizado e revisado visualmente.
+- Datas de períodos permanecem adiadas por solicitação expressa; o app não transforma cobertura parcial em zero confirmado.

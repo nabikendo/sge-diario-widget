@@ -124,7 +124,7 @@ A leitura de vínculos no SGE real depende do perfil Unidade escolar e precisa s
 4. Widget de aula atual/próxima turma, depois de persistir o horário e cruzá-lo com o calendário escolar.
 5. Exportação de resumo em PDF e backup local dos filtros, favoritos e vínculos informados no aparelho.
 
-## Evolução em avaliação após 1.6
+## Recursos da versão 1.7
 
 - Larguras a partir de 840 dp exibem lista e detalhe simultâneos. O cartão selecionado fica destacado; a lista mantém a rolagem.
 - Ajustes → Histórico semanal mostra consultas concluídas neste aparelho. Mantém oito dias localmente e exibe sete (o dia adicional permite a comparação do primeiro dia da semana); não recupera consultas anteriores à atualização. A comparação exige os mesmos vínculos turma/componente e cobertura completa no módulo.
@@ -134,4 +134,4 @@ A leitura de vínculos no SGE real depende do perfil Unidade escolar e precisa s
 - O cabeçalho indica o perfil observado nas flags do SGE. A preferência Ambos/Professor/Coordenação continua organizando a navegação e não muda o perfil remoto.
 - Cookies renovados preservam os atributos dos cabeçalhos Set-Cookie; a sincronização devolve cookies também ao concluir uma turma da coordenação. Cookies de terceiros ficam desativados.
 
-A correção da leitura de datas dos períodos continua adiada a pedido do usuário. Valores parciais não confirmam ausência de pendências. A versão estável 1.6 permanece disponível durante a avaliação desta evolução.
+A correção da leitura de datas dos períodos continua adiada a pedido do usuário. Valores parciais não confirmam ausência de pendências. Estas melhorias integram a versão estável 1.7; as opções de proteção e consulta noturna começam desativadas.

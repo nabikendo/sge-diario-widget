@@ -58,4 +58,4 @@ jobs:
           cp app/build/outputs/apk/release/app-release.apk "SGE-Diario-$SGE_VERSAO.apk"
           gh release create "v$SGE_VERSAO" "SGE-Diario-$SGE_VERSAO.apk" --latest --target "$GITHUB_SHA" \
             --title "SGE Diário $SGE_VERSAO" \
-            --notes "Painel em cartões, detalhes por módulo, coordenação por turma/componente/professor, introdução, legendas e seis widgets configuráveis. Versão estável assinada com a chave do app principal."
+            --notes-file release/NOTAS.md
