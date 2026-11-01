@@ -52,15 +52,22 @@ O erro de datas dos períodos permanece sem correção nesta etapa; a cobertura 
 - Commit do APK estável: c39fdde92783c6610cdc1d4cb53b2b39f10ef9a1.
 
 ## Versão 1.8 — ferramentas da escola e atualização no app
-- [ ] Atualizador estável/teste separado; aviso Atualizar/Mais tarde; download no app; SHA-256, pacote, versão e assinatura verificados; instalação confirmada pelo Android.
-- [ ] Mapa da escola por turma/professor, com cinco módulos, estados desconhecidos/parciais e acesso aos detalhes.
-- [ ] Filtros por escola/série/turno/componente/professor/módulo/estado; organização local explícita quando o SGE não fornece metadados.
-- [ ] Exportação em lote: PDF individual por professor, PDF reunido para impressão, recibos de recebimento e ciência com assinatura e ZIP.
-- [ ] Backup/restauração por seletor do Android; validação antes de substituir dados; sem senhas, cookies, sessão, instalador ou desativação do bloqueio local.
-- [ ] Economia: rede não tarifada, carregamento, bateria, intervalo automático e horário da verificação escolar; consulta manual continua disponível.
-- [ ] Diagnóstico único dos painéis e logs separados, sem depender da aba de origem.
-- [ ] Avaliação documentada do login Google; manter sessão SGE enquanto não houver integração de contas/nuvem que o justifique.
-- [ ] Testes de dados e segurança do atualizador/backup, testes de UI no celular/tablet e PDFs de lote/recibos renderizados.
+- [x] Atualizador estável/teste separado; aviso Atualizar/Mais tarde; download no app; SHA-256, pacote, versão e assinatura verificados; instalação confirmada pelo Android.
+- [x] Mapa da escola por turma/professor, com cinco módulos, estados desconhecidos/parciais e acesso aos detalhes.
+- [x] Filtros por escola/série/turno/componente/professor/módulo/estado; organização local explícita quando o SGE não fornece metadados.
+- [x] Exportação em lote: PDF individual por professor, PDF reunido para impressão, recibos de recebimento e ciência com assinatura e ZIP.
+- [x] Backup/restauração por seletor do Android; validação antes de substituir dados; sem senhas, cookies, sessão, instalador ou desativação do bloqueio local.
+- [x] Economia: rede não tarifada, carregamento, bateria, intervalo automático e horário da verificação escolar; consulta manual continua disponível.
+- [x] Diagnóstico único dos painéis e logs separados, sem depender da aba de origem.
+- [x] Avaliação documentada do login Google; manter sessão SGE enquanto não houver integração de contas/nuvem que o justifique.
+- [x] Testes de dados e segurança do atualizador/backup, testes de UI no celular/tablet e PDFs de lote/recibos renderizados.
 - [ ] APK assinado 1.8 e publicação após validação.
 
 A correção dos períodos continua adiada por solicitação do usuário; não se inferem datas por código e a cobertura parcial permanece explícita.
+
+### Validação 1.8
+- Prévia 86: compilação e 55 testes JVM aprovados; 19 cenários de UI no tablet Android 14 aprovados, com o cenário de tela larga ignorado no celular Android 10 e os demais aprovados.
+- APK real analisado pelo PackageManager: versão/canal, hash e assinatura validados em Android 10 e 14. Mantém a verificação de certificados também no caminho legado de leitura do Android 10.
+- Backup validado e restaurado preservando bloqueio local; resposta de consulta invalidada não pode sobrescrever a restauração.
+- PDF de lote A4 e recibo de uma página revisados visualmente. ZIP contém arquivos individuais e PDFs reunidos. O teste com descrições extensas mantém o recibo em uma página.
+- Mapa, filtros, lote, bloqueio ao voltar do segundo plano e escolha Mais tarde verificados em interface nativa com dados ilustrativos; não houve consulta a uma sessão real do SGE nestes testes.

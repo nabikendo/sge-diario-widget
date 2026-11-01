@@ -71,15 +71,11 @@ gradle testDebugUnitTest assembleDebug
 - [x] Coordenação por turma, componente e vínculo docente (SGE ou ajuste local explícito).
 - [ ] Ícone com Material You (cores dinâmicas e camada monocromática).
 
-**Ideias**
-- Notificação diária (ex.: 17h) com o resumo das pendências.
-- Aviso quando o total de pendências aumentar desde a última sincronização.
-- Histórico semanal para ver se as pendências estão caindo.
-- Filtros por escola, turno e módulo; ocultar turmas sem pendência.
-- Exportar o resumo (PDF ou texto) para reuniões pedagógicas.
-- Detectar o dia da aula sem registro no horário do professor.
-- Modo de teste offline com HTML de exemplo para os parsers (os testes em `SgeParsingTest.kt` já cobrem parte).
-- Assinatura com chave própria e canal de versão estável, separado do canal de testes.
+**Ideias para próximas versões**
+- Favoritos e ordenação por registros mais antigos, depois de estruturar as datas dos módulos.
+- Alertas locais opcionais por módulo, sem repetir avisos sobre os mesmos dados.
+- Widget de aula atual/próxima turma, depois de persistir e cruzar o horário com o calendário escolar.
+- Camada monocromática do ícone e migração de SDK com revisão das bordas da tela.
 
 ## Licença
 
@@ -118,11 +114,7 @@ A leitura de vínculos no SGE real depende do perfil Unidade escolar e precisa s
 
 ### Próximas melhorias sugeridas
 
-1. Histórico local de consultas com comparação de cobertura para distinguir melhoria real de uma leitura incompleta.
-2. Favoritos e ordenação por registros mais antigos, quando as datas forem representadas como dados estruturados.
-3. Alertas locais opcionais, por período e módulo, sem repetir notificações sobre os mesmos dados.
-4. Widget de aula atual/próxima turma, depois de persistir o horário e cruzá-lo com o calendário escolar.
-5. Exportação de resumo em PDF e backup local dos filtros, favoritos e vínculos informados no aparelho.
+O histórico semanal e a exportação em PDF chegaram na 1.7; mapa, filtros, lote e backup chegaram na 1.8. As ideias ainda pendentes estão no roadmap acima. A identificação de datas dos períodos depende de diagnóstico do SGE e permanece adiada.
 
 ## Recursos da versão 1.7
 
