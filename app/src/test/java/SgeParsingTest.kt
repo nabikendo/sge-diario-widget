@@ -64,4 +64,13 @@ class SgeParsingTest {
         val r = ResultadoTurma(TurmaMonitorada("123", "33.03", "Escola A", "FÍSICA"), List(5) { ResultadoModulo() }, "30/10 12:00")
         assertEquals(r, ResultadoTurma.ler(r.json()))
     }
+    @Test fun conteudoLancadoNaoContaQuandoOutraDisciplinaDoDiaEstaPendente() {
+        val popup = "&lt;table&gt;&lt;tr&gt;&lt;td&gt;QUÍMICA&lt;/td&gt;&lt;td&gt;&lt;i class=&quot;fa fa-edit&quot;&gt;&lt;/i&gt;&lt;/td&gt;&lt;/tr&gt;" +
+            "&lt;tr&gt;&lt;td&gt;MATEMÁTICA&lt;/td&gt;&lt;td&gt;&lt;i class=&quot;fa fa-plus-circle&quot;&gt;&lt;/i&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;"
+        val html = """<div class="calendario"><div class="semana"><div class="vermelho" title="29/10/2026" data-content="$popup"></div></div></div>"""
+        assertEquals(0, SgeParsing.conteudos(html, "QUÍMICA", LocalDate.of(2026, 10, 30)).quantidade)
+        val mat = SgeParsing.conteudos(html, "MATEMÁTICA", LocalDate.of(2026, 10, 30))
+        assertEquals(1, mat.quantidade)
+        assertTrue(mat.detalhe.contains("29/10"))
+    }
 }

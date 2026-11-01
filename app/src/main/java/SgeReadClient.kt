@@ -295,22 +295,33 @@ object SgeParsing {
         if (range.size == 2) return range[0] to range[1]
         error("Datas do período $codigo não identificadas")
     }
+    private val curto = DateTimeFormatter.ofPattern("dd/MM")
+    private fun listaDatas(l: List<LocalDate>) =
+        if (l.isEmpty()) "." else ": " + l.take(15).joinToString(", ") { it.format(curto) } + if (l.size > 15) "…" else ""
     fun conteudos(html: String, disciplina: String, hoje: LocalDate): ResultadoModulo {
         val doc = Jsoup.parse(html)
         check(doc.select(".calendario .semana").isNotEmpty()) { "Calendário ausente" }
-        val pending = doc.select(".calendario .semana .vermelho").count { day ->
+        val pendentes = doc.select(".calendario .semana .vermelho").mapNotNull { day ->
             val d = date(day.attr("data-original-title").ifBlank { day.attr("title") })
-            val components = Jsoup.parse(day.attr("data-content")).select("tr td:first-child").map { it.text().trim() }
-            check(components.isNotEmpty()) { "Componente ausente no detalhe" }
-            !d.isAfter(hoje) && components.any { it.equals(disciplina, true) }
-        }
-        return ResultadoModulo(pending, "Dias pendentes no mapa do SGE até ${hoje.format(format)}.", coberturaCompleta = true)
+            val popup = Jsoup.parse(day.attr("data-content"))
+            check(popup.select("tr td:first-child").isNotEmpty()) { "Componente ausente no detalhe" }
+            val linhas = popup.select("tr").asSequence()
+                .filter { it.selectFirst("td")?.text()?.trim().equals(disciplina, true) }.toList()
+            if (d.isAfter(hoje) || linhas.isEmpty()) null else {
+                // Na janela do dia, o ícone "+" é aula sem registro e o ícone de editar é aula já lançada.
+                val temIcones = popup.select("i.fa").isNotEmpty()
+                if (!temIcones || linhas.any { it.select("i.fa-plus-circle, i.fa-plus").isNotEmpty() }) d else null
+            }
+        }.distinct().sorted()
+        return ResultadoModulo(pendentes.size,
+            "Dias pendentes no mapa do SGE até ${hoje.format(format)}" + listaDatas(pendentes), coberturaCompleta = true)
     }
     fun frequencia(html: String, ate: LocalDate): ResultadoModulo {
         val table = Jsoup.parse(html).selectFirst("#gridFrequencia") ?: error("Grade de frequência ausente")
         val dates = table.select("thead .cabecalhoMes").map { date(it.attr("title")) }
-        return ResultadoModulo(dates.distinct().count { !it.isAfter(ate) },
-            "Dias do filtro oficial Somente Frequência Não Concluída até ${ate.format(format)}.", coberturaCompleta = true)
+            .filter { !it.isAfter(ate) }.distinct().sorted()
+        return ResultadoModulo(dates.size,
+            "Dias do filtro oficial Somente Frequência Não Concluída até ${ate.format(format)}" + listaDatas(dates), coberturaCompleta = true)
     }
     fun planos(html: String): ResultadoModulo {
         val table = Jsoup.parse(html).selectFirst("#tabela_planejamentos") ?: error("Grade de planos ausente")
