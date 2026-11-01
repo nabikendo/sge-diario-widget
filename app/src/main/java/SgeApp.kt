@@ -1,5 +1,6 @@
 package br.to.seduc.sgediariowidget
 
+import android.os.Build
 import android.view.View
 import android.webkit.WebView
 import androidx.activity.compose.BackHandler
@@ -15,6 +16,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
@@ -45,6 +48,7 @@ fun AppDiario(
     var fonteDetalhe by remember { mutableStateOf(FontePainel.PESSOAL) }
     var vincular by remember { mutableStateOf<ResultadoTurma?>(null) }
     val focus = LocalFocusManager.current
+    val largo = LocalConfiguration.current.screenWidthDp >= 840
     val saveable = rememberSaveableStateHolder()
     fun grupos(fonte: FontePainel, por: Agrupamento): List<GrupoPendencias> {
         val rs = if (fonte == FontePainel.PESSOAL) painel.turmas else coord.turmas.flatMap { it.disciplinas }
@@ -80,7 +84,10 @@ fun AppDiario(
         pagina == "widgets" -> "Widgets"; detalhe != null -> "Detalhes"; aba == 2 -> "SGE Web"; else -> "Diário"
     }
     Box(Modifier.fillMaxSize()) {
-        Column(Modifier.fillMaxSize()) {
+        // Com a introdução aberta, o app por trás fica desfocado (Android 12+).
+        Row(Modifier.fillMaxSize().then(if (intro && Build.VERSION.SDK_INT >= 31) Modifier.blur(22.dp) else Modifier)) {
+        if (largo) RailDiario(aba) { focus.clearFocus(); pagina = null; detalhe = null; aba = it }
+        Column(Modifier.weight(1f).fillMaxHeight()) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 3.dp), verticalAlignment = Alignment.CenterVertically) {
                 if (pagina != null || detalhe != null) IconButton(onClick = { if (pagina != null) pagina = null else detalhe = null }) {
                     Icon(SgeIcons.Back, "Voltar", Modifier.size(21.dp))
@@ -102,6 +109,7 @@ fun AppDiario(
                     it.visibility = if (webVisivel) View.VISIBLE else View.INVISIBLE
                     it.importantForAccessibility = if (webVisivel) View.IMPORTANT_FOR_ACCESSIBILITY_AUTO else View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
                 })
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) { Box(Modifier.widthIn(max = if (pagina != null || detalhe != null) 820.dp else 1180.dp).fillMaxSize()) {
                 AnimatedContent(targetState = RotaSge(aba, pagina, detalhe, fonteDetalhe),
                     contentKey = { it.pagina ?: it.grupo?.let { g -> "detalhe:${g.chave}" } ?: "aba:${it.aba}" },
                     transitionSpec = { (fadeIn(tween(170)) + slideInHorizontally(tween(200)) { it / 14 }) togetherWith fadeOut(tween(100)) },
@@ -125,8 +133,10 @@ fun AppDiario(
                         else -> Spacer(Modifier.fillMaxSize())
                     }
                 }
+                } }
             }
-            if (pagina == null && detalhe == null) DockDiario(aba) { focus.clearFocus(); aba = it }
+            if (!largo && pagina == null && detalhe == null) DockDiario(aba) { focus.clearFocus(); aba = it }
+        }
         }
         if (intro) TelaIntroducao { abrirSge ->
             intro = false; aoIntroduzido(); pagina = null
@@ -135,6 +145,17 @@ fun AppDiario(
         vincular?.let { resultado -> VinculoDialog(resultado, docentes, { vincular = null }) { ps ->
             aoSalvarVinculo(resultado, ps); vincular = null; detalhe = null
         } }
+    }
+}
+
+@Composable private fun RailDiario(aba: Int, escolher: (Int) -> Unit) {
+    NavigationRail(containerColor = MaterialTheme.colorScheme.surface) {
+        Spacer(Modifier.height(12.dp))
+        listOf("Meu diário", "Coordenação", "SGE Web").forEachIndexed { i, label ->
+            NavigationRailItem(selected = i == aba, onClick = { escolher(i) }, alwaysShowLabel = true,
+                icon = { Icon(listOf(SgeIcons.Cards, SgeIcons.People, SgeIcons.Globe)[i], null, Modifier.size(22.dp)) },
+                label = { Text(label, style = MaterialTheme.typography.labelSmall, maxLines = 1) })
+        }
     }
 }
 

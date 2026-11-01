@@ -80,7 +80,7 @@ class SgeSyncWorker(private val ctx: Context, params: WorkerParameters) : Corout
             guardarDiagnostico("Tempo limite de 90s excedido", cliente)
             avisar(coordenacao, antigo.copy(mensagem = "A consulta demorou mais de 90 segundos. Verifique a conexão e tente novamente.",
                 sincronizando = false, inicioConsulta = 0L))
-            return Result.failure()
+            return if (coordenacao) Result.success() else Result.failure()
         } catch (e: CancellationException) { throw e }
         catch (e: SessaoExpirada) {
             guardarDiagnostico("Sessão expirada", cliente)

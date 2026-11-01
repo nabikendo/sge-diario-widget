@@ -213,7 +213,7 @@ class SgeReadClient(cookies: String, private val userAgent: String, private val 
             val msg = listOf("mensagem", "Mensagem", "message", "erro").firstNotNullOfOrNull { k ->
                 response.optString(k).takeIf { it.isNotBlank() }
             }
-            val vazio = msg != null && Regex("nenhum|não há|nao ha|sem registro|não encontr", RegexOption.IGNORE_CASE).containsMatchIn(msg)
+            val vazio = msg != null && Regex("nenhum|não há|nao ha|sem registro|não encontr|não (foram|foi) encontr", RegexOption.IGNORE_CASE).containsMatchIn(msg)
             if (vazio) return@consulta ResultadoModulo(0, "O SGE informou: ${msg!!.take(120)}", coberturaCompleta = true)
             error("O SGE respondeu sem a tabela de frequência (campos: ${response.keys().asSequence().joinToString(",")}" +
                 (msg?.let { "; mensagem: ${it.take(120)}" } ?: "") + ")")
@@ -224,7 +224,7 @@ class SgeReadClient(cookies: String, private val userAgent: String, private val 
         val page = Jsoup.parse(request("/planejamentoturma", mapOf("turmaId" to t.id)))
         val tipo = page.select("#TipoDeRegistroPedagogicoId option").singleOrNull {
             it.text().trim().equals(tipoNome, true)
-        }?.attr("value") ?: error("Tipo de planejamento indisponível")
+        }?.attr("value") ?: return@consulta ResultadoModulo(0, "Não se aplica: este tipo de planejamento não existe para a turma no SGE.", coberturaCompleta = true)
         val response = JSONObject(request("/PlanejamentoTurma/PartialPlanejamentos", mapOf(
             "TurmaId" to t.id, "TipoDeRegistroPedagogicoId" to tipo, "GradeEscolarId" to grade(t),
             "AtividadeDeAEEId" to "", "ModuloUnidadeCurricularId" to "", "Situacao" to "", "Periodos" to "[]")))
@@ -341,7 +341,7 @@ object SgeParsing {
         if (texto == "segundo semestre") return LocalDate.of(ano, 7, 1) to LocalDate.of(ano, 12, 31)
         val range = dateRegex.findAll(descricao).map { LocalDate.parse(it.value, format) }.toList()
         if (range.size == 2) return range[0] to range[1]
-        error("Datas do período $codigo não identificadas")
+        error("Datas do período $codigo não identificadas (descrição no SGE: \"${descricao.trim().take(40)}\")")
     }
     private val curto = DateTimeFormatter.ofPattern("dd/MM")
     private fun listaDatas(l: List<LocalDate>) =

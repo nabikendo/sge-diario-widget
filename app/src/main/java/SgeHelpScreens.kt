@@ -1,5 +1,6 @@
 package br.to.seduc.sgediariowidget
 
+import android.os.Build
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -33,13 +34,16 @@ import br.to.seduc.sgediariowidget.widget.TipoWidget
 @Composable
 fun TelaIntroducao(concluir: (Boolean) -> Unit) {
     var pagina by rememberSaveable { mutableStateOf(0) }
-    Column(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(MaterialTheme.colorScheme.primaryContainer.copy(alpha = .45f), MaterialTheme.colorScheme.background)))) {
+    // Fundo praticamente opaco (e fosco sobre a tela borrada, no Android 12+) para o texto ficar sempre legível.
+    Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background.copy(alpha = if (Build.VERSION.SDK_INT >= 31) .92f else 1f))
+        .background(Brush.verticalGradient(listOf(MaterialTheme.colorScheme.primaryContainer.copy(alpha = .45f), MaterialTheme.colorScheme.background.copy(alpha = 0f)))),
+        horizontalAlignment = Alignment.CenterHorizontally) {
         Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Text("SGE DIÁRIO", style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f))
             TextButton(onClick = { concluir(false) }) { Text("Agora não") }
         }
-        AnimatedContent(targetState = pagina, label = "introducao", modifier = Modifier.weight(1f)) { etapa ->
-            Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(28.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
+        AnimatedContent(targetState = pagina, label = "introducao", modifier = Modifier.weight(1f), contentAlignment = Alignment.TopCenter) { etapa ->
+            Column(Modifier.widthIn(max = 640.dp).fillMaxSize().verticalScroll(rememberScrollState()).padding(28.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
                 Surface(shape = MaterialTheme.shapes.extraLarge, color = MaterialTheme.colorScheme.surface, shadowElevation = 3.dp) {
                     Icon(when(etapa) { 0 -> SgeIcons.Cards; 1 -> SgeIcons.Globe; else -> SgeIcons.Check }, null,
                         Modifier.padding(24.dp).size(52.dp), tint = MaterialTheme.colorScheme.primary)
@@ -74,7 +78,7 @@ fun TelaIntroducao(concluir: (Boolean) -> Unit) {
                 }
             }
         }
-        Column(Modifier.fillMaxWidth().padding(22.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(Modifier.widthIn(max = 640.dp).fillMaxWidth().padding(22.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
                 repeat(3) { i -> Box(Modifier.padding(4.dp).size(if (i == pagina) 9.dp else 7.dp).background(
                     if (i == pagina) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline, CircleShape)) }
