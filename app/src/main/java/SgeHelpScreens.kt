@@ -176,15 +176,39 @@ fun TelaWidgets(adicionar: (TipoWidget) -> Unit) {
 
 @Composable
 fun TelaAjustes(tema: Int, cor: Int, versao: String, aoTema: (Int) -> Unit, aoCor: (Int) -> Unit,
-    aoWidgets: () -> Unit, aoAjuda: () -> Unit, aoIntroducao: () -> Unit, aoDiagnostico: () -> Unit) {
+    aoWidgets: () -> Unit, aoAjuda: () -> Unit, aoIntroducao: () -> Unit, aoDiagnostico: () -> Unit,
+    papel: Int, aoPapel: (Int) -> Unit, lembrete: Boolean, aoLembrete: (Boolean) -> Unit,
+    aoSobre: () -> Unit, aoSair: () -> Unit, aoLimpar: () -> Unit) {
+    var confirmar by remember { mutableStateOf(0) }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
         Text("Do seu jeito.", style = MaterialTheme.typography.displaySmall)
         Surface(color = MaterialTheme.colorScheme.surface, shape = MaterialTheme.shapes.large) {
             Column(Modifier.padding(19.dp), verticalArrangement = Arrangement.spacedBy(15.dp)) {
+                Text("Aparência", style = MaterialTheme.typography.titleMedium)
                 Text("Tema", style = MaterialTheme.typography.titleSmall)
                 Segmentado(listOf("Sistema", "Claro", "Escuro"), tema, aoTema)
                 Text("Cores", style = MaterialTheme.typography.titleSmall)
                 Segmentado(listOf("Neutras", "Do sistema"), cor, aoCor)
+            }
+        }
+        Surface(color = MaterialTheme.colorScheme.surface, shape = MaterialTheme.shapes.large) {
+            Column(Modifier.padding(19.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text("Como você usa o app", style = MaterialTheme.typography.titleMedium)
+                Segmentado(listOf("Ambos", "Professor", "Coordenação"), papel, aoPapel)
+                Text(when (papel) { 1 -> "Mostra só o seu diário. A aba Coordenação fica oculta."
+                    2 -> "Mostra só a coordenação. O seu diário pessoal fica oculto."
+                    else -> "Mostra o seu diário e a coordenação." },
+                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+        Surface(color = MaterialTheme.colorScheme.surface, shape = MaterialTheme.shapes.large) {
+            Row(Modifier.padding(19.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    Text("Lembrete diário", style = MaterialTheme.typography.titleMedium)
+                    Text("Todos os dias às 17h, com o resumo da última consulta e a variação desde o lembrete anterior.",
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                Switch(checked = lembrete, onCheckedChange = aoLembrete)
             }
         }
         Surface(color = MaterialTheme.colorScheme.surface, shape = MaterialTheme.shapes.large) {
@@ -195,10 +219,25 @@ fun TelaAjustes(tema: Int, cor: Int, versao: String, aoTema: (Int) -> Unit, aoCo
                 LinhaAjuste("Copiar diagnóstico", "Informações para investigar uma consulta", SgeIcons.Settings, aoDiagnostico)
             }
         }
+        Surface(color = MaterialTheme.colorScheme.surface, shape = MaterialTheme.shapes.large) {
+            Column(Modifier.padding(8.dp)) {
+                LinhaAjuste("Sair do SGE", "Encerra a sessão neste aparelho", SgeIcons.Globe) { confirmar = 1 }
+                LinhaAjuste("Apagar dados locais", "Painéis, vínculos e diagnósticos guardados aqui", SgeIcons.Close) { confirmar = 2 }
+            }
+        }
+        Surface(color = MaterialTheme.colorScheme.surface, shape = MaterialTheme.shapes.large) {
+            Column(Modifier.padding(8.dp)) { LinhaAjuste("Sobre", "Versão, créditos, privacidade e licenças", SgeIcons.User, aoSobre) }
+        }
         Text("SGE Diário · $versao", style = MaterialTheme.typography.labelLarge)
         Text("O aplicativo consulta os dados do SGE. Lançamentos e correções são feitos pelo usuário no próprio SGE.",
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
+    if (confirmar != 0) AlertDialog(onDismissRequest = { confirmar = 0 },
+        title = { Text(if (confirmar == 1) "Sair do SGE?" else "Apagar dados locais?") },
+        text = { Text(if (confirmar == 1) "A sessão será encerrada neste aparelho. Você precisará entrar de novo no SGE Web."
+            else "Os painéis e vínculos guardados neste aparelho serão apagados. Suas preferências são mantidas. O SGE não é alterado.") },
+        confirmButton = { Button(onClick = { if (confirmar == 1) aoSair() else aoLimpar(); confirmar = 0 }) { Text(if (confirmar == 1) "Sair" else "Apagar") } },
+        dismissButton = { TextButton(onClick = { confirmar = 0 }) { Text("Cancelar") } })
 }
 
 @Composable private fun LinhaAjuste(titulo: String, texto: String, icone: ImageVector, abrir: () -> Unit) {

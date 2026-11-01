@@ -37,9 +37,13 @@ fun AppDiario(
     aoAtualizarDocentes: () -> Unit, aoCopiarDiagnostico: (Boolean) -> Unit, aoCopiarPagina: () -> Unit,
     aoSalvarVinculo: (ResultadoTurma, List<DocenteRef>?) -> Unit,
     aoAdicionarWidget: (TipoWidget) -> Unit, aoCompartilhar: (GrupoPendencias) -> Unit,
-    aoWebVisivel: (Boolean) -> Unit
+    aoWebVisivel: (Boolean) -> Unit,
+    papel: Int = 0, lembrete: Boolean = false, aoPapel: (Int) -> Unit = {}, aoLembrete: (Boolean) -> Unit = {},
+    aoSair: () -> Unit = {}, aoLimpar: () -> Unit = {}, aoUrl: (String) -> Unit = {}
 ) {
-    var aba by rememberSaveable { mutableStateOf(0) }
+    val visiveis = remember(papel) { when (papel) { 1 -> setOf(0, 2); 2 -> setOf(1, 2); else -> setOf(0, 1, 2) } }
+    var aba by rememberSaveable { mutableStateOf(if (papel == 2) 1 else 0) }
+    LaunchedEffect(papel, aba) { if (aba !in visiveis) aba = visiveis.first() }
     var pagina by rememberSaveable { mutableStateOf<String?>(null) }
     var intro by rememberSaveable { mutableStateOf(introduzir) }
     var porPessoal by rememberSaveable { mutableStateOf(Agrupamento.TURMA) }
@@ -81,12 +85,12 @@ fun AppDiario(
     }
     val titulo = when {
         pagina == "ajustes" -> "Ajustes"; pagina == "ajuda" -> "Como interpretar"
-        pagina == "widgets" -> "Widgets"; detalhe != null -> "Detalhes"; aba == 2 -> "SGE Web"; else -> "Diário"
+        pagina == "widgets" -> "Widgets"; pagina == "sobre" -> "Sobre"; detalhe != null -> "Detalhes"; aba == 2 -> "SGE Web"; else -> "Diário"
     }
     Box(Modifier.fillMaxSize()) {
         // Com a introdução aberta, o app por trás fica desfocado (Android 12+).
         Row(Modifier.fillMaxSize().then(if (intro && Build.VERSION.SDK_INT >= 31) Modifier.blur(22.dp) else Modifier)) {
-        if (largo) RailDiario(aba) { focus.clearFocus(); pagina = null; detalhe = null; aba = it }
+        if (largo) RailDiario(aba, visiveis) { focus.clearFocus(); pagina = null; detalhe = null; aba = it }
         Column(Modifier.weight(1f).fillMaxHeight()) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 3.dp), verticalAlignment = Alignment.CenterVertically) {
                 if (pagina != null || detalhe != null) IconButton(onClick = { if (pagina != null) pagina = null else detalhe = null }) {
@@ -116,7 +120,9 @@ fun AppDiario(
                     label = "navegacao") { rota ->
                     when {
                         rota.pagina == "ajustes" -> TelaAjustes(tema, cor, versao, aoTema, aoCor, { pagina = "widgets" }, { pagina = "ajuda" },
-                            { intro = true }, { aoCopiarDiagnostico(aba == 1) })
+                            { intro = true }, { aoCopiarDiagnostico(aba == 1) },
+                            papel, aoPapel, lembrete, aoLembrete, { pagina = "sobre" }, aoSair, aoLimpar)
+                        rota.pagina == "sobre" -> TelaSobre(versao, aoUrl)
                         rota.pagina == "ajuda" -> TelaAjuda()
                         rota.pagina == "widgets" -> TelaWidgets(aoAdicionarWidget)
                         rota.grupo != null -> TelaDetalhes(rota.grupo, rota.fonte, docentes,
@@ -135,7 +141,7 @@ fun AppDiario(
                 }
                 } }
             }
-            if (!largo && pagina == null && detalhe == null) DockDiario(aba) { focus.clearFocus(); aba = it }
+            if (!largo && pagina == null && detalhe == null) DockDiario(aba, visiveis) { focus.clearFocus(); aba = it }
         }
         }
         if (intro) TelaIntroducao { abrirSge ->
@@ -148,10 +154,11 @@ fun AppDiario(
     }
 }
 
-@Composable private fun RailDiario(aba: Int, escolher: (Int) -> Unit) {
+@Composable private fun RailDiario(aba: Int, visiveis: Set<Int>, escolher: (Int) -> Unit) {
     NavigationRail(containerColor = MaterialTheme.colorScheme.surface) {
         Spacer(Modifier.height(12.dp))
         listOf("Meu diário", "Coordenação", "SGE Web").forEachIndexed { i, label ->
+            if (i !in visiveis) return@forEachIndexed
             NavigationRailItem(selected = i == aba, onClick = { escolher(i) }, alwaysShowLabel = true,
                 icon = { Icon(listOf(SgeIcons.Cards, SgeIcons.People, SgeIcons.Globe)[i], null, Modifier.size(22.dp)) },
                 label = { Text(label, style = MaterialTheme.typography.labelSmall, maxLines = 1) })
@@ -159,12 +166,13 @@ fun AppDiario(
     }
 }
 
-@Composable private fun DockDiario(aba: Int, escolher: (Int) -> Unit) {
+@Composable private fun DockDiario(aba: Int, visiveis: Set<Int>, escolher: (Int) -> Unit) {
     Surface(Modifier.padding(horizontal = 18.dp, vertical = 9.dp).fillMaxWidth(),
         shape = RoundedCornerShape(30.dp), color = MaterialTheme.colorScheme.surface,
         shadowElevation = 5.dp, border = BorderStroke(.6.dp, MaterialTheme.colorScheme.outlineVariant)) {
         Row(Modifier.padding(6.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             listOf("Meu diário", "Coordenação", "SGE Web").forEachIndexed { i, label ->
+            if (i !in visiveis) return@forEachIndexed
                 Surface(Modifier.weight(1f), shape = RoundedCornerShape(24.dp),
                     color = if (i == aba) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface) {
                     Column(Modifier.selectable(i == aba, role = Role.Tab, onClick = { escolher(i) }).padding(vertical = 10.dp),

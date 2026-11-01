@@ -3,7 +3,13 @@ package br.to.seduc.sgediariowidget
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.content.SharedPreferences
+import android.Manifest
+import android.content.pm.PackageManager
+import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import androidx.activity.result.contract.ActivityResultContracts
+import br.to.seduc.sgediariowidget.worker.LembreteWorker
 import android.webkit.CookieManager
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -28,11 +34,13 @@ import org.json.JSONTokener
 class MainActivity : ComponentActivity() {
     private lateinit var web: WebView
     private val pedidoWidget = mutableStateOf<PedidoWidget?>(null)
+    private val pedirNotificacao = registerForActivityResult(ActivityResultContracts.RequestPermission()) { ok -> definirLembrete(ok) }
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val prefs = getSharedPreferences(SgePainelStore.PREFS_NAME, MODE_PRIVATE)
         SgeSyncWorker.agendarPeriodico(this)
+        LembreteWorker.agendar(this, prefs.getBoolean("lembrete", false))
         // Cookies permanecem no CookieManager; o app nunca copia a senha do formulário.
         prefs.edit().remove("sge_cookies").apply()
         web = WebView(this).apply {
@@ -59,6 +67,8 @@ class MainActivity : ComponentActivity() {
             var docentes by remember { mutableStateOf(SgeDocentesStore.ler(this)) }
             var conhecidas by remember { mutableStateOf(SgeWidgetStore.conhecidas(this)) }
             var webVisivel by remember { mutableStateOf(false) }
+            var papel by remember { mutableStateOf(prefs.getInt("papel", 0)) }
+            var lembrete by remember { mutableStateOf(prefs.getBoolean("lembrete", false)) }
             val scope = rememberCoroutineScope()
             DisposableEffect(prefs) {
                 val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, _ -> runOnUiThread {
@@ -67,6 +77,7 @@ class MainActivity : ComponentActivity() {
                     docentes = SgeDocentesStore.ler(this@MainActivity)
                     conhecidas = SgeWidgetStore.conhecidas(this@MainActivity)
                     tema = prefs.getInt("tema", 0); cor = prefs.getInt("estilo", 0)
+                    papel = prefs.getInt("papel", 0); lembrete = prefs.getBoolean("lembrete", false)
                 } }
                 prefs.registerOnSharedPreferenceChangeListener(listener)
                 onDispose { prefs.unregisterOnSharedPreferenceChangeListener(listener) }
@@ -97,10 +108,40 @@ class MainActivity : ComponentActivity() {
                     { resultado, ps -> SgeDocentesStore.vincularLocal(this@MainActivity, resultado, ps); scope.launch { SgeWidgets.atualizar(this@MainActivity) } },
                     { tipo -> if (!SgeWidgets.fixar(this@MainActivity, tipo)) Toast.makeText(this@MainActivity,
                         "Abra o seletor de widgets da tela inicial e procure SGE Diário.", Toast.LENGTH_LONG).show() },
-                    { compartilhar(it) }, { webVisivel = it })
+                    { compartilhar(it) }, { webVisivel = it },
+                    papel, lembrete, { definirPapel(it) }, { alternarLembrete(it) }, { sairDoSge() }, { limparDadosLocais() }, { abrirUrl(it) })
             }
         }
     }
+    private fun definirPapel(valor: Int) { getSharedPreferences(SgePainelStore.PREFS_NAME, MODE_PRIVATE).edit().putInt("papel", valor).apply() }
+    private fun definirLembrete(ligado: Boolean) {
+        getSharedPreferences(SgePainelStore.PREFS_NAME, MODE_PRIVATE).edit().putBoolean("lembrete", ligado).apply()
+        LembreteWorker.agendar(this, ligado, recriar = true)
+        if (!ligado) Toast.makeText(this, "Lembrete desativado", Toast.LENGTH_SHORT).show()
+    }
+    private fun alternarLembrete(ligar: Boolean) {
+        if (ligar && Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            pedirNotificacao.launch(Manifest.permission.POST_NOTIFICATIONS); return
+        }
+        definirLembrete(ligar)
+        if (ligar) Toast.makeText(this, "Lembrete diário ativado para as 17h", Toast.LENGTH_SHORT).show()
+    }
+    private fun sairDoSge() {
+        CookieManager.getInstance().removeAllCookies(null); CookieManager.getInstance().flush()
+        val prefs = getSharedPreferences(SgePainelStore.PREFS_NAME, MODE_PRIVATE)
+        prefs.edit().remove("turmas_contexto").remove("turmas_escola").apply()
+        web.loadUrl(SgeSyncWorker.BASE + "/")
+        Toast.makeText(this, "Sessão encerrada neste aparelho", Toast.LENGTH_SHORT).show()
+    }
+    private fun limparDadosLocais() {
+        val prefs = getSharedPreferences(SgePainelStore.PREFS_NAME, MODE_PRIVATE)
+        val manter = setOf("tema", "estilo", "papel", "lembrete", "introducao_v2", "web_user_agent")
+        prefs.edit().also { e -> prefs.all.keys.filter { it !in manter }.forEach { e.remove(it) } }.apply()
+        lifecycleScope.launch { SgeWidgets.atualizar(this@MainActivity) }
+        Toast.makeText(this, "Dados locais apagados", Toast.LENGTH_SHORT).show()
+    }
+    private fun abrirUrl(url: String) { runCatching { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) } }
+
     private fun sincronizarPessoal() {
         val p = SgePainelStore.ler(this)
         if (p.sincronizando) return
