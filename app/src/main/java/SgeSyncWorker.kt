@@ -67,8 +67,7 @@ class SgeSyncWorker(private val ctx: Context, params: WorkerParameters) : Corout
         } catch (e: Exception) {
             // O SGE varia o formato de algumas telas. Exibir a etapa que falhou
             // evita que uma resposta inesperada pareça, indevidamente, falta de rede.
-            val motivo = e.message?.replace(Regex("\\s+"), " ")?.take(140)
-                ?: e.javaClass.simpleName
+            val motivo = "${e.javaClass.simpleName}: ${e.message ?: ""}".replace(Regex("\\s+"), " ").take(500)
             mostrar(antigo.copy(mensagem = "Não foi possível consultar o horário: $motivo. Dados abaixo são da última consulta.", sincronizando = false))
             return if (runAttemptCount < 2) Result.retry() else Result.failure()
         } finally {

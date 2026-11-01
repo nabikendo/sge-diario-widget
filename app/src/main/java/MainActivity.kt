@@ -11,6 +11,7 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -90,7 +91,7 @@ class MainActivity : ComponentActivity() {
                         AndroidView(factory = { web }, modifier = Modifier.fillMaxSize())
                         if (!login) Column(Modifier.fillMaxSize().background(Color.Black)
                             .verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                            Text(painel.mensagem)
+                            SelectionContainer { Text(painel.mensagem) }
                             Button(onClick = {
                                 SgePainelStore.salvar(this@MainActivity, painel.copy(
                                     sincronizando = true,
