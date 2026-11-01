@@ -28,7 +28,6 @@ import org.json.JSONTokener
 
 class MainActivity : ComponentActivity() {
     private lateinit var web: WebView
-    private var autenticado by mutableStateOf(false)
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -36,6 +35,7 @@ class MainActivity : ComponentActivity() {
         // Recover from a worker left behind by an older APK. A persisted
         // "syncing" flag must never hide the real login/sync controls forever.
         WorkManager.getInstance(this).cancelUniqueWork("sge_sync_now")
+        SgeSyncWorker.agendarPeriodico(this)
         val painelInicial = SgePainelStore.ler(this)
         if (painelInicial.sincronizando) {
             SgePainelStore.salvar(this, painelInicial.copy(
@@ -127,7 +127,6 @@ class MainActivity : ComponentActivity() {
         if (!::web.isInitialized) return
         web.evaluateJavascript("Boolean(document.querySelector('#TurmaContextoId') || document.querySelector('#ProfessorId'))") { raw ->
             val active = runCatching { JSONTokener(raw).nextValue() == true }.getOrDefault(false)
-            autenticado = active
             if (active) CookieManager.getInstance().flush()
         }
     }
