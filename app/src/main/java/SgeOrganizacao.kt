@@ -42,3 +42,14 @@ object SgeOrganizacao {
         }.sortedBy { normalizarSge(it.titulo) }
     }
 }
+
+object SgeFiltrosStore {
+    val chaves = setOf("filtro_pessoal_v1", "filtro_coord_v1")
+    private fun chave(f: FontePainel) = if(f == FontePainel.PESSOAL) "filtro_pessoal_v1" else "filtro_coord_v1"
+    fun json(f: FiltroAvancado) = JSONObject().put("escola",f.escola).put("serie",f.serie).put("turno",f.turno).put("componente",f.componente).put("professor",f.professor).put("modulo",f.modulo).put("estado",f.estado).toString()
+    fun ler(raw: String): FiltroAvancado = JSONObject(raw).let { j ->
+        FiltroAvancado(j.getString("escola"),j.getString("serie"),j.getString("turno"),j.getString("componente"),j.getString("professor"),j.getInt("modulo"),j.getInt("estado")).also { require(it.modulo in -1..4 && it.estado in 0..3) }
+    }
+    fun ler(ctx: Context): Map<FontePainel,FiltroAvancado> = FontePainel.values().associateWith { f->runCatching { ler(ctx.getSharedPreferences(SgePainelStore.PREFS_NAME,0).getString(chave(f),json(FiltroAvancado()))!!) }.getOrDefault(FiltroAvancado()) }
+    fun salvar(ctx: Context, fonte: FontePainel, f: FiltroAvancado) { ctx.getSharedPreferences(SgePainelStore.PREFS_NAME,0).edit().putString(chave(fonte),json(f)).apply() }
+}

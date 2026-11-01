@@ -11,6 +11,7 @@ object SgeRelatoriosLote {
     fun criar(pasta: File, grupos: List<GrupoPendencias>, escola: String, responsavel: String, recorte: String): ArquivosLote {
         require(grupos.isNotEmpty())
         pasta.mkdirs()
+        pasta.listFiles()?.filter { it.isDirectory && it.name.startsWith("lote-") && it.lastModified() < System.currentTimeMillis()-86_400_000L }?.forEach { it.deleteRecursively() }
         val dir = File(pasta,"lote-${System.currentTimeMillis()}").apply { mkdirs() }
         val agora = LocalDateTime.now()
         try {

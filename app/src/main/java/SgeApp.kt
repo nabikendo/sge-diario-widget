@@ -54,11 +54,16 @@ fun AppDiario(
     var porPessoal by rememberSaveable { mutableStateOf(Agrupamento.TURMA) }
     var porCoord by rememberSaveable { mutableStateOf(Agrupamento.TURMA) }
     var detalhe by remember { mutableStateOf<GrupoPendencias?>(null) }
+    var origemDetalhe by remember { mutableStateOf<String?>(null) }
     var fonteDetalhe by remember { mutableStateOf(FontePainel.PESSOAL) }
     var fonteHistorico by rememberSaveable { mutableStateOf(FontePainel.PESSOAL) }
     var vincular by remember { mutableStateOf<ResultadoTurma?>(null) }
     var filtroPessoal by remember { mutableStateOf(FiltroAvancado()) }
     var filtroCoord by remember { mutableStateOf(FiltroAvancado()) }
+    LaunchedEffect(recursos.filtros) {
+        recursos.filtros[FontePainel.PESSOAL]?.let { filtroPessoal = it }
+        recursos.filtros[FontePainel.COORDENACAO]?.let { filtroCoord = it }
+    }
     var filtrosAbertos by remember { mutableStateOf(false) }
     var moduloDetalhe by remember { mutableStateOf(-1) }
     val rsCoord = coord.turmas.flatMap { it.disciplinas }
@@ -92,7 +97,7 @@ fun AppDiario(
     BackHandler(enabled = intro || pagina != null || detalhe != null || aba != 0) {
         when { intro -> { intro = false; aoIntroduzido() }
             pagina != null -> pagina = null
-            detalhe != null -> detalhe = null
+            detalhe != null -> { detalhe = null; pagina = origemDetalhe; origemDetalhe = null }
             aba == 2 && web.canGoBack() -> web.goBack()
             else -> aba = 0 }
     }
@@ -106,7 +111,7 @@ fun AppDiario(
         if (largo) RailDiario(aba, visiveis) { focus.clearFocus(); pagina = null; detalhe = null; aba = it }
         Column(Modifier.weight(1f).fillMaxHeight()) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 3.dp), verticalAlignment = Alignment.CenterVertically) {
-                if (pagina != null || detalhe != null) IconButton(onClick = { if (pagina != null) pagina = null else detalhe = null }) {
+                if (pagina != null || detalhe != null) IconButton(onClick = { if (pagina != null) pagina = null else { detalhe = null; pagina = origemDetalhe; origemDetalhe = null } }) {
                     Icon(SgeIcons.Back, "Voltar", Modifier.size(21.dp))
                 } else Icon(SgeIcons.Book, null, Modifier.padding(12.dp).size(22.dp), tint = MaterialTheme.colorScheme.primary)
                 Column(Modifier.weight(1f)) {
@@ -143,7 +148,7 @@ fun AppDiario(
                             { fonteHistorico = if (aba == 1) FontePainel.COORDENACAO else FontePainel.PESSOAL; pagina = "historico" },
                             bloqueioCoord, aoBloqueio, noturna, aoNoturna, statusNoturno, { pagina = "economia" }, { pagina = "backup" }, recursos.aoAtualizacoes)
                         rota.pagina == "mapa" -> TelaMapa(rsCoord, conhecidas, docentes, filtroCoord, recursos.organizacao,
-                            { filtrosAbertos = true }, { pagina = "organizacao" }) { g, m -> fonteDetalhe = FontePainel.COORDENACAO; detalhe = g; moduloDetalhe = m; aba = 1; pagina = null }
+                            { filtrosAbertos = true }, { pagina = "organizacao" }) { g, m -> fonteDetalhe = FontePainel.COORDENACAO; detalhe = g; moduloDetalhe = m; aba = 1; origemDetalhe = "mapa"; pagina = null }
                         rota.pagina == "lote" -> TelaLote(rsCoord, docentes, filtroCoord, recursos.organizacao, { filtrosAbertos = true }, recursos.aoLote)
                         rota.pagina == "organizacao" -> TelaOrganizacao(conhecidas, rsCoord, recursos.organizacao, recursos.aoOrganizacao)
                         rota.pagina == "economia" -> TelaEconomia(recursos.economia, recursos.aoEconomia)
@@ -158,7 +163,7 @@ fun AppDiario(
                                 saveable.SaveableStateProvider("painel:${rota.aba}") {
                                     TelaCartoes(fonte, painel, coord, docentes, conhecidas, if (rota.aba == 1) porCoord else porPessoal,
                                         { if (rota.aba == 1) porCoord = it else porPessoal = it; detalhe = null },
-                                        { fonteDetalhe = fonte; detalhe = it; moduloDetalhe = -1; focus.clearFocus() },
+                                        { fonteDetalhe = fonte; detalhe = it; moduloDetalhe = -1; origemDetalhe = null; focus.clearFocus() },
                                         { if (rota.aba == 1) aoVerificarTurmas(conhecidas.map { it.first }) else aoSincronizarPessoal() },
                                         aoCarregarTurmas, aoAtualizarDocentes, { aba = 2 }, { pagina = "ajuda" },
                                         selecionada = if (largo) rota.grupo?.chave else null,
@@ -198,6 +203,7 @@ fun AppDiario(
         if (filtrosAbertos && autorizado) FiltrosDialog(if (aba == 1) filtroCoord else filtroPessoal,
             if (aba == 1) rsCoord else painel.turmas, recursos.organizacao, docentes, { filtrosAbertos = false }) {
             if (aba == 1) filtroCoord = it else filtroPessoal = it
+            recursos.aoFiltro(if (aba == 1) FontePainel.COORDENACAO else FontePainel.PESSOAL, it)
             detalhe = null
         }
         vincular?.takeIf { autorizado }?.let { resultado -> VinculoDialog(resultado, docentes, { vincular = null }) { ps ->

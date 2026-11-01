@@ -9,7 +9,7 @@ import java.time.Instant
 /** Backup portátil sem sessão, cookies, senha, diagnóstico ou autorização biométrica. */
 object SgeBackup {
     const val LIMITE = 10 * 1024 * 1024
-    val textos = setOf("painel_v2", "painel_coord_v2", "vinculos_docentes_v1", "historico_semanal_v1", "turmas_escola", "turmas_contexto", SgeOrganizacao.CHAVE)
+    val textos = SgeFiltrosStore.chaves + setOf("painel_v2", "painel_coord_v2", "vinculos_docentes_v1", "historico_semanal_v1", "turmas_escola", "turmas_contexto", SgeOrganizacao.CHAVE)
     val booleanos = setOf("lembrete", "coord_noturna", "economia_wifi", "economia_carregando", "economia_bateria")
     val inteiros = setOf("tema", "estilo", "papel", "economia_horas", "economia_hora_noturna")
     val chaves = textos + booleanos + inteiros
@@ -66,8 +66,9 @@ object SgeBackup {
                             ls.keys().forEach { key -> val a = ls.getJSONArray(key); for (i in 0 until a.length()) docente(a.getJSONObject(i)) }
                             j.put("sincronizando", false).put("inicio", 0); dados.put(chave, j.toString())
                         }
-                        "historico_semanal_v1" -> { val a = JSONArray(v); require(a.length() <= 32); require(SgeHistorico.ler(v).size == a.length()) { "Histórico inválido." } }
+                        "historico_semanal_v1" -> { val a = JSONArray(v); require(a.length() <= 32); require(SgeHistorico.ler(v).let { ds -> ds.size == a.length() && ds.all { d -> d.medicoes.all { m -> m.modulos.size == 5 && m.modulos.all { (it.quantidade ?: 0) >= 0 && it.aguardando >= 0 && it.aprovados >= 0 } } } }) { "Histórico inválido." } }
                         SgeOrganizacao.CHAVE -> SgeOrganizacao.ler(v)
+                        in SgeFiltrosStore.chaves -> SgeFiltrosStore.ler(v)
                         else -> { val a = JSONArray(v); for (i in 0 until a.length()) { val j = a.getJSONObject(i); require(j.getString("v").isNotBlank()); j.getString(if (chave == "turmas_escola") "t" else "d") } }
                     }
                 }

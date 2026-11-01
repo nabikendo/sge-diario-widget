@@ -94,6 +94,7 @@ class MainActivity : FragmentActivity() {
         receberDestino(intent)
         val versao = runCatching { packageManager.getPackageInfo(packageName, 0).versionName }.getOrNull() ?: "Prévia"
         setContent {
+            var filtros by remember { mutableStateOf(SgeFiltrosStore.ler(this)) }
             var organizacao by remember { mutableStateOf(SgeOrganizacao.ler(this)) }
             var economia by remember { mutableStateOf(SgeEconomia.ler(this)) }
             var historico by remember { mutableStateOf(SgeHistoricoStore.ler(this)) }
@@ -121,6 +122,7 @@ class MainActivity : FragmentActivity() {
             DisposableEffect(prefs) {
                 val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, chave -> runOnUiThread {
                     if (chave == null || chave == "historico_semanal_v1") historico = SgeHistoricoStore.ler(this@MainActivity)
+                    filtros = SgeFiltrosStore.ler(this@MainActivity)
                     organizacao = SgeOrganizacao.ler(this@MainActivity); economia = SgeEconomia.ler(this@MainActivity)
                     perfil = SgeSessaoStore.perfil(this@MainActivity); bloqueio = SgeSessaoStore.protegida(this@MainActivity)
                     noturna = prefs.getBoolean("coord_noturna", false); statusNoturno = prefs.getString("coord_noturna_status", "").orEmpty()
@@ -170,7 +172,8 @@ class MainActivity : FragmentActivity() {
                         { comProtecao { criarBackup.launch("SGE-Diario-backup-${java.time.LocalDate.now()}.json") } },
                         { comProtecao { abrirBackup.launch(arrayOf("application/json", "text/plain", "application/octet-stream")) } },
                         { atualizador.aberto = true; scope.launch { atualizador.verificar(true) } },
-                        { gs,escola,responsavel,recorte -> gerarLote(gs,escola,responsavel,recorte) }))
+                        { gs,escola,responsavel,recorte -> gerarLote(gs,escola,responsavel,recorte) },
+                        filtros, { fonte, f -> SgeFiltrosStore.salvar(this@MainActivity,fonte,f) }))
                 AtualizacoesDialog(atualizador) { lifecycleScope.launch {
                     try { val arquivo = atualizador.prepararInstalacao(); lifecycle.withResumed { if(atualizador.aberto) atualizador.instalar(arquivo) } }
                     catch (e: CancellationException) { throw e }

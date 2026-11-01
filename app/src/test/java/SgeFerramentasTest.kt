@@ -48,6 +48,12 @@ class SgeFerramentasTest {
     @Test fun backupValidaListaRealDoWebView() {
         assertNotNull(SgeBackup.validar(SgeBackup.criar(mapOf("turmas_escola" to "[{\"v\":\"1\",\"t\":\"13.01\",\"tp\":\"0\"}]"),"1.8")))
     }
+    @Test fun backupPreservaFiltrosValidados() {
+        val f=FiltroAvancado(serie="2º ano",turno="Tarde",modulo=2,estado=2)
+        val b=SgeBackup.validar(SgeBackup.criar(mapOf("filtro_coord_v1" to SgeFiltrosStore.json(f)),"1.8"))
+        assertEquals(f,SgeFiltrosStore.ler(b.dados.getString("filtro_coord_v1")))
+        assertTrue(runCatching { SgeFiltrosStore.ler(SgeFiltrosStore.json(f.copy(modulo=50))) }.isFailure)
+    }
     private fun meta()=JSONObject().put("schema",1).put("pacote","app.teste").put("versao","1.8").put("codigo",20).put("minSdk",29).put("arquivo","SGE.apk").put("tamanho",1024).put("sha256","a".repeat(64))
     private val url="https://github.com/nabikendo/sge-diario-widget/releases/download/v1.8/SGE.apk"
     @Test fun atualizacaoAceitaSomenteNovaVersaoDoMesmoCanal() { assertEquals(20L,PoliticaAtualizacao.ler(meta(),"app.teste",19,29,url).codigo);assertTrue(runCatching{PoliticaAtualizacao.ler(meta(),"app",19,29,url)}.isFailure);assertTrue(runCatching{PoliticaAtualizacao.ler(meta(),"app.teste",20,29,url)}.isFailure) }

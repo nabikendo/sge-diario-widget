@@ -76,7 +76,7 @@ class SgeAtualizador(private val ctx: Context) {
     fun automatico(v: Boolean) { automatico = v; prefs.edit().putBoolean("automatico",v).apply() }
     init {
         oferta = runCatching { val j = JSONObject(prefs.getString("oferta", "")!!); PoliticaAtualizacao.ler(j,ctx.packageName,info.longVersionCode,Build.VERSION.SDK_INT,j.getString("url"),j.optString("notas")) }.getOrNull()
-        if (oferta == null) cancelar()
+        if (oferta == null) { cancelar(); prefs.edit().remove("oferta").apply() }
     }
     suspend fun verificar(manual: Boolean) {
         if (ocupado) return
@@ -194,7 +194,7 @@ class SgeAtualizador(private val ctx: Context) {
             Row { Text("Baixar só em rede sem franquia (Wi-Fi)",Modifier.weight(1f)); Switch(a.wifi,{ a.wifi(it) },enabled=!a.baixando) }
             Text("O Android pede sua confirmação para instalar. Seus dados são mantidos ao atualizar com o mesmo pacote e assinatura.",style=MaterialTheme.typography.bodySmall)
             a.oferta?.notas?.takeIf { it.isNotBlank() }?.let { Text(it,style=MaterialTheme.typography.bodySmall) }
-            if (a.baixando) TextButton(onClick = { a.cancelar() }) { Text("Cancelar download") }
+            if (a.baixando || a.pronto) TextButton(onClick = { a.cancelar() }) { Text(if (a.pronto) "Descartar download e tentar de novo" else "Cancelar download") }
         } },
         confirmButton = { Button(enabled=!a.ocupado && !a.baixando,onClick = { when { a.pronto -> instalar(); a.oferta != null -> runCatching { a.baixar() }.onFailure { a.falha("Não foi possível iniciar o download.") }; else -> scope.launch { a.verificar(true) } } }) { Text(if (a.pronto) "Instalar atualização" else if (a.oferta != null) "Baixar atualização" else "Verificar agora") } },
         dismissButton = { TextButton(onClick = { a.adiar() }) { Text("Mais tarde") } })

@@ -18,7 +18,8 @@ data class RecursosSge(
     val organizacao: Map<String,DadosTurma> = emptyMap(), val economia: EconomiaSge = EconomiaSge(),
     val aoOrganizacao: (Map<String,DadosTurma>) -> Unit = {}, val aoEconomia: (EconomiaSge) -> Unit = {},
     val aoBackup: () -> Unit = {}, val aoRestaurar: () -> Unit = {}, val aoAtualizacoes: () -> Unit = {},
-    val aoLote: (List<GrupoPendencias>,String,String,String) -> Unit = { _,_,_,_-> }
+    val aoLote: (List<GrupoPendencias>,String,String,String) -> Unit = { _,_,_,_-> },
+    val filtros: Map<FontePainel,FiltroAvancado> = emptyMap(), val aoFiltro: (FontePainel,FiltroAvancado)->Unit = {_,_->}
 )
 
 @Composable fun EscolhaFiltro(titulo: String, atual: String, opcoes: List<Pair<String,String>>, escolher: (String)->Unit) {
@@ -50,9 +51,9 @@ data class RecursosSge(
     } },confirmButton={ Button(onClick={ aplicar(f);fechar() }) { Text("Aplicar filtros") } },dismissButton={ TextButton(onClick=fechar) { Text("Cancelar") } })
 }
 
-@Composable fun BarraRecorte(f: FiltroAvancado, filtrar: ()->Unit) {
+@Composable fun BarraRecorte(f: FiltroAvancado, filtrar: ()->Unit, escopo: String = "Toda a escola") {
     Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
-        Text(if(f.ativo) "Recorte ativo" else "Toda a escola",Modifier.weight(1f),style=MaterialTheme.typography.labelLarge)
+        Text(if(f.ativo) "Recorte ativo" else escopo,Modifier.weight(1f),style=MaterialTheme.typography.labelLarge)
         OutlinedButton(onClick=filtrar) { Text("Filtros avançados") }
     }
 }
@@ -61,7 +62,7 @@ fun descreverFiltro(f: FiltroAvancado, docentes: PainelDocentes): String = listO
 @Composable fun TelaMapa(rs: List<ResultadoTurma>, conhecidas: List<Pair<String,String>>, docentes: PainelDocentes, filtro: FiltroAvancado, org: Map<String,DadosTurma>, filtrar: ()->Unit, organizar: ()->Unit, abrir: (GrupoPendencias,Int)->Unit) {
     var professores by remember { mutableStateOf(false) }
     val filtrados = SgeOrganizacao.filtrar(rs,filtro,org,docentes)
-    val grupos = if(professores) SgeOrganizacao.porProfessor(filtrados,docentes,filtro.professor) else SgeDashboard.agrupar(filtrados,Agrupamento.TURMA) + if(!filtro.ativo) conhecidas.filter { (id,_)->filtrados.none { it.turma.id==id } }.map { (id,nome)->GrupoPendencias("turma:$id",nome,"Sem consulta",emptyList(),setOf(id)) } else emptyList()
+    val grupos = if(professores) SgeOrganizacao.porProfessor(filtrados,docentes,filtro.professor) + SgeDashboard.agrupar(filtrados.filter { SgeOrganizacao.professores(it,docentes).isEmpty() },Agrupamento.PROFESSOR) else SgeDashboard.agrupar(filtrados,Agrupamento.TURMA) + if(!filtro.ativo) conhecidas.filter { (id,_)->filtrados.none { it.turma.id==id } }.map { (id,nome)->GrupoPendencias("turma:$id",nome,"Sem consulta",emptyList(),setOf(id)) } else emptyList()
     val scroll = rememberScrollState()
     LazyColumn(modifier=Modifier.testTag("mapa-lista"),contentPadding=PaddingValues(20.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
         item { Text("Mapa da escola",style=MaterialTheme.typography.displaySmall) }
@@ -152,7 +153,7 @@ fun descreverFiltro(f: FiltroAvancado, docentes: PainelDocentes): String = listO
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),verticalArrangement=Arrangement.spacedBy(18.dp)) {
         Text("Backup e restauração",style=MaterialTheme.typography.headlineLarge)
         Text("Guarde os painéis, histórico, vínculos de professores, organização das turmas e preferências em um arquivo. Você escolhe a pasta e pode usar o Google Drive se ele estiver disponível no seletor do Android.")
-        Text("O arquivo contém dados da escola: guarde-o em um local de sua confiança. Não contém senha, cookies, sessão do SGE nem autorização biométrica. A proteção deste aparelho é mantida na restauração.")
+        Text("O arquivo contém dados da escola: guarde-o em um local de sua confiança. Não contém senha, cookies, sessão do SGE nem autorização biométrica. A proteção deste aparelho é mantida na restauração. Os widgets devem ser adicionados novamente ao trocar de aparelho.")
         Button(onClick=criar,modifier=Modifier.fillMaxWidth()) { Text("Criar backup") }
         OutlinedButton(onClick=restaurar,modifier=Modifier.fillMaxWidth()) { Text("Restaurar de um arquivo") }
         Text("Antes de restaurar, o app valida o arquivo e mostra um resumo para você confirmar a substituição dos dados locais. Depois, entre no SGE para atualizar as consultas.",style=MaterialTheme.typography.bodySmall)

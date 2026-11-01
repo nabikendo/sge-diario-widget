@@ -173,7 +173,7 @@ fun TelaCartoes(
                     OutlinedButton(onClick = aoMapa, modifier = Modifier.weight(1f)) { Text("Mapa da escola") }
                     OutlinedButton(onClick = aoLote, modifier = Modifier.weight(1f)) { Text("Relatórios em lote") }
                 }
-                BarraRecorte(filtroAvancado, aoFiltros)
+                BarraRecorte(filtroAvancado, aoFiltros, if (escola) "Toda a escola" else "Todas as suas turmas")
             }
         }
         item(span = { GridItemSpan(maxLineSpan) }) {

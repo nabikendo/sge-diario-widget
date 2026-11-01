@@ -212,7 +212,7 @@ class SgeUiSmokeTest {
         var selecionado = -1
         content { TelaMapa(rs,rs.map { it.turma.id to it.turma.nome },docentes,FiltroAvancado(),emptyMap(),{},{}) { _,m->selecionado=m } }
         compose.onNodeWithText("Mapa da escola").assertIsDisplayed()
-        compose.onNode(hasScrollAction() and hasTestTag("mapa-lista")).performScrollToNode(hasText("13.01/EM"))
+        compose.onNode(hasScrollAction() and hasTestTag("mapa-lista")).performScrollToNode(hasText("13.01"))
         foto("11-mapa-escola")
         compose.onAllNodesWithText("2")[0].performClick()
         compose.runOnIdle { check(selecionado==0) }
