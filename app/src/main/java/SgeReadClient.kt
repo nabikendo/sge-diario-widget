@@ -19,6 +19,7 @@ class SgeReadClient(cookies: String, private val userAgent: String, private val 
     }.toMap().toMutableMap()
     private val grades = mutableMapOf<String, String>()
     private val conteudosHtml = mutableMapOf<String, String>()
+    val historico = mutableListOf<String>()
     private val base = "https://sge.seduc.to.pontoid.com.br"
     private fun request(path: String, params: Map<String, String> = emptyMap(), post: Boolean = false): String {
         val response = try {
@@ -26,6 +27,7 @@ class SgeReadClient(cookies: String, private val userAgent: String, private val 
             .userAgent(userAgent).data(params).timeout(30000).ignoreContentType(true).maxBodySize(12 * 1024 * 1024)
             .method(if (post) org.jsoup.Connection.Method.POST else org.jsoup.Connection.Method.GET).execute()
         } catch (e: Exception) {
+            historico.add("$path -> falha de rede: ${e.javaClass.simpleName}")
             throw IllegalStateException("Falha de rede em $path: ${e.message ?: e.javaClass.simpleName}", e)
         }
         jar.putAll(response.cookies())
@@ -34,6 +36,7 @@ class SgeReadClient(cookies: String, private val userAgent: String, private val 
         // Passing the header verbatim makes refreshed SGE sessions unreliable
         // on Android WebView.
         response.cookies().forEach { (name, value) -> onCookie("$name=$value") }
+        registrar(path, response)
         if (response.url().path.contains("/Acesso/Entrar", true)) throw SessaoExpirada()
         val body = response.body()
         if (body.contains("id=\"login-form\"") || body.contains("id=\"btn-entrar\"")) throw SessaoExpirada()
@@ -41,6 +44,12 @@ class SgeReadClient(cookies: String, private val userAgent: String, private val 
         if (body.isBlank()) throw IllegalStateException("SGE retornou resposta vazia em $path")
         return body
     }
+    private fun registrar(path: String, r: org.jsoup.Connection.Response) {
+        val b = runCatching { r.body() }.getOrDefault("")
+        historico.add("$path -> HTTP ${r.statusCode()} final=${r.url().path} ${b.length}B ${SgeDiag.estrutura(b)}".take(900))
+        if (historico.size > 40) historico.removeAt(0)
+    }
+
     fun turmas(): List<TurmaMonitorada> {
         val home = Jsoup.parse(request("/"))
         // O SGE carrega esta tela em #content por AJAX. O GET direto da rota

@@ -24,6 +24,7 @@ class SgeSyncWorker(private val ctx: Context, params: WorkerParameters) : Corout
     override suspend fun doWork(): Result {
         val antigo = SgePainelStore.ler(ctx)
         mostrar(antigo.copy(sincronizando = true, inicioConsulta = System.currentTimeMillis(), mensagem = "Consultando o horário do professor…"))
+        var cliente: SgeReadClient? = null
         try {
             val cookies = withContext(Dispatchers.Main) { CookieManager.getInstance().getCookie(BASE) }
             if (cookies.isNullOrBlank()) throw SessaoExpirada()
@@ -31,6 +32,7 @@ class SgeSyncWorker(private val ctx: Context, params: WorkerParameters) : Corout
                 .getString("web_user_agent", null) ?: error("Abra o SGE no aplicativo antes de sincronizar.")
             val updatedCookies = mutableListOf<String>()
             val client = SgeReadClient(cookies, agent) { updatedCookies.add(it) }
+            cliente = client
             val turmas = withTimeout(90_000L) {
                 withContext(Dispatchers.IO) { client.turmas() }
             }
@@ -51,23 +53,27 @@ class SgeSyncWorker(private val ctx: Context, params: WorkerParameters) : Corout
             }
             val falhas = resultados.sumOf { r -> r.modulos.count { it.quantidade == null } }
             val parciais = resultados.sumOf { r -> r.modulos.count { !it.coberturaCompleta } }
+            if (falhas > 0 || parciais > 0) guardarDiagnostico("Módulos com falha ou cobertura parcial", cliente, resultados)
             mostrar(PainelSge(resultados, "${turmas.map { it.id }.distinct().size} turmas consultadas. " +
                 if (falhas > 0) "$falhas consultas não verificadas. Toque na turma para conferir os detalhes." else
                     if (parciais > 0) "$parciais consultas com cobertura parcial (*). Confira os detalhes." else
                         "Documentos ausentes e registros não enviados/reprovados conferidos nos períodos iniciados.", false, true))
             return Result.success()
         } catch (e: TimeoutCancellationException) {
+            guardarDiagnostico("Tempo limite de 90s excedido", cliente)
             mostrar(antigo.copy(mensagem = "A consulta demorou mais de 90 segundos. Verifique a conexão e tente novamente.",
                 sincronizando = false, inicioConsulta = 0L))
             return Result.failure()
         } catch (e: CancellationException) { throw e }
         catch (e: SessaoExpirada) {
+            guardarDiagnostico("Sessão expirada", cliente)
             mostrar(antigo.copy(mensagem = "Sessão expirada. Entre novamente no SGE. Dados abaixo são da última consulta.", sincronizando = false, sessaoAtiva = false))
             return Result.success()
         } catch (e: Exception) {
             // O SGE varia o formato de algumas telas. Exibir a etapa que falhou
             // evita que uma resposta inesperada pareça, indevidamente, falta de rede.
             val motivo = "${e.javaClass.simpleName}: ${e.message ?: ""}".replace(Regex("\\s+"), " ").take(500)
+            guardarDiagnostico("Erro: $motivo", cliente)
             mostrar(antigo.copy(mensagem = "Não foi possível consultar o horário: $motivo. Dados abaixo são da última consulta.", sincronizando = false))
             return if (runAttemptCount < 2) Result.retry() else Result.failure()
         } finally {
@@ -76,6 +82,18 @@ class SgeSyncWorker(private val ctx: Context, params: WorkerParameters) : Corout
             withContext(NonCancellable + Dispatchers.Main) { DiarioGlanceWidget().updateAll(ctx) }
         }
     }
+    private fun guardarDiagnostico(titulo: String, c: SgeReadClient?, resultados: List<ResultadoTurma> = emptyList()) {
+        val t = buildString {
+            appendLine(titulo)
+            resultados.forEachIndexed { i, r -> r.modulos.forEachIndexed { j, m ->
+                if (m.quantidade == null || !m.coberturaCompleta)
+                    appendLine("Turma ${i + 1} ${SgePainelStore.NOMES_MODULOS.getOrElse(j) { "Módulo" }}: ${m.resumo()} ${m.detalhe}")
+            } }
+            c?.historico?.forEach { appendLine(it) }
+        }
+        ctx.getSharedPreferences(SgePainelStore.PREFS_NAME, Context.MODE_PRIVATE).edit().putString("diagnostico_v1", t.take(20000)).commit()
+    }
+
     companion object {
         const val BASE = "https://sge.seduc.to.pontoid.com.br"
         private fun rede() = Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()

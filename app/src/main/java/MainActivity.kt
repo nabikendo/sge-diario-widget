@@ -2,6 +2,7 @@ package br.to.seduc.sgediariowidget
 
 import android.annotation.SuppressLint
 import android.os.Bundle
+import android.widget.Toast
 import android.webkit.CookieManager
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -103,6 +104,12 @@ class MainActivity : ComponentActivity() {
                             }) {
                                 Text(if (painel.sincronizando) "Consultando…" else "Sincronizar agora")
                             }
+                            Button(onClick = {
+                                val cm = getSystemService(CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                                cm.setPrimaryClip(android.content.ClipData.newPlainText("diagnostico", montarDiagnostico(painel)))
+                                Toast.makeText(this@MainActivity, "Diagnóstico copiado", Toast.LENGTH_SHORT).show()
+                            }) { Text("Copiar diagnóstico") }
+
                             if (painel.sincronizando) LinearProgressIndicator(Modifier.fillMaxWidth())
                             Text("— Não verificado • * Cobertura parcial: confira o detalhe. Conteúdos e frequência contam dias pendentes até hoje. Planos/PEIs incluem ausências quando a cobertura é verificada.", style = MaterialTheme.typography.bodySmall)
                             painel.turmas.forEach { resultado ->
@@ -124,6 +131,19 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+    private fun montarDiagnostico(p: PainelSge): String {
+        val prefs = getSharedPreferences(SgePainelStore.PREFS_NAME, MODE_PRIVATE)
+        val v = runCatching { packageManager.getPackageInfo(packageName, 0).versionName }.getOrNull()
+        return buildString {
+            appendLine("SGE Diário v$v")
+            appendLine("Mensagem: ${p.mensagem}")
+            p.turmas.forEachIndexed { i, r -> r.modulos.forEachIndexed { j, m ->
+                appendLine("Turma ${i + 1} ${SgePainelStore.NOMES_MODULOS.getOrElse(j) { "Módulo" }}: ${m.resumo()} ${m.detalhe}")
+            } }
+            appendLine(prefs.getString("diagnostico_v1", "(sem diagnóstico guardado)"))
+        }
+    }
+
     private fun verificarSessao() {
         if (!::web.isInitialized) return
         web.evaluateJavascript("Boolean(document.querySelector('#TurmaContextoId') || document.querySelector('#ProfessorId'))") { raw ->
