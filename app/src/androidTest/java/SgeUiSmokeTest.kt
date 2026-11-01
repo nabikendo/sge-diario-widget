@@ -53,7 +53,7 @@ class SgeUiSmokeTest {
             Box(Modifier.weight(1f)) { body() }
         } } }
     }
-    private fun foto(nome: String) {
+    private fun foto(nome: String, janela: Boolean = false) {
         compose.waitForIdle()
         val resolver = InstrumentationRegistry.getInstrumentation().targetContext.contentResolver
         val uri = checkNotNull(resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, ContentValues().apply {
@@ -62,7 +62,8 @@ class SgeUiSmokeTest {
             put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures/SGEPreview")
         }))
         checkNotNull(resolver.openOutputStream(uri)).use {
-            check(compose.onRoot().captureToImage().asAndroidBitmap().compress(Bitmap.CompressFormat.PNG, 100, it))
+            val bitmap = if (janela) InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot() else compose.onRoot().captureToImage().asAndroidBitmap()
+            check(bitmap.compress(Bitmap.CompressFormat.PNG, 100, it))
         }
     }
     @Test fun cartaoAbreDetalheDoModulo() {
@@ -307,7 +308,7 @@ class SgeUiSmokeTest {
             val a=SgeAtualizador(ctx).apply { aberto=true }
             content { AtualizacoesDialog(a) { error("Não deve instalar automaticamente") } }
             compose.onNodeWithText("Baixar atualização").assertIsDisplayed()
-            foto("13-atualizacao-app")
+            foto("13-atualizacao-app", janela = true)
             compose.onNodeWithText("Mais tarde").performClick()
             compose.runOnIdle { check(!a.aberto && prefs.getLong("adiar_ate",0)>System.currentTimeMillis() && prefs.getLong("download",-1)==-1L) }
         } finally { prefs.edit().clear().commit() }
