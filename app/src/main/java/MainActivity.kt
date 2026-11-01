@@ -12,6 +12,7 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
@@ -94,19 +95,20 @@ class MainActivity : ComponentActivity() {
                     if (web.canGoBack()) web.goBack() else login = false
                 }
                 Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).padding(horizontal = if (larg >= 600) 28.dp else 12.dp)) {
-                    Spacer(Modifier.height(10.dp))
-                    Text("Diário", style = MaterialTheme.typography.titleLarge)
-                    Text("Pendências por turma", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(Modifier.height(8.dp))
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        if (login) FilledTonalButton(onClick = { copiarPagina() }) { Text("Copiar página") }
-                        TextButton(onClick = { ajustes = !ajustes }) { Text("Aparência") }
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text("SGE  •  DIÁRIO", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(if (login) "SGE Web" else if (coord) "Coordenação" else "Turmas", style = MaterialTheme.typography.titleLarge)
+                        }
+                        if (login) TextButton(onClick = { copiarPagina() }) { Text("Copiar página") }
+                        androidx.compose.material3.IconButton(onClick = { ajustes = !ajustes }) { Text("⚙", style = MaterialTheme.typography.titleMedium) }
                     }
                     if (ajustes) Card(Modifier.fillMaxWidth()) {
                         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text("Tema", style = MaterialTheme.typography.titleMedium)
+                            Text("Aparência", style = MaterialTheme.typography.titleMedium)
                             Segmentado(listOf("Sistema", "Claro", "Escuro"), tema) { tema = it; prefs.edit().putInt("tema", it).apply() }
-                            Text("Estilo", style = MaterialTheme.typography.titleMedium)
+                            Text("Paleta", style = MaterialTheme.typography.titleMedium)
                             Segmentado(listOf("Apple", "Cores do sistema"), estilo) { estilo = it; prefs.edit().putInt("estilo", it).apply() }
                         }
                     }
@@ -118,8 +120,21 @@ class MainActivity : ComponentActivity() {
                         if (!login && coord) PainelCoordenacao(coordPainel, turmasRaw)
                         if (!login && !coord) Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)
                             .verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                            SelectionContainer { Text(painel.mensagem) }
-                            Button(onClick = {
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = MaterialTheme.shapes.large,
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                            ) {
+                                Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                        Text("Resumo do diário", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        SelectionContainer { Text(painel.mensagem, style = MaterialTheme.typography.bodyMedium) }
+                                    }
+                                    Text("◌", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.primary)
+                                }
+                            }
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                                FilledTonalButton(onClick = {
                                 SgePainelStore.salvar(this@MainActivity, painel.copy(
                                     sincronizando = true,
                                     inicioConsulta = System.currentTimeMillis(),
@@ -127,17 +142,18 @@ class MainActivity : ComponentActivity() {
                                 ))
                                 painel = SgePainelStore.ler(this@MainActivity)
                                 extrairEscola(); extrairTurmas { SgeSyncWorker.sincronizarAgora(this@MainActivity) }
-                            }) {
-                                Text(if (painel.sincronizando) "Consultando…" else "Sincronizar agora")
-                            }
-                            Button(onClick = {
+                                }) { Text(if (painel.sincronizando) "Sincronizando…" else "Sincronizar agora  ↻") }
+                                TextButton(onClick = {
                                 val cm = getSystemService(CLIPBOARD_SERVICE) as android.content.ClipboardManager
                                 cm.setPrimaryClip(android.content.ClipData.newPlainText("diagnostico", montarDiagnostico(painel)))
                                 Toast.makeText(this@MainActivity, "Diagnóstico copiado", Toast.LENGTH_SHORT).show()
-                            }) { Text("Copiar diagnóstico") }
+                                }) { Text("Diagnóstico") }
+                            }
 
                             if (painel.sincronizando) LinearProgressIndicator(Modifier.fillMaxWidth())
-                            Text("— Não verificado • * Cobertura parcial: confira o detalhe. Conteúdos e frequência contam dias pendentes até hoje. Planos/PEIs incluem ausências quando a cobertura é verificada.", style = MaterialTheme.typography.bodySmall)
+                            Text("SUAS TURMAS", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("C/F/A/P/I: conteúdos, frequência, plano de aula, plano de curso e PEI. * cobertura parcial • — não verificado.",
+                                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             Grade(painel.turmas) { resultado ->
                                 var detalhesAbertos by remember { mutableStateOf(false) }
                                 Card(
@@ -148,13 +164,26 @@ class MainActivity : ComponentActivity() {
                                     border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
                                 ) {
                                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                        Text("${resultado.turma.nome} • ${resultado.turma.disciplina}", style = MaterialTheme.typography.titleMedium)
-                                        Text(resultado.turma.escola, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                        Text(resultado.modulos.mapIndexed { i, m ->
-                                            "${listOf("C", "F", "A", "P", "I").getOrElse(i) { "•" }} ${m.resumo()}"
-                                        }.joinToString("   "), style = MaterialTheme.typography.bodyMedium)
-                                        Text("${if (detalhesAbertos) "Ocultar detalhes" else "Ver detalhes"}  ${if (detalhesAbertos) "⌃" else "⌄"}",
-                                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                                        Row(Modifier.fillMaxWidth(), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                                Text(resultado.turma.nome, style = MaterialTheme.typography.titleMedium)
+                                                Text("${resultado.turma.disciplina}  ·  ${resultado.turma.escola}", style = MaterialTheme.typography.bodySmall,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+                                            }
+                                            Text(if (detalhesAbertos) "⌃" else "›", style = MaterialTheme.typography.titleLarge,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        }
+                                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                            resultado.modulos.take(5).forEachIndexed { i, m ->
+                                                Surface(shape = RoundedCornerShape(14.dp), color = MaterialTheme.colorScheme.surfaceVariant) {
+                                                    Row(Modifier.padding(horizontal = 9.dp, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                                                        Text(listOf("C", "F", "A", "P", "I").getOrElse(i) { "•" },
+                                                            style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                                        Text(m.resumo(), style = MaterialTheme.typography.labelMedium)
+                                                    }
+                                                }
+                                            }
+                                        }
                                         if (detalhesAbertos) {
                                             HorizontalDivider(color = MaterialTheme.colorScheme.outline)
                                             Text("Consulta: ${resultado.atualizado}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
