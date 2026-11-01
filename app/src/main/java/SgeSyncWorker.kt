@@ -6,6 +6,7 @@ import androidx.glance.appwidget.updateAll
 import androidx.work.*
 import br.to.seduc.sgediariowidget.data.*
 import br.to.seduc.sgediariowidget.widget.DiarioGlanceWidget
+import org.json.JSONArray
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
@@ -33,6 +34,10 @@ class SgeSyncWorker(private val ctx: Context, params: WorkerParameters) : Corout
             val updatedCookies = mutableListOf<String>()
             val client = SgeReadClient(cookies, agent, ctx.getSharedPreferences(SgePainelStore.PREFS_NAME, Context.MODE_PRIVATE).getString("turmas_contexto", null)) { updatedCookies.add(it) }
             cliente = client
+            // Dois perfis no SGE: Servidor (professor) e Unidade escolar (coordenação). Cada um tem seu painel.
+            val escola = withTimeout(30_000L) { withContext(Dispatchers.IO) { client.ehPerfilEscola() } }
+            if (escola) return sincronizarCoordenacao(client, antigo)
+
             val turmas = withTimeout(90_000L) {
                 withContext(Dispatchers.IO) { client.turmas() }
             }
@@ -82,6 +87,36 @@ class SgeSyncWorker(private val ctx: Context, params: WorkerParameters) : Corout
             withContext(NonCancellable + Dispatchers.Main) { DiarioGlanceWidget().updateAll(ctx) }
         }
     }
+    private suspend fun sincronizarCoordenacao(client: SgeReadClient, antigo: PainelSge): Result {
+        val prefs = ctx.getSharedPreferences(SgePainelStore.PREFS_NAME, Context.MODE_PRIVATE)
+        val lista = runCatching { JSONArray(prefs.getString("turmas_escola", "[]")) }.getOrDefault(JSONArray())
+        if (lista.length() == 0) {
+            SgeCoordStore.salvar(ctx, CoordPainel(mensagem = "Perfil Unidade escolar detectado, mas o app ainda não conhece as turmas. " +
+                "Abra Escola → Conteúdo Aplicado na aba SGE Web, volte e toque em Sincronizar coordenação."))
+            mostrar(antigo.copy(sincronizando = false, inicioConsulta = 0L))
+            return Result.success()
+        }
+        val resultados = mutableListOf<CoordTurma>()
+        for (i in 0 until lista.length()) {
+            val o = lista.getJSONObject(i)
+            val nome = o.getString("t")
+            SgeCoordStore.salvar(ctx, CoordPainel(resultados.toList(), "Consultando ${i + 1}/${lista.length()}: $nome", "", true))
+            val r = try {
+                CoordTurma(nome, withTimeout(60_000L) { withContext(Dispatchers.IO) { client.pendenciasConteudoTurma(o.getString("v"), o.optString("tp", "0")) } })
+            } catch (e: SessaoExpirada) { throw e }
+            catch (e: TimeoutCancellationException) { CoordTurma(nome, emptyList(), "tempo esgotado") }
+            catch (e: CancellationException) { throw e }
+            catch (e: Exception) { CoordTurma(nome, emptyList(), (e.message ?: e.javaClass.simpleName).replace(Regex("\\s+"), " ").take(120)) }
+            resultados.add(r)
+        }
+        val falhas = resultados.count { it.erro != null }
+        SgeCoordStore.salvar(ctx, CoordPainel(resultados, "${resultados.size} turmas consultadas" + (if (falhas > 0) ". $falhas com erro." else "."),
+            LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd/MM HH:mm")), false))
+        if (falhas > 0) guardarDiagnostico("Coordenação: turmas com erro", client)
+        mostrar(antigo.copy(sincronizando = false, inicioConsulta = 0L))
+        return Result.success()
+    }
+
     private fun guardarDiagnostico(titulo: String, c: SgeReadClient?, resultados: List<ResultadoTurma> = emptyList()) {
         val t = buildString {
             appendLine(titulo)

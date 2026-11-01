@@ -51,6 +51,24 @@ class SgeReadClient(cookies: String, private val userAgent: String, private val 
         if (historico.size > 40) historico.removeAt(0)
     }
 
+    /** Perfil ativo na sessão: true = Unidade escolar (coordenação); false = Servidor (professor). */
+    fun ehPerfilEscola(): Boolean {
+        val resposta = request("/horariodeauladoprofessor")
+        val html = runCatching { JSONObject(resposta) }.getOrNull()?.optString("html")?.takeIf { it.isNotBlank() } ?: resposta
+        val d = Jsoup.parse(html)
+        fun v(id: String) = d.selectFirst("#$id")?.attr("value")?.trim()?.lowercase()
+        val esc = v("ehPerfilEscola"); val prof = v("ehPerfilProfessor"); val n = d.select("#ProfessorId option").size
+        historico.add("Perfil: ehPerfilEscola=$esc ehPerfilProfessor=$prof professores=$n")
+        return when { esc == "true" -> true; prof == "true" -> false; else -> n > 3 }
+    }
+    /** Coordenação: aulas sem registro (ícone +) de uma turma, em todos os componentes. */
+    fun pendenciasConteudoTurma(turmaId: String, tipo: String): List<PendenciaDia> {
+        val j = JSONObject(request("/Conteudo/CarregarDadosConteudoAplicado", mapOf(
+            "TurmaId" to turmaId, "TipoDeTurma" to tipo.ifBlank { "0" }, "GradeEscolarId" to "",
+            "StatusConteudoAplicado" to "", "DataInicio" to "", "DataFinal" to "")))
+        return SgeParsing.pendenciasCoordenacao(j.getString("html"), LocalDate.now())
+    }
+
     fun turmas(): List<TurmaMonitorada> {
         val home = Jsoup.parse(request("/", ajax = false))
         // O SGE carrega esta tela em #content por AJAX. O GET direto da rota
@@ -316,6 +334,20 @@ object SgeParsing {
         return ResultadoModulo(pendentes.size,
             "Dias pendentes no mapa do SGE até ${hoje.format(format)}" + listaDatas(pendentes), coberturaCompleta = true)
     }
+    fun pendenciasCoordenacao(html: String, hoje: LocalDate): List<PendenciaDia> {
+        val doc = Jsoup.parse(html)
+        check(doc.select(".calendario .semana").isNotEmpty()) { "Calendário ausente" }
+        return doc.select(".calendario .semana .vermelho").flatMap { day ->
+            val d = date(day.attr("data-original-title").ifBlank { day.attr("title") })
+            if (d.isAfter(hoje)) emptyList() else Jsoup.parse(day.attr("data-content")).select("tr").mapNotNull { tr ->
+                val tds = tr.select("td")
+                val disc = tds.firstOrNull()?.text()?.trim().orEmpty()
+                if (disc.isNotEmpty() && tr.select("i.fa-plus-circle, i.fa-plus").isNotEmpty())
+                    PendenciaDia(d.toString(), disc, tds.getOrNull(1)?.text()?.trim().orEmpty()) else null
+            }
+        }.distinct().sortedWith(compareBy({ it.data }, { it.hora }))
+    }
+
     fun frequencia(html: String, ate: LocalDate): ResultadoModulo {
         val table = Jsoup.parse(html).selectFirst("#gridFrequencia") ?: error("Grade de frequência ausente")
         val dates = table.select("thead .cabecalhoMes").map { date(it.attr("title")) }

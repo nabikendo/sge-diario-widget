@@ -66,6 +66,8 @@ class MainActivity : ComponentActivity() {
         setContent {
             MaterialTheme(colorScheme = darkColorScheme(background = Color.Black, surface = Color(0xFF10151C))) {
                 var login by remember { mutableStateOf(false) }
+                var coord by remember { mutableStateOf(false) }
+                var coordPainel by remember { mutableStateOf(SgeCoordStore.ler(this)) }
                 var painel by remember { mutableStateOf(SgePainelStore.ler(this)) }
                 LaunchedEffect(Unit) {
                     DiarioGlanceWidget().updateAll(this@MainActivity)
@@ -75,6 +77,9 @@ class MainActivity : ComponentActivity() {
                             painel = atualizado
                             DiarioGlanceWidget().updateAll(this@MainActivity)
                         }
+                        val c = SgeCoordStore.ler(this@MainActivity)
+                        if (c != coordPainel) coordPainel = c
+                        if (login) extrairEscola()
                         delay(2500)
                     }
                 }
@@ -84,14 +89,16 @@ class MainActivity : ComponentActivity() {
                 Column(Modifier.fillMaxSize().background(Color.Black).padding(12.dp)) {
                     Text("SGE • Pendências por turma", style = MaterialTheme.typography.titleLarge)
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(onClick = { login = false }, modifier = Modifier.weight(1f)) { Text("Turmas") }
-                        Button(onClick = { login = true }, modifier = Modifier.weight(1f)) { Text("SGE Web") }
-                        if (login) Button(onClick = { copiarPagina() }, modifier = Modifier.weight(1f)) { Text("Copiar página") }
+                        Button(onClick = { login = false; coord = false }, modifier = Modifier.weight(1f)) { Text("Turmas") }
+                        Button(onClick = { login = true; coord = false }, modifier = Modifier.weight(1f)) { Text("SGE Web") }
+                        Button(onClick = { login = false; coord = true }, modifier = Modifier.weight(1f)) { Text("Coord.") }
+                        if (login) Button(onClick = { copiarPagina() }, modifier = Modifier.weight(1f)) { Text("Copiar") }
                     }
                     // The WebView stays attached when switching tabs, preserving the SGE document.
                     Box(Modifier.weight(1f)) {
                         AndroidView(factory = { web }, modifier = Modifier.fillMaxSize())
-                        if (!login) Column(Modifier.fillMaxSize().background(Color.Black)
+                        if (!login && coord) PainelCoordenacao(coordPainel)
+                        if (!login && !coord) Column(Modifier.fillMaxSize().background(Color.Black)
                             .verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             SelectionContainer { Text(painel.mensagem) }
                             Button(onClick = {
@@ -101,7 +108,7 @@ class MainActivity : ComponentActivity() {
                                     mensagem = "Iniciando consulta manual…"
                                 ))
                                 painel = SgePainelStore.ler(this@MainActivity)
-                                extrairTurmas { SgeSyncWorker.sincronizarAgora(this@MainActivity) }
+                                extrairEscola(); extrairTurmas { SgeSyncWorker.sincronizarAgora(this@MainActivity) }
                             }) {
                                 Text(if (painel.sincronizando) "Consultando…" else "Sincronizar agora")
                             }
@@ -190,9 +197,58 @@ class MainActivity : ComponentActivity() {
             Toast.makeText(this, "Estrutura da página copiada", Toast.LENGTH_SHORT).show()
         }
     }
+    /** Lê as turmas de Escola → Conteúdo Aplicado (perfil Unidade escolar) do WebView logado. */
+    private fun extrairEscola() {
+        if (!::web.isInitialized) return
+        val js = """(function(){var s=document.querySelector('#SelecaoDeTurma');if(!s)return null;
+            return JSON.stringify(Array.prototype.slice.call(s.options).filter(function(o){return o.value;}).map(function(o){
+            return {v:o.value,t:o.text.trim(),tp:o.getAttribute('data-tipodeturma')||'0'};}));})()"""
+        web.evaluateJavascript(js) { raw ->
+            runCatching {
+                val v = JSONTokener(raw).nextValue()
+                if (v is String && v.length > 2) getSharedPreferences(SgePainelStore.PREFS_NAME, MODE_PRIVATE)
+                    .edit().putString("turmas_escola", v).apply()
+            }
+        }
+    }
+    @Composable
+    fun PainelCoordenacao(p: CoordPainel) {
+        val hoje = java.time.LocalDate.now()
+        val curto = java.time.format.DateTimeFormatter.ofPattern("dd/MM")
+        Column(Modifier.fillMaxSize().background(Color.Black).verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text("Coordenação • aulas sem registro de conteúdo", style = MaterialTheme.typography.titleMedium)
+            SelectionContainer { Text(p.mensagem + if (p.atualizado.isNotBlank()) " Atualizado ${p.atualizado}." else "") }
+            Button(onClick = {
+                SgeCoordStore.salvar(this@MainActivity, p.copy(sincronizando = true, mensagem = "Iniciando consulta…"))
+                extrairEscola(); extrairTurmas { SgeSyncWorker.sincronizarAgora(this@MainActivity) }
+            }) { Text(if (p.sincronizando) "Consultando…" else "Sincronizar coordenação") }
+            if (p.sincronizando) LinearProgressIndicator(Modifier.fillMaxWidth())
+            Text("Antes de sincronizar, abra Escola → Conteúdo Aplicado na aba SGE Web, com o perfil Unidade escolar ativo.", style = MaterialTheme.typography.bodySmall)
+            p.turmas.forEach { t ->
+                Card(Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(t.nome, style = MaterialTheme.typography.titleMedium)
+                        if (t.erro != null) Text("Não verificado: ${t.erro}", color = Color(0xFFF59E0B))
+                        else if (t.pendencias.isEmpty()) Text("Em dia", color = Color(0xFF34D399))
+                        else {
+                            Text("${t.pendencias.size} aula(s) sem registro", color = Color(0xFFF87171))
+                            t.pendencias.groupBy { it.disciplina }.forEach { (disc, lista) ->
+                                val dias = java.time.temporal.ChronoUnit.DAYS.between(java.time.LocalDate.parse(lista.minOf { it.data }), hoje)
+                                val cor = if (dias > 7) Color(0xFFF87171) else if (dias > 3) Color(0xFFF59E0B) else Color(0xFFFDE68A)
+                                Text("$disc (${lista.size}) • mais antiga há $dias dia(s)", color = cor)
+                                Text(lista.take(12).joinToString(", ") { java.time.LocalDate.parse(it.data).format(curto) + " " + it.hora }, style = MaterialTheme.typography.bodySmall)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     private fun verificarSessao() {
         if (!::web.isInitialized) return
-        web.evaluateJavascript("Boolean(document.querySelector('#TurmaContextoId') || document.querySelector('#ProfessorId'))") { raw ->
+        web.evaluateJavascript("Boolean(document.querySelector('#TurmaContextoId') || document.querySelector('#ProfessorId') || document.querySelector('#left-panel'))") { raw ->
             val active = runCatching { JSONTokener(raw).nextValue() == true }.getOrDefault(false)
             if (active) { CookieManager.getInstance().flush(); extrairTurmas {}; web.postDelayed({ extrairTurmas {} }, 3000) }
         }

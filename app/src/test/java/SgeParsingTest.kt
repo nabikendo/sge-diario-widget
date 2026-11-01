@@ -73,4 +73,11 @@ class SgeParsingTest {
         assertEquals(1, mat.quantidade)
         assertTrue(mat.detalhe.contains("29/10"))
     }
+    @Test fun coordenacaoListaSoAulasComIconeMais() {
+        val popup = "&lt;table&gt;&lt;tr&gt;&lt;td&gt;QUÍMICA&lt;/td&gt;&lt;td&gt;07:00&lt;/td&gt;&lt;td&gt;&lt;i class=&quot;fa fa-edit&quot;&gt;&lt;/i&gt;&lt;/td&gt;&lt;/tr&gt;" +
+            "&lt;tr&gt;&lt;td&gt;MATEMÁTICA&lt;/td&gt;&lt;td&gt;07:50&lt;/td&gt;&lt;td&gt;&lt;i class=&quot;fa fa-plus-circle&quot;&gt;&lt;/i&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;"
+        val html = """<div class="calendario"><div class="semana"><div class="vermelho" title="29/10/2026" data-content="$popup"></div></div></div>"""
+        val l = SgeParsing.pendenciasCoordenacao(html, LocalDate.of(2026, 10, 30))
+        assertEquals(listOf(PendenciaDia("2026-10-29", "MATEMÁTICA", "07:50")), l)
+    }
 }
