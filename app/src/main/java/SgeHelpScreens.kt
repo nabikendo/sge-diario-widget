@@ -180,7 +180,7 @@ fun TelaAjustes(tema: Int, cor: Int, versao: String, aoTema: (Int) -> Unit, aoCo
     papel: Int, aoPapel: (Int) -> Unit, lembrete: Boolean, aoLembrete: (Boolean) -> Unit,
     aoSobre: () -> Unit, aoSair: () -> Unit, aoLimpar: () -> Unit,
     aoHistorico: () -> Unit = {}, bloqueio: Boolean = false, aoBloqueio: (Boolean) -> Unit = {},
-    noturna: Boolean = false, aoNoturna: (Boolean) -> Unit = {}, statusNoturno: String = "") {
+    noturna: Boolean = false, aoNoturna: (Boolean) -> Unit = {}, statusNoturno: String = "", aoEconomia: ()->Unit = {}, aoBackup: ()->Unit = {}, aoAtualizacoes: ()->Unit = {}) {
     var confirmar by remember { mutableStateOf(0) }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
         Text("Do seu jeito.", style = MaterialTheme.typography.displaySmall)
@@ -197,7 +197,7 @@ fun TelaAjustes(tema: Int, cor: Int, versao: String, aoTema: (Int) -> Unit, aoCo
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text("Verificação noturna", style = MaterialTheme.typography.titleMedium)
-                        Text("A partir das 03h, com internet e bateria suficiente, consulta as turmas conhecidas da escola. Exige sessão Unidade escolar. O Android pode adiar a execução.", style = MaterialTheme.typography.bodySmall)
+                        Text("No horário e nas condições escolhidos em Sincronização econômica, consulta as turmas conhecidas da escola. Exige sessão Unidade escolar. O Android pode adiar a execução.", style = MaterialTheme.typography.bodySmall)
                     }
                     Switch(noturna, aoNoturna)
                 }
@@ -239,7 +239,10 @@ fun TelaAjustes(tema: Int, cor: Int, versao: String, aoTema: (Int) -> Unit, aoCo
                 LinhaAjuste("Galeria de widgets", "Seis formatos e recortes independentes", SgeIcons.Cards, aoWidgets)
                 LinhaAjuste("Como interpretar", "Módulos, estados e símbolos", SgeIcons.Info, aoAjuda)
                 LinhaAjuste("Ver introdução", "O funcionamento do app em três passos", SgeIcons.Book, aoIntroducao)
-                LinhaAjuste("Copiar diagnóstico", "Informações para investigar uma consulta", SgeIcons.Settings, aoDiagnostico)
+                LinhaAjuste("Diagnóstico único", "Professor, coordenação, perfil e agendamentos em um só texto", SgeIcons.Settings, aoDiagnostico)
+                LinhaAjuste("Sincronização econômica", "Intervalo, rede, bateria e horário noturno", SgeIcons.Refresh, aoEconomia)
+                LinhaAjuste("Backup e restauração", "Salvar e recuperar dados sem senha ou sessão", SgeIcons.Export, aoBackup)
+                LinhaAjuste("Atualizações do app", "Verificar, baixar e instalar por aqui", SgeIcons.Refresh, aoAtualizacoes)
             }
         }
         Surface(color = MaterialTheme.colorScheme.surface, shape = MaterialTheme.shapes.large) {

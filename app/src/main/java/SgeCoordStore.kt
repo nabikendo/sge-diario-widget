@@ -33,7 +33,7 @@ object SgeCoordStore {
                         .put("disc", JSONArray().also { da -> t.disciplinas.forEach { da.put(it.json()) } }))
                 }
             })
-        context.getSharedPreferences(SgePainelStore.PREFS_NAME, Context.MODE_PRIVATE).edit().putString(KEY, j.toString()).commit()
+        SgeSessaoStore.gravarSeAtual(context) { check(context.getSharedPreferences(SgePainelStore.PREFS_NAME, Context.MODE_PRIVATE).edit().putString(KEY, j.toString()).commit()) }
     }
     fun ler(context: Context): CoordPainel = runCatching {
         val raw = context.getSharedPreferences(SgePainelStore.PREFS_NAME, Context.MODE_PRIVATE).getString(KEY, null)

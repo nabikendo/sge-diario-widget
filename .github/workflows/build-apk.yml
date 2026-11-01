@@ -2,7 +2,7 @@ name: Build SGE Widget APK
 
 on:
   push:
-    branches: [ main, master, feat/ios-inspired-neutral-ui, feat/tablet-history-coordination ]
+    branches: [ main, master, feat/ios-inspired-neutral-ui, feat/tablet-history-coordination, feat/inapp-updates-school-tools ]
   workflow_dispatch:
 
 permissions:
@@ -28,9 +28,11 @@ jobs:
         with:
           gradle-version: '8.7'
       - name: Build debug APK
-        run: gradle testDebugUnitTest assembleDebug -Pversao=1.7-preview.${{ github.run_number }} -Pcodigo=${{ github.run_number }} --no-daemon --stacktrace
+        run: gradle testDebugUnitTest assembleDebug -Pversao=1.8-preview.${{ github.run_number }} -Pcodigo=${{ github.run_number }} --no-daemon --stacktrace
       - name: Identificar APK de prévia
-        run: cp app/build/outputs/apk/debug/app-debug.apk "SGE-Diario-previa-${{ github.run_number }}.apk"
+        run: |
+          cp app/build/outputs/apk/debug/app-debug.apk "SGE-Diario-previa-${{ github.run_number }}.apk"
+          python scripts/metadata-atualizacao.py "SGE-Diario-previa-${{ github.run_number }}.apk" atualizacao-preview.json
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
@@ -42,8 +44,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           cp app/build/outputs/apk/debug/app-debug.apk SGE-Diario-teste.apk
+          python scripts/metadata-atualizacao.py SGE-Diario-teste.apk atualizacao-teste.json
           gh release delete latest --cleanup-tag --yes || true
-          gh release create latest SGE-Diario-teste.apk --prerelease --target "$GITHUB_SHA" \
+          gh release create latest SGE-Diario-teste.apk atualizacao-teste.json --prerelease --target "$GITHUB_SHA" \
             --title "Canal de testes (última versão)" \
             --notes "APK de teste gerado automaticamente. Baixe SGE-Diario-teste.apk abaixo, em Assets. Para uso diário, prefira a versão estável (tag vX.Y)."
 
@@ -81,7 +84,7 @@ jobs:
           arch: x86_64
           profile: ${{ matrix.perfil }}
           disable-animations: true
-          script: bash scripts/verify-ui.sh -Pversao=1.7-preview.${{ github.run_number }} -Pcodigo=${{ github.run_number }}
+          script: bash scripts/verify-ui.sh -Pversao=1.8-preview.${{ github.run_number }} -Pcodigo=${{ github.run_number }}
       - name: Capturas da prévia
         if: always()
         uses: actions/upload-artifact@v4

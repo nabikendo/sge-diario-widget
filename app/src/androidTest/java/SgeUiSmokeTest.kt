@@ -53,7 +53,7 @@ class SgeUiSmokeTest {
             Box(Modifier.weight(1f)) { body() }
         } } }
     }
-    private fun foto(nome: String) {
+    private fun foto(nome: String, janela: Boolean = false) {
         compose.waitForIdle()
         val resolver = InstrumentationRegistry.getInstrumentation().targetContext.contentResolver
         val uri = checkNotNull(resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, ContentValues().apply {
@@ -62,7 +62,8 @@ class SgeUiSmokeTest {
             put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures/SGEPreview")
         }))
         checkNotNull(resolver.openOutputStream(uri)).use {
-            check(compose.onRoot().captureToImage().asAndroidBitmap().compress(Bitmap.CompressFormat.PNG, 100, it))
+            val bitmap = if (janela) InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot() else compose.onRoot().captureToImage().asAndroidBitmap()
+            check(bitmap.compress(Bitmap.CompressFormat.PNG, 100, it))
         }
     }
     @Test fun cartaoAbreDetalheDoModulo() {
@@ -206,6 +207,111 @@ class SgeUiSmokeTest {
             }
             foto("10-widget-protegido")
         } finally { prefs.edit().remove("coord_biometria").commit() }
+    }
+
+    @Test fun mapaDaEscolaMostraModulosEAbreCelula() {
+        var selecionado = -1
+        content { TelaMapa(rs,rs.map { it.turma.id to it.turma.nome },docentes,FiltroAvancado(),emptyMap(),{},{}) { _,m->selecionado=m } }
+        compose.onNodeWithText("Mapa da escola").assertIsDisplayed()
+        compose.onNode(hasScrollAction() and hasTestTag("mapa-lista")).performScrollToNode(hasText("13.01"))
+        foto("11-mapa-escola")
+        compose.onAllNodesWithText("2")[0].performClick()
+        compose.runOnIdle { check(selecionado==0) }
+    }
+    @Test fun loteMostraRecorteEProfessoresAntesDeGerar() {
+        var quantidade=0
+        content { TelaLote(rs,docentes,FiltroAvancado(),emptyMap(),{}) { gs,_,_,_->quantidade=gs.size } }
+        foto("12-relatorios-lote")
+        compose.onNode(hasScrollAction()).performScrollToNode(hasText("Gerar 1 relatório(s) e recibos"))
+        compose.onNodeWithText("Gerar 1 relatório(s) e recibos").performClick()
+        compose.runOnIdle { check(quantidade==1) }
+    }
+    @Test fun filtrosAvancadosAplicamModuloESituacao() {
+        var aplicado=FiltroAvancado()
+        content { FiltrosDialog(FiltroAvancado(modulo=0,estado=2),rs,emptyMap(),docentes,{}) { aplicado=it } }
+        compose.onNodeWithText("Aplicar filtros").performClick()
+        compose.runOnIdle { check(aplicado.modulo==0 && aplicado.estado==2) }
+    }
+    @Test fun loteGeraZipPDFsIndividuaisERecibosPaginados() {
+        val ctx=InstrumentationRegistry.getInstrumentation().targetContext
+        val grupos=SgeOrganizacao.porProfessor(rs,docentes)
+        val longo = grupos.single().copy(titulo="Nome de professor muito longo ".repeat(8),resultados=(1..36).map { resultado(it.toString(),"Componente de demonstração com descrição extensa ".repeat(4),2) },compartilhado=true)
+        val reciboLongo=File(ctx.cacheDir,"recibo-longo.pdf")
+        reciboLongo.outputStream().use { SgeRelatorioPdf.escreverGrupos(it,listOf(longo),FontePainel.COORDENACAO,recibos=true,escola="Escola ".repeat(25),responsavel="Responsável ".repeat(20),recorte="Recorte selecionado ".repeat(20)) }
+        PdfRenderer(ParcelFileDescriptor.open(reciboLongo,ParcelFileDescriptor.MODE_READ_ONLY)).use { check(it.pageCount==1) }
+        val lote=SgeRelatoriosLote.criar(File(ctx.cacheDir,"relatorios"),grupos,"Escola de demonstração","Coordenação de exemplo","Todos · dados ilustrativos")
+        java.util.zip.ZipFile(lote.zip).use { z->check(z.size()==grupos.size+2);check(z.getEntry("Recebimento-e-ciencia.pdf")!=null) }
+        PdfRenderer(ParcelFileDescriptor.open(lote.recibos,ParcelFileDescriptor.MODE_READ_ONLY)).use { check(it.pageCount==grupos.size) }
+        PdfRenderer(ParcelFileDescriptor.open(lote.impressao,ParcelFileDescriptor.MODE_READ_ONLY)).use { check(it.pageCount>grupos.size) }
+        listOf(lote.impressao,lote.recibos).forEach { arquivo->
+            val uri=ctx.contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI,ContentValues().apply {
+                put(MediaStore.Downloads.DISPLAY_NAME,arquivo.name);put(MediaStore.Downloads.MIME_TYPE,"application/pdf");put(MediaStore.Downloads.RELATIVE_PATH,"Download/SGEPreview")
+            })!!
+            ctx.contentResolver.openOutputStream(uri)!!.use { out->arquivo.inputStream().use { it.copyTo(out) } }
+        }
+    }
+    @Test fun backupRestauraAtomicamenteSemTrocarProtecaoOuSessao() {
+        val ctx=InstrumentationRegistry.getInstrumentation().targetContext
+        val prefs=ctx.getSharedPreferences(SgePainelStore.PREFS_NAME,0)
+        val original=prefs.all
+        try {
+            SgePainelStore.salvar(ctx,PainelSge(rs));prefs.edit().putBoolean("coord_biometria",true).putString("web_user_agent","agente-local").commit()
+            val b=SgeBackup.validar(SgeBackup.criar(prefs.all,"1.8"))
+            prefs.edit().remove("painel_v2").commit();SgeBackup.restaurar(ctx,b)
+            check(SgePainelStore.ler(ctx).turmas.size==2);check(prefs.getBoolean("coord_biometria",false));check(prefs.getString("web_user_agent","")=="agente-local")
+            val contextoAntigo=SgeSessaoStore.contextoConsulta(ctx)
+            SgeSessaoStore.invalidar(ctx)
+            runBlocking(contextoAntigo) { kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { SgePainelStore.salvar(ctx,PainelSge()) } }
+            check(SgePainelStore.ler(ctx).turmas.size==2) // resposta atrasada não apaga o backup restaurado
+
+            val invalido=org.json.JSONObject(SgeBackup.criar(prefs.all,"1.8"));invalido.getJSONObject("dados").put("sge_cookies","proibido")
+            val antes=prefs.getString("painel_v2","");check(runCatching{ SgeBackup.validar(invalido.toString()) }.isFailure);check(antes==prefs.getString("painel_v2",""))
+        } finally { val e=prefs.edit().clear(); original.forEach { (k,v)->when(v) {is String->e.putString(k,v);is Boolean->e.putBoolean(k,v);is Int->e.putInt(k,v);is Long->e.putLong(k,v)} };e.commit() }
+    }
+    @Test fun atualizadorValidaAPKSignedRealERejeitaDowngradeOuHashDiferente() {
+        val ctx=InstrumentationRegistry.getInstrumentation().targetContext
+        val apk=File(ctx.applicationInfo.sourceDir)
+        val info=ctx.packageManager.getPackageInfo(ctx.packageName,android.content.pm.PackageManager.GET_SIGNING_CERTIFICATES)
+        val hash=java.security.MessageDigest.getInstance("SHA-256").digest(apk.readBytes()).joinToString("") { "%02x".format(it) }
+        val o=OfertaAtualizacao(ctx.packageName,info.versionName.orEmpty(),info.longVersionCode,29,"teste.apk",apk.length(),hash,"https://github.com/nabikendo/sge-diario-widget/releases/download/latest/teste.apk")
+        check(runCatching{ SgeValidadorApk.validar(ctx,apk,o) }.isFailure) // mesma versão: recusa reinstalar/downgrade
+        val anterior=ctx.packageManager.getPackageInfo(ctx.packageName,android.content.pm.PackageManager.GET_SIGNING_CERTIFICATES).apply { setLongVersionCode(info.longVersionCode-1) }
+        SgeValidadorApk.validar(ctx,apk,o,anterior)
+        check(runCatching{ SgeValidadorApk.validar(ctx,apk,o.copy(sha256="0".repeat(64)),anterior) }.isFailure)
+        check(runCatching{ SgeValidadorApk.validar(ctx,apk,o.copy(pacote="outro.pacote"),anterior) }.isFailure)
+    }
+    @Test fun mapaBloqueiaNovamenteAposPerderAutorizacao() {
+        var liberada by mutableStateOf(true)
+        content { appExemplo(bloqueio=true,liberada=liberada,papel=2) }
+        compose.onNode(hasScrollAction()).performScrollToNode(hasText("Mapa da escola"))
+        compose.onNodeWithText("Mapa da escola").performClick()
+        compose.onNodeWithText("Organizar escola, série e turno").assertExists()
+        compose.runOnIdle { liberada=false }
+        compose.onNodeWithText("Coordenação protegida").assertIsDisplayed()
+        compose.onNodeWithText("Organizar escola, série e turno").assertDoesNotExist()
+    }
+
+    @Test fun diagnosticoUnicoIncluiOsDoisPaineisSemCopiarCredenciais() {
+        val ctx=InstrumentationRegistry.getInstrumentation().targetContext
+        val prefs=ctx.getSharedPreferences(SgePainelStore.PREFS_NAME,0)
+        SgePainelStore.salvar(ctx,PainelSge(rs,mensagem="Consulta pessoal de exemplo"));SgeCoordStore.salvar(ctx,coord)
+        prefs.edit().putString("sge_cookies","SEGREDO-NAO-COPIAR").commit()
+        try { val texto=SgeDiagnosticoUnico.gerar(ctx);check(texto.contains("Professor: Consulta pessoal de exemplo"));check(texto.contains("Coordenação: Duas turmas consultadas"));check(!texto.contains("SEGREDO-NAO-COPIAR")) }
+        finally { prefs.edit().remove("sge_cookies").commit() }
+    }
+    @Test fun atualizacaoOfereceBaixarOuMaisTardeSemInstalarSozinha() {
+        val ctx=InstrumentationRegistry.getInstrumentation().targetContext
+        val prefs=ctx.getSharedPreferences("sge_atualizacoes",0)
+        val info=ctx.packageManager.getPackageInfo(ctx.packageName,0)
+        prefs.edit().clear().putString("oferta",OfertaAtualizacao(ctx.packageName,"Próxima versão · exemplo",info.longVersionCode+1,29,"SGE.apk",16*1024*1024,"a".repeat(64),"https://github.com/nabikendo/sge-diario-widget/releases/download/latest/SGE.apk","Exemplo de aviso de atualização.").json()).commit()
+        try {
+            val a=SgeAtualizador(ctx).apply { aberto=true }
+            content { AtualizacoesDialog(a) { error("Não deve instalar automaticamente") } }
+            compose.onNodeWithText("Baixar atualização").assertIsDisplayed()
+            foto("13-atualizacao-app", janela = true)
+            compose.onNodeWithText("Mais tarde").performClick()
+            compose.runOnIdle { check(!a.aberto && prefs.getLong("adiar_ate",0)>System.currentTimeMillis() && prefs.getLong("download",-1)==-1L) }
+        } finally { prefs.edit().clear().commit() }
     }
 
 }

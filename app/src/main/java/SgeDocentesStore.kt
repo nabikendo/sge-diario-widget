@@ -26,7 +26,7 @@ object SgeDocentesStore {
             .put("vinculos", JSONArray().also { a -> p.vinculos.forEach { v ->
                 a.put(JSONObject().put("turma", v.turmaId).put("componente", v.componente).put("professor", docente(v.docente)))
             } }).put("locais", JSONObject().also { o -> p.locais.forEach { (key, ps) -> o.put(key, lista(ps)) } })
-        check(context.getSharedPreferences(SgePainelStore.PREFS_NAME, Context.MODE_PRIVATE).edit().putString(KEY, j.toString()).commit())
+        SgeSessaoStore.gravarSeAtual(context) { check(context.getSharedPreferences(SgePainelStore.PREFS_NAME, Context.MODE_PRIVATE).edit().putString(KEY, j.toString()).commit()) }
     }
     fun ler(context: Context): PainelDocentes = runCatching {
         val raw = context.getSharedPreferences(SgePainelStore.PREFS_NAME, Context.MODE_PRIVATE).getString(KEY, null)

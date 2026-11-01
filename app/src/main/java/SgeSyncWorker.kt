@@ -21,7 +21,8 @@ class SgeSyncWorker(private val ctx: Context, params: WorkerParameters) : Corout
         SgePainelStore.salvar(ctx, painel)
         SgeWidgets.atualizar(ctx)
     }
-    override suspend fun doWork(): Result {
+    override suspend fun doWork(): Result = withContext(SgeSessaoStore.contextoConsulta(ctx)) { executar() }
+    private suspend fun executar(): Result {
         val geracao = SgeSessaoStore.geracao(ctx)
         val antigo = SgePainelStore.ler(ctx)
         val alvo = inputData.getString("coord_alvo")
@@ -69,7 +70,7 @@ class SgeSyncWorker(private val ctx: Context, params: WorkerParameters) : Corout
             SgeHistoricoStore.registrar(ctx, FontePainel.PESSOAL, resultados)
             val falhas = resultados.sumOf { r -> r.modulos.count { it.quantidade == null } }
             val parciais = resultados.sumOf { r -> r.modulos.count { !it.coberturaCompleta } }
-            if (falhas > 0 || parciais > 0) guardarDiagnostico("Módulos com falha ou cobertura parcial", cliente, resultados)
+            guardarDiagnostico(if (falhas > 0 || parciais > 0) "Módulos com falha ou cobertura parcial" else "Consulta completa", cliente, resultados)
             mostrar(PainelSge(resultados, "${turmas.map { it.id }.distinct().size} turmas consultadas. " +
                 if (falhas > 0) "$falhas consultas não verificadas. Toque na turma para conferir os detalhes." else
                     if (parciais > 0) "$parciais consultas com cobertura parcial (*). Confira os detalhes." else
@@ -147,14 +148,14 @@ class SgeSyncWorker(private val ctx: Context, params: WorkerParameters) : Corout
 
     private fun guardarDiagnostico(titulo: String, c: SgeReadClient?, resultados: List<ResultadoTurma> = emptyList()) {
         val t = buildString {
-            appendLine(titulo)
+            appendLine("${LocalDateTime.now()} · $titulo")
             resultados.forEachIndexed { i, r -> r.modulos.forEachIndexed { j, m ->
                 if (m.quantidade == null || !m.coberturaCompleta)
                     appendLine("Turma ${i + 1} ${SgePainelStore.NOMES_MODULOS.getOrElse(j) { "Módulo" }}: ${m.resumo()} ${m.detalhe}")
             } }
             c?.historico?.forEach { appendLine(it) }
         }
-        ctx.getSharedPreferences(SgePainelStore.PREFS_NAME, Context.MODE_PRIVATE).edit().putString("diagnostico_v1", t.take(20000)).commit()
+        SgeSessaoStore.gravarSeAtual(ctx) { ctx.getSharedPreferences(SgePainelStore.PREFS_NAME, Context.MODE_PRIVATE).edit().putString(if (inputData.getString("coord_alvo") != null) "diagnostico_coord_v2" else "diagnostico_pessoal_v2", t.take(20000)).commit() }
     }
 
     companion object {
@@ -162,15 +163,15 @@ class SgeSyncWorker(private val ctx: Context, params: WorkerParameters) : Corout
         private fun rede() = Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()
         fun agendarPeriodico(context: Context) {
             WorkManager.getInstance(context).enqueueUniquePeriodicWork("sge_periodic_sync", ExistingPeriodicWorkPolicy.UPDATE,
-                PeriodicWorkRequestBuilder<SgeSyncWorker>(2, TimeUnit.HOURS).setConstraints(rede()).build())
+                PeriodicWorkRequestBuilder<SgeSyncWorker>(SgeEconomia.ler(context).horas.toLong(), TimeUnit.HOURS).setConstraints(SgeEconomia.restricoes(context)).build())
         }
         /** Coordenação: enfileira uma consulta por turma, em sequência (cada uma cabe no limite de tempo do WorkManager). */
-        fun verificarTurmas(context: Context, ids: List<String>, substituir: Boolean = true) {
+        fun verificarTurmas(context: Context, ids: List<String>, substituir: Boolean = true, automatica: Boolean = false) {
             if (ids.isEmpty()) return
-            val reqs = ids.map { OneTimeWorkRequestBuilder<SgeSyncWorker>().setConstraints(rede()).setInputData(workDataOf("coord_alvo" to it)).build() }
+            val reqs = ids.map { OneTimeWorkRequestBuilder<SgeSyncWorker>().setConstraints(if (automatica) SgeEconomia.restricoes(context) else rede()).setInputData(workDataOf("coord_alvo" to it)).build() }
             var c = WorkManager.getInstance(context).beginUniqueWork("sge_coord", if (substituir) ExistingWorkPolicy.REPLACE else ExistingWorkPolicy.KEEP, reqs.first())
             reqs.drop(1).forEach { c = c.then(it) }
-            c.enqueue()
+            SgeSessaoStore.gravarSeAtual(context) { c.enqueue() }
         }
         fun sincronizarAgora(context: Context) {
             WorkManager.getInstance(context).enqueueUniqueWork("sge_sync_now", ExistingWorkPolicy.REPLACE,

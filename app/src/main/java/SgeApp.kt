@@ -44,7 +44,7 @@ fun AppDiario(
     historico: List<DiaHistorico> = emptyList(), perfil: PerfilSge = PerfilSge.DESCONHECIDO,
     bloqueioCoord: Boolean = false, coordDesbloqueada: Boolean = false, aoDesbloquear: () -> Unit = {},
     aoBloqueio: (Boolean) -> Unit = {}, noturna: Boolean = false, aoNoturna: (Boolean) -> Unit = {}, statusNoturno: String = "",
-    aoPdf: (GrupoPendencias, FontePainel) -> Unit = { _, _ -> }
+    aoPdf: (GrupoPendencias, FontePainel) -> Unit = { _, _ -> }, recursos: RecursosSge = RecursosSge()
 ) {
     val visiveis = remember(papel) { when (papel) { 1 -> setOf(0, 2); 2 -> setOf(1, 2); else -> setOf(0, 1, 2) } }
     var aba by rememberSaveable { mutableStateOf(if (papel == 2) 1 else 0) }
@@ -54,9 +54,19 @@ fun AppDiario(
     var porPessoal by rememberSaveable { mutableStateOf(Agrupamento.TURMA) }
     var porCoord by rememberSaveable { mutableStateOf(Agrupamento.TURMA) }
     var detalhe by remember { mutableStateOf<GrupoPendencias?>(null) }
+    var origemDetalhe by remember { mutableStateOf<String?>(null) }
     var fonteDetalhe by remember { mutableStateOf(FontePainel.PESSOAL) }
     var fonteHistorico by rememberSaveable { mutableStateOf(FontePainel.PESSOAL) }
     var vincular by remember { mutableStateOf<ResultadoTurma?>(null) }
+    var filtroPessoal by remember { mutableStateOf(FiltroAvancado()) }
+    var filtroCoord by remember { mutableStateOf(FiltroAvancado()) }
+    LaunchedEffect(recursos.filtros) {
+        recursos.filtros[FontePainel.PESSOAL]?.let { filtroPessoal = it }
+        recursos.filtros[FontePainel.COORDENACAO]?.let { filtroCoord = it }
+    }
+    var filtrosAbertos by remember { mutableStateOf(false) }
+    var moduloDetalhe by remember { mutableStateOf(-1) }
+    val rsCoord = coord.turmas.flatMap { it.disciplinas }
     val focus = LocalFocusManager.current
     val largo = LocalConfiguration.current.screenWidthDp >= 840
     val saveable = rememberSaveableStateHolder()
@@ -81,18 +91,18 @@ fun AppDiario(
         }
     }
     val autorizado = !bloqueioCoord || coordDesbloqueada
-    val protegida = !autorizado && pagina == null && (aba == 1 || aba == 2 || (detalhe != null && fonteDetalhe == FontePainel.COORDENACAO))
+    val protegida = !autorizado && ((pagina == null && (aba == 1 || aba == 2 || (detalhe != null && fonteDetalhe == FontePainel.COORDENACAO))) || pagina in setOf("mapa", "lote", "organizacao", "backup"))
     val webVisivel = aba == 2 && pagina == null && detalhe == null && !intro && autorizado
     LaunchedEffect(webVisivel) { aoWebVisivel(webVisivel) }
     BackHandler(enabled = intro || pagina != null || detalhe != null || aba != 0) {
         when { intro -> { intro = false; aoIntroduzido() }
             pagina != null -> pagina = null
-            detalhe != null -> detalhe = null
+            detalhe != null -> { detalhe = null; pagina = origemDetalhe; origemDetalhe = null }
             aba == 2 && web.canGoBack() -> web.goBack()
             else -> aba = 0 }
     }
     val titulo = when {
-        pagina == "ajustes" -> "Ajustes"; pagina == "ajuda" -> "Como interpretar"
+        pagina == "mapa" -> "Mapa da escola"; pagina == "lote" -> "Relatórios"; pagina == "organizacao" -> "Organizar turmas"; pagina == "economia" -> "Sincronização"; pagina == "backup" -> "Backup"; pagina == "ajustes" -> "Ajustes"; pagina == "ajuda" -> "Como interpretar"
         pagina == "historico" -> "Histórico"; pagina == "widgets" -> "Widgets"; pagina == "sobre" -> "Sobre"; detalhe != null && !largo -> "Detalhes"; aba == 2 -> "SGE Web"; else -> "Diário"
     }
     Box(Modifier.fillMaxSize()) {
@@ -101,7 +111,7 @@ fun AppDiario(
         if (largo) RailDiario(aba, visiveis) { focus.clearFocus(); pagina = null; detalhe = null; aba = it }
         Column(Modifier.weight(1f).fillMaxHeight()) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 3.dp), verticalAlignment = Alignment.CenterVertically) {
-                if (pagina != null || detalhe != null) IconButton(onClick = { if (pagina != null) pagina = null else detalhe = null }) {
+                if (pagina != null || detalhe != null) IconButton(onClick = { if (pagina != null) pagina = null else { detalhe = null; pagina = origemDetalhe; origemDetalhe = null } }) {
                     Icon(SgeIcons.Back, "Voltar", Modifier.size(21.dp))
                 } else Icon(SgeIcons.Book, null, Modifier.padding(12.dp).size(22.dp), tint = MaterialTheme.colorScheme.primary)
                 Column(Modifier.weight(1f)) {
@@ -136,7 +146,13 @@ fun AppDiario(
                             { intro = true }, { aoCopiarDiagnostico(aba == 1) },
                             papel, aoPapel, lembrete, aoLembrete, { pagina = "sobre" }, aoSair, aoLimpar,
                             { fonteHistorico = if (aba == 1) FontePainel.COORDENACAO else FontePainel.PESSOAL; pagina = "historico" },
-                            bloqueioCoord, aoBloqueio, noturna, aoNoturna, statusNoturno)
+                            bloqueioCoord, aoBloqueio, noturna, aoNoturna, statusNoturno, { pagina = "economia" }, { pagina = "backup" }, recursos.aoAtualizacoes)
+                        rota.pagina == "mapa" -> TelaMapa(rsCoord, conhecidas, docentes, filtroCoord, recursos.organizacao,
+                            { filtrosAbertos = true }, { pagina = "organizacao" }) { g, m -> fonteDetalhe = FontePainel.COORDENACAO; detalhe = g; moduloDetalhe = m; aba = 1; origemDetalhe = "mapa"; pagina = null }
+                        rota.pagina == "lote" -> TelaLote(rsCoord, docentes, filtroCoord, recursos.organizacao, { filtrosAbertos = true }, recursos.aoLote)
+                        rota.pagina == "organizacao" -> TelaOrganizacao(conhecidas, rsCoord, recursos.organizacao, recursos.aoOrganizacao)
+                        rota.pagina == "economia" -> TelaEconomia(recursos.economia, recursos.aoEconomia)
+                        rota.pagina == "backup" -> TelaBackup(recursos.aoBackup, recursos.aoRestaurar)
                         rota.pagina == "historico" -> TelaHistorico(historico, fonteHistorico, { fonteHistorico = it }, !autorizado, aoDesbloquear)
                         rota.pagina == "sobre" -> TelaSobre(versao, aoUrl)
                         rota.pagina == "ajuda" -> TelaAjuda()
@@ -147,16 +163,18 @@ fun AppDiario(
                                 saveable.SaveableStateProvider("painel:${rota.aba}") {
                                     TelaCartoes(fonte, painel, coord, docentes, conhecidas, if (rota.aba == 1) porCoord else porPessoal,
                                         { if (rota.aba == 1) porCoord = it else porPessoal = it; detalhe = null },
-                                        { fonteDetalhe = fonte; detalhe = it; focus.clearFocus() },
+                                        { fonteDetalhe = fonte; detalhe = it; moduloDetalhe = -1; origemDetalhe = null; focus.clearFocus() },
                                         { if (rota.aba == 1) aoVerificarTurmas(conhecidas.map { it.first }) else aoSincronizarPessoal() },
                                         aoCarregarTurmas, aoAtualizarDocentes, { aba = 2 }, { pagina = "ajuda" },
-                                        selecionada = if (largo) rota.grupo?.chave else null)
+                                        selecionada = if (largo) rota.grupo?.chave else null,
+                                        filtroAvancado = if (rota.aba == 1) filtroCoord else filtroPessoal, organizacao = recursos.organizacao,
+                                        aoFiltros = { filtrosAbertos = true }, aoMapa = { pagina = "mapa" }, aoLote = { pagina = "lote" })
                                 }
                             }
                             @Composable fun detalhes(g: GrupoPendencias) {
                                 TelaDetalhes(g, rota.fonte, docentes,
                                     { if (rota.fonte == FontePainel.COORDENACAO) aoVerificarTurmas(g.turmaIds.toList()) else aoSincronizarPessoal() },
-                                    { detalhe = null; pagina = null; aba = 2 }, { vincular = it }, { aoCompartilhar(g) }, { aoPdf(g, rota.fonte) })
+                                    { detalhe = null; pagina = null; aba = 2 }, { vincular = it }, { aoCompartilhar(g) }, { aoPdf(g, rota.fonte) }, moduloDetalhe)
                             }
                             if (largo) Row(Modifier.fillMaxSize()) {
                                 Box(Modifier.weight(.43f).fillMaxHeight()) { lista() }
@@ -181,6 +199,12 @@ fun AppDiario(
         if (intro) TelaIntroducao { abrirSge ->
             intro = false; aoIntroduzido(); pagina = null
             if (abrirSge) { detalhe = null; aba = 2 }
+        }
+        if (filtrosAbertos && autorizado) FiltrosDialog(if (aba == 1) filtroCoord else filtroPessoal,
+            if (aba == 1) rsCoord else painel.turmas, recursos.organizacao, docentes, { filtrosAbertos = false }) {
+            if (aba == 1) filtroCoord = it else filtroPessoal = it
+            recursos.aoFiltro(if (aba == 1) FontePainel.COORDENACAO else FontePainel.PESSOAL, it)
+            detalhe = null
         }
         vincular?.takeIf { autorizado }?.let { resultado -> VinculoDialog(resultado, docentes, { vincular = null }) { ps ->
             aoSalvarVinculo(resultado, ps); vincular = null; detalhe = null

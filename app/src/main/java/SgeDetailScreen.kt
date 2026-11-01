@@ -20,7 +20,7 @@ import java.util.UUID
 
 @Composable
 fun TelaDetalhes(grupo: GrupoPendencias, fonte: FontePainel, docentes: PainelDocentes,
-    aoAtualizar: () -> Unit, aoAbrirSge: () -> Unit, aoVincular: (ResultadoTurma) -> Unit, aoCompartilhar: () -> Unit, aoPdf: () -> Unit = {}) {
+    aoAtualizar: () -> Unit, aoAbrirSge: () -> Unit, aoVincular: (ResultadoTurma) -> Unit, aoCompartilhar: () -> Unit, aoPdf: () -> Unit = {}, moduloInicial: Int = -1) {
     var menuCompartilhar by remember { mutableStateOf(false) }
     LazyColumn(contentPadding = PaddingValues(20.dp, 12.dp, 20.dp, 30.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         item {
@@ -59,7 +59,7 @@ fun TelaDetalhes(grupo: GrupoPendencias, fonte: FontePainel, docentes: PainelDoc
             MensagemVazia("Turma ainda sem consulta", "Verifique esta turma para mostrar conteúdos, frequência e planejamentos.", "Verificar turma", aoAtualizar)
         } else {
             item { Text("PENDÊNCIAS POR MÓDULO", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-            items(grupo.modulos, key = { it.indice }) { modulo -> CartaoModulo(grupo, modulo) }
+            items(grupo.modulos.sortedBy { if (it.indice == moduloInicial) -1 else it.indice }, key = { it.indice }) { modulo -> CartaoModulo(grupo, modulo, moduloInicial) }
         }
         if (fonte == FontePainel.COORDENACAO && grupo.resultados.isNotEmpty()) {
             item {
@@ -91,8 +91,8 @@ fun TelaDetalhes(grupo: GrupoPendencias, fonte: FontePainel, docentes: PainelDoc
     }
 }
 
-@Composable private fun CartaoModulo(grupo: GrupoPendencias, resumo: ResumoModulo) {
-    var aberto by rememberSaveable(grupo.chave, resumo.indice) { mutableStateOf((resumo.quantidade ?: 0) > 0) }
+@Composable private fun CartaoModulo(grupo: GrupoPendencias, resumo: ResumoModulo, moduloInicial: Int = -1) {
+    var aberto by rememberSaveable(grupo.chave, resumo.indice, moduloInicial) { mutableStateOf(resumo.indice == moduloInicial || (resumo.quantidade ?: 0) > 0) }
     val estado = when { (resumo.quantidade ?: 0) > 0 -> EstadoGrupo.PENDENTE
         !resumo.completa -> EstadoGrupo.CONFERIR; else -> EstadoGrupo.EM_DIA }
     val cor = corEstado(estado)

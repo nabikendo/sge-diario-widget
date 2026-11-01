@@ -54,8 +54,8 @@ object SgePainelStore {
             })
         // The widget is refreshed immediately after this call. Use commit so
         // Glance cannot read the previous "syncing" state during that refresh.
-        check(context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            .edit().putString("painel_v2", j.toString()).commit())
+        SgeSessaoStore.gravarSeAtual(context) { check(context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit().putString("painel_v2", j.toString()).commit()) }
     }
     fun ler(context: Context): PainelSge = runCatching {
         val raw = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).getString("painel_v2", null)
