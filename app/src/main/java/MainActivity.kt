@@ -179,6 +179,9 @@ class MainActivity : ComponentActivity() {
             var outros=dv.filter(function(e){return !/vermelho/.test(e.className)}).slice(0,2);
             r.diasVermelhos=verm.map(est);r.diasOutros=outros.map(est);
             r.legenda=A(document.querySelectorAll('.calendario .legenda *,.legenda *')).slice(0,12).map(function(e){return (e.className||'').slice(0,30)+':'+t(e.textContent)});
+            function linhas(el){var d=document.createElement('div');d.innerHTML=el.getAttribute('data-content')||'';return A(d.querySelectorAll('tr')).map(function(tr){var tds=A(tr.querySelectorAll('td'));return {d:t(tds[0]&&tds[0].textContent),n:tds.length,tc:(tr.className||'').slice(0,30),b:tr.querySelectorAll('a,button').length,i:A(tr.querySelectorAll('i,.glyphicon')).map(function(x){return (x.className||'').slice(0,40)}).slice(0,3),x:tds.slice(1).map(function(c){var s=t(c.textContent);return (s.length<=12?s:'len'+s.length)+':'+(c.className||'').slice(0,20)})}})}
+            var vd=dv.filter(function(e){return /verde/.test(e.className)}).slice(0,1);
+            r.linhasVermelho=verm.length?linhas(verm[0]):[];r.linhasVerde=vd.length?linhas(vd[0]):[];
             return JSON.stringify(r)})()"""
         web.evaluateJavascript(js) { raw ->
             val txt = runCatching { JSONTokener(raw).nextValue() as? String }.getOrNull() ?: "(não foi possível ler a página)"
