@@ -160,7 +160,7 @@ class MainActivity : FragmentActivity() {
                     if (!lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED) || (fonte == FontePainel.COORDENACAO && SgeSessaoStore.protegida(this@MainActivity) && !coordDesbloqueada.value)) return@launch
                     val uri = FileProvider.getUriForFile(this@MainActivity, "$packageName.arquivos", arquivo)
                     val enviar = Intent(Intent.ACTION_SEND).setType("application/pdf").putExtra(Intent.EXTRA_STREAM, uri)
-                        .setClipData(android.content.ClipData.newUri(contentResolver, "Relatório SGE", uri)).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        .apply { clipData = android.content.ClipData.newUri(contentResolver, "Relatório SGE", uri); addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION) }
                     startActivity(Intent.createChooser(enviar, "Compartilhar PDF"))
                 } catch (e: CancellationException) { throw e }
                 catch (e: Exception) { Toast.makeText(this@MainActivity, "Não foi possível gerar ou compartilhar o PDF.", Toast.LENGTH_LONG).show() }

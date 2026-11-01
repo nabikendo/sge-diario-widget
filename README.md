@@ -123,3 +123,15 @@ A leitura de vínculos no SGE real depende do perfil Unidade escolar e precisa s
 3. Alertas locais opcionais, por período e módulo, sem repetir notificações sobre os mesmos dados.
 4. Widget de aula atual/próxima turma, depois de persistir o horário e cruzá-lo com o calendário escolar.
 5. Exportação de resumo em PDF e backup local dos filtros, favoritos e vínculos informados no aparelho.
+
+## Evolução em avaliação após 1.6
+
+- Larguras a partir de 840 dp exibem lista e detalhe simultâneos. O cartão selecionado fica destacado; a lista mantém a rolagem.
+- Ajustes → Histórico semanal mostra consultas concluídas neste aparelho. Mantém 35 dias localmente e exibe sete; não recupera consultas anteriores à atualização. A comparação exige os mesmos vínculos turma/componente e cobertura completa no módulo.
+- Compartilhar nos detalhes oferece texto (seletor nativo, incluindo WhatsApp) e PDF A4 paginado. O agrupamento por professor usa os vínculos já existentes. O PDF preserva símbolos de cobertura, separa dias/documentos e não lista alunos.
+- Proteger coordenação é opcional. Usa biometria forte (Android 10+) ou credencial do aparelho (Android 11+), exige autenticação para ativar/desativar e bloqueia novamente em segundo plano. Protege também SGE Web, histórico escolar, diagnósticos e configuração de widgets. Widgets da escola ficam sem nomes e contagens enquanto a proteção está ativa. É um bloqueio local de acesso; não altera o login nem as permissões no SGE.
+- Verificação noturna é opcional: agenda a partir das 03h com rede e bateria suficiente. O Android pode adiar. Só enfileira turmas conhecidas com sessão Unidade escolar, não troca o perfil e não substitui uma fila manual em andamento. O estado da última tentativa aparece nos Ajustes.
+- O cabeçalho indica o perfil observado nas flags do SGE. A preferência Ambos/Professor/Coordenação continua organizando a navegação e não muda o perfil remoto.
+- Cookies renovados preservam os atributos dos cabeçalhos Set-Cookie; a sincronização devolve cookies também ao concluir uma turma da coordenação. Cookies de terceiros ficam desativados.
+
+A correção da leitura de datas dos períodos continua adiada a pedido do usuário. Valores parciais não confirmam ausência de pendências. A versão estável 1.6 permanece disponível durante a avaliação desta evolução.

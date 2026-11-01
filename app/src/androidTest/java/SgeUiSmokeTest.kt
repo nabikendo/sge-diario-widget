@@ -158,7 +158,7 @@ class SgeUiSmokeTest {
         foto("08-tablet-lista-detalhe")
         compose.onAllNodes(hasScrollAction())[0].performScrollToNode(hasText("23.01"))
         compose.onNodeWithText("23.01").performClick()
-        compose.onNodeWithText("Física").assertExists()
+        compose.onAllNodesWithText("23.01").assertCountEquals(2)
     }
     @Test fun historicoPreservaCoberturaNaoVerificada() {
         val hoje = LocalDate.of(2026, 11, 1)
@@ -183,6 +183,29 @@ class SgeUiSmokeTest {
             put(MediaStore.Downloads.RELATIVE_PATH, "Download/SGEPreview")
         })!!
         resolver.openOutputStream(destino)!!.use { out -> arquivo.inputStream().use { it.copyTo(out) } }
+    }
+
+    @OptIn(ExperimentalGlanceApi::class)
+    @Test fun widgetDaCoordenacaoOcultaDadosQuandoProtegido() {
+        val ctx = InstrumentationRegistry.getInstrumentation().targetContext
+        val prefs = ctx.getSharedPreferences(SgePainelStore.PREFS_NAME, android.content.Context.MODE_PRIVATE)
+        SgeCoordStore.salvar(ctx, coord); SgeDocentesStore.salvar(ctx, docentes)
+        prefs.edit().putBoolean("coord_biometria", true).commit()
+        try {
+            val rv = runBlocking { ProfessorGlanceWidget().compose(ctx, size = DpSize(340.dp, 240.dp)) }
+            lateinit var painel: FrameLayout
+            content { AndroidView(factory = { c -> FrameLayout(c).apply { painel = this; addView(rv.apply(c, this)) } }, modifier = Modifier.width(340.dp).height(240.dp)) }
+            compose.runOnIdle {
+                fun textos(v: android.view.View): List<String> = when(v) {
+                    is android.widget.TextView -> listOf(v.text.toString())
+                    is android.view.ViewGroup -> (0 until v.childCount).flatMap { textos(v.getChildAt(it)) }
+                    else -> emptyList()
+                }
+                val texto = textos(painel).joinToString(" ")
+                check(texto.contains("Coordenação protegida")); check(!texto.contains("Docente de exemplo")); check(!texto.contains("13.01"))
+            }
+            foto("10-widget-protegido")
+        } finally { prefs.edit().remove("coord_biometria").commit() }
     }
 
 }

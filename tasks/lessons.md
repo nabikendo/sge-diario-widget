@@ -5,3 +5,6 @@
 - Nunca atribuir pendências a um professor a partir de nomes presumidos. Usar vínculos explícitos, distinguir docência compartilhada e preservar o grupo não identificado.
 
 - Em `org.jsoup.select.Elements`, converter para `toList()` antes de `filter { ... }`: o método Java `filter(NodeFilter)` pode ocultar a extensão de coleção do Kotlin.
+
+- `Intent.setClipData` não retorna o Intent: definir `clipData` em `apply` antes de continuar a configuração de flags.
+- Em lista/detalhe no tablet, a identidade do conteúdo e o estado de rolagem da lista não devem depender do cartão selecionado.

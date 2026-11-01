@@ -36,6 +36,12 @@ object SgeRelatorioPdf {
             tinta.color = Color.rgb(39, 103, 217); tinta.textSize = 12f; tinta.typeface = Typeface.create("sans-serif", Typeface.BOLD)
             canvas.drawText("SGE DIÁRIO  /  ${if (fonte == FontePainel.COORDENACAO) "COORDENAÇÃO" else "MEU DIÁRIO"}", 36f, 40f, tinta)
             y = 67f
+            if (numero > 1) {
+                tinta.color = Color.rgb(105, 111, 123); tinta.textSize = 10f; tinta.typeface = Typeface.create("sans-serif", Typeface.NORMAL)
+                val titulo = grupo.titulo
+                val limite = tinta.breakText(titulo, true, 510f, null)
+                canvas.drawText(titulo.take(limite) + if (limite < titulo.length) "…" else "", 36f, y, tinta); y += 23f
+            }
         }
         fun linha(texto: String, tamanho: Float = 11f, negrito: Boolean = false, cor: Int = Color.rgb(35, 39, 47)) {
             tinta.textSize = tamanho; tinta.typeface = Typeface.create("sans-serif", if (negrito) Typeface.BOLD else Typeface.NORMAL)
@@ -43,7 +49,15 @@ object SgeRelatorioPdf {
             for (palavra in palavras) {
                 val candidato = if (atual.isBlank()) palavra else "$atual $palavra"
                 if (tinta.measureText(candidato) <= 523f) atual = candidato
-                else { if (atual.isNotBlank()) linhas.add(atual); atual = palavra }
+                else {
+                    if (atual.isNotBlank()) linhas.add(atual)
+                    var restante = palavra
+                    while (tinta.measureText(restante) > 523f) {
+                        val limite = tinta.breakText(restante, true, 523f, null).coerceAtLeast(1)
+                        linhas.add(restante.take(limite)); restante = restante.drop(limite)
+                    }
+                    atual = restante
+                }
             }
             if (atual.isNotBlank()) linhas.add(atual)
             for (l in linhas) {
