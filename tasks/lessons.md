@@ -8,3 +8,5 @@
 
 - `Intent.setClipData` não retorna o Intent: definir `clipData` em `apply` antes de continuar a configuração de flags.
 - Em lista/detalhe no tablet, a identidade do conteúdo e o estado de rolagem da lista não devem depender do cartão selecionado.
+
+- Ao sair do SGE, cancelar consultas e invalidar a geração da sessão antes de remover cookies; blocos finally não canceláveis não podem restaurar cookies de uma sessão anterior.

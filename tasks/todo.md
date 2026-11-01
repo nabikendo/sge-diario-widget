@@ -45,3 +45,8 @@ O erro de datas dos períodos permanece sem correção nesta etapa; a cobertura 
 - Capturas reais com dados ilustrativos revisadas: lista/detalhe, histórico e bloqueios.
 - PDF A4 de oito páginas validado pelo PdfRenderer e FileProvider, renderizado e revisado visualmente.
 - Datas de períodos permanecem adiadas por solicitação expressa; o app não transforma cobertura parcial em zero confirmado.
+
+### Publicação principal
+- PR #3 integrado à main com as melhorias solicitadas.
+- Versão estável 1.7 publicada pelo workflow estável 5, com assinatura validada e testes aprovados: https://github.com/nabikendo/sge-diario-widget/releases/tag/v1.7
+- Commit do APK estável: c39fdde92783c6610cdc1d4cb53b2b39f10ef9a1.
