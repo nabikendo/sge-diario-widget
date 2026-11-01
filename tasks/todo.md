@@ -50,3 +50,17 @@ O erro de datas dos períodos permanece sem correção nesta etapa; a cobertura 
 - PR #3 integrado à main com as melhorias solicitadas.
 - Versão estável 1.7 publicada pelo workflow estável 5, com assinatura validada e testes aprovados: https://github.com/nabikendo/sge-diario-widget/releases/tag/v1.7
 - Commit do APK estável: c39fdde92783c6610cdc1d4cb53b2b39f10ef9a1.
+
+## Versão 1.8 — ferramentas da escola e atualização no app
+- [ ] Atualizador estável/teste separado; aviso Atualizar/Mais tarde; download no app; SHA-256, pacote, versão e assinatura verificados; instalação confirmada pelo Android.
+- [ ] Mapa da escola por turma/professor, com cinco módulos, estados desconhecidos/parciais e acesso aos detalhes.
+- [ ] Filtros por escola/série/turno/componente/professor/módulo/estado; organização local explícita quando o SGE não fornece metadados.
+- [ ] Exportação em lote: PDF individual por professor, PDF reunido para impressão, recibos de recebimento e ciência com assinatura e ZIP.
+- [ ] Backup/restauração por seletor do Android; validação antes de substituir dados; sem senhas, cookies, sessão, instalador ou desativação do bloqueio local.
+- [ ] Economia: rede não tarifada, carregamento, bateria, intervalo automático e horário da verificação escolar; consulta manual continua disponível.
+- [ ] Diagnóstico único dos painéis e logs separados, sem depender da aba de origem.
+- [ ] Avaliação documentada do login Google; manter sessão SGE enquanto não houver integração de contas/nuvem que o justifique.
+- [ ] Testes de dados e segurança do atualizador/backup, testes de UI no celular/tablet e PDFs de lote/recibos renderizados.
+- [ ] APK assinado 1.8 e publicação após validação.
+
+A correção dos períodos continua adiada por solicitação do usuário; não se inferem datas por código e a cobertura parcial permanece explícita.

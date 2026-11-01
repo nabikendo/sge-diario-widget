@@ -16,6 +16,11 @@ import android.webkit.WebViewClient
 import android.widget.Toast
 import androidx.fragment.app.FragmentActivity
 import androidx.core.content.FileProvider
+import androidx.lifecycle.withResumed
+import androidx.compose.material3.*
+import androidx.compose.foundation.layout.*
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -39,6 +44,22 @@ import kotlinx.coroutines.launch
 import org.json.JSONTokener
 
 class MainActivity : FragmentActivity() {
+    private lateinit var atualizador: SgeAtualizador
+    private var backupPendente by mutableStateOf<SgeBackup.Validado?>(null)
+    private var lotePronto by mutableStateOf<ArquivosLote?>(null)
+    private var operando by mutableStateOf(false)
+    private val criarBackup = registerForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
+        uri?.let { quandoAtiva { comProtecao { salvarBackup(it) } } }
+    }
+    private val abrirBackup = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        uri?.let { lifecycleScope.launch {
+            try {
+                val b = withContext(Dispatchers.IO) { contentResolver.openInputStream(it)!!.use { entrada -> SgeBackup.ler(entrada) } }
+                lifecycle.withResumed { comProtecao { backupPendente = b } }
+            } catch (e: CancellationException) { throw e }
+            catch (e: Exception) { aviso("Backup inválido ou incompatível. Nenhum dado foi alterado.") }
+        } }
+    }
     private lateinit var web: WebView
     private lateinit var protecao: CoordProtecao
     private val coordDesbloqueada = mutableStateOf(false)
@@ -48,6 +69,7 @@ class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         protecao = CoordProtecao(this)
+        atualizador = SgeAtualizador(this)
         val prefs = getSharedPreferences(SgePainelStore.PREFS_NAME, MODE_PRIVATE)
         SgeSyncWorker.agendarPeriodico(this)
         SgeNoturnoWorker.agendar(this, prefs.getBoolean("coord_noturna", false))
@@ -72,6 +94,8 @@ class MainActivity : FragmentActivity() {
         receberDestino(intent)
         val versao = runCatching { packageManager.getPackageInfo(packageName, 0).versionName }.getOrNull() ?: "Prévia"
         setContent {
+            var organizacao by remember { mutableStateOf(SgeOrganizacao.ler(this)) }
+            var economia by remember { mutableStateOf(SgeEconomia.ler(this)) }
             var historico by remember { mutableStateOf(SgeHistoricoStore.ler(this)) }
             var perfil by remember { mutableStateOf(SgeSessaoStore.perfil(this)) }
             var bloqueio by remember { mutableStateOf(SgeSessaoStore.protegida(this)) }
@@ -90,6 +114,7 @@ class MainActivity : FragmentActivity() {
             DisposableEffect(prefs) {
                 val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, chave -> runOnUiThread {
                     if (chave == null || chave == "historico_semanal_v1") historico = SgeHistoricoStore.ler(this@MainActivity)
+                    organizacao = SgeOrganizacao.ler(this@MainActivity); economia = SgeEconomia.ler(this@MainActivity)
                     perfil = SgeSessaoStore.perfil(this@MainActivity); bloqueio = SgeSessaoStore.protegida(this@MainActivity)
                     noturna = prefs.getBoolean("coord_noturna", false); statusNoturno = prefs.getString("coord_noturna_status", "").orEmpty()
                     painel = SgePainelStore.ler(this@MainActivity)
@@ -103,6 +128,7 @@ class MainActivity : FragmentActivity() {
                 onDispose { prefs.unregisterOnSharedPreferenceChangeListener(listener) }
             }
             LaunchedEffect(Unit) { SgeWidgets.atualizar(this@MainActivity) }
+            LaunchedEffect(webVisivel) { if (!webVisivel && prefs.getBoolean("introducao_v2",false)) atualizador.verificar(false) }
             LaunchedEffect(webVisivel) {
                 while (webVisivel) { extrairEscola(); instalarHook(); lerPerfilDaPagina(); delay(4000) }
             }
@@ -123,7 +149,7 @@ class MainActivity : FragmentActivity() {
                     { sincronizarPessoal() }, { verificarTurmas(it) },
                     { extrairEscola(); Toast.makeText(this@MainActivity, "Lendo as turmas da página do SGE…", Toast.LENGTH_SHORT).show() },
                     { SgeDocentesWorker.atualizar(this@MainActivity) },
-                    { escola -> comProtecao { copiarTexto(if (escola) montarDiagnosticoCoord(coord) else montarDiagnostico(painel), "Diagnóstico copiado") } },
+                    { _ -> comProtecao { copiarTexto(SgeDiagnosticoUnico.gerar(this@MainActivity), "Diagnóstico único copiado") } },
                     { copiarPagina() },
                     { resultado, ps -> SgeDocentesStore.vincularLocal(this@MainActivity, resultado, ps); scope.launch { SgeWidgets.atualizar(this@MainActivity) } },
                     { tipo -> if (!SgeWidgets.fixar(this@MainActivity, tipo)) Toast.makeText(this@MainActivity,
@@ -131,8 +157,98 @@ class MainActivity : FragmentActivity() {
                     { compartilhar(it) }, { webVisivel = it },
                     papel, lembrete, { definirPapel(it) }, { alternarLembrete(it) }, { sairDoSge() }, { comProtecao { limparDadosLocais() } }, { abrirUrl(it) },
                     historico, perfil, bloqueio, coordDesbloqueada.value, { comProtecao {} }, { alterarBloqueio(it) },
-                    noturna, { ativarNoturna(it) }, statusNoturno, { g, fonte -> exportarPdf(g, fonte) })
+                    noturna, { ativarNoturna(it) }, statusNoturno, { g, fonte -> exportarPdf(g, fonte) },
+                    RecursosSge(organizacao, economia,
+                        { SgeOrganizacao.salvar(this@MainActivity,it) }, { SgeEconomia.salvar(this@MainActivity,it); reagendar(); aviso("Preferências de sincronização salvas") },
+                        { comProtecao { criarBackup.launch("SGE-Diario-backup-${java.time.LocalDate.now()}.json") } },
+                        { comProtecao { abrirBackup.launch(arrayOf("application/json", "text/plain", "application/octet-stream")) } },
+                        { atualizador.aberto = true; scope.launch { atualizador.verificar(true) } },
+                        { gs,escola,responsavel,recorte -> gerarLote(gs,escola,responsavel,recorte) }))
+                AtualizacoesDialog(atualizador) { lifecycleScope.launch {
+                    try { val arquivo = atualizador.prepararInstalacao(); lifecycle.withResumed { if(atualizador.aberto) atualizador.instalar(arquivo) } }
+                    catch (e: CancellationException) { throw e }
+                    catch (e: Exception) { atualizador.falha(e.message ?: "Não foi possível conferir a atualização.") }
+                } }
+                if (operando) AlertDialog(onDismissRequest = {}, title = { Text("Preparando arquivos…") }, text = { LinearProgressIndicator(Modifier.fillMaxWidth()) }, confirmButton = {})
+                if (!bloqueio || coordDesbloqueada.value) {
+                    backupPendente?.let { b -> AlertDialog(onDismissRequest = { backupPendente = null }, title = { Text("Restaurar este backup?") },
+                        text = { Text("Backup da versão ${b.versao}, criado em ${b.criado}. Contém ${b.resultados} resultado(s) de turma/componente. Substitui painéis, histórico, vínculos e preferências locais. Sua sessão e proteção biométrica não são importadas.") },
+                        confirmButton = { Button(onClick = { backupPendente = null; restaurarBackup(b) }) { Text("Restaurar e substituir") } },
+                        dismissButton = { TextButton(onClick = { backupPendente = null }) { Text("Cancelar") } }) }
+                    lotePronto?.let { l -> AlertDialog(onDismissRequest = { lotePronto = null }, title = { Text("${l.professores} relatório(s) prontos") },
+                        text = { Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Text("Escolha o arquivo para salvar, compartilhar ou imprimir. As folhas de recebimento têm espaço para data e assinatura.")
+                            Button(onClick = { compartilharArquivo(l.zip,"application/zip") }) { Text("ZIP por professor") }
+                            OutlinedButton(onClick = { compartilharArquivo(l.impressao,"application/pdf") }) { Text("PDF para impressão") }
+                            OutlinedButton(onClick = { compartilharArquivo(l.recibos,"application/pdf") }) { Text("Folhas de recebimento") }
+                        } }, confirmButton = { TextButton(onClick = { lotePronto = null }) { Text("Concluir") } }) }
+                }
             }
+        }
+    }
+    private fun aviso(texto: String) { Toast.makeText(this, texto, Toast.LENGTH_LONG).show() }
+    private fun quandoAtiva(acao: ()->Unit) { lifecycleScope.launch { lifecycle.withResumed { acao() } } }
+    private fun reagendar() {
+        val p = getSharedPreferences(SgePainelStore.PREFS_NAME,MODE_PRIVATE)
+        SgeSyncWorker.agendarPeriodico(this)
+        SgeNoturnoWorker.agendar(this,p.getBoolean("coord_noturna",false),recriar=true)
+        LembreteWorker.agendar(this,p.getBoolean("lembrete",false),recriar=true)
+    }
+    private fun salvarBackup(uri: Uri) {
+        lifecycleScope.launch {
+            operando = true
+            try {
+                val valores = getSharedPreferences(SgePainelStore.PREFS_NAME,MODE_PRIVATE).all
+                val versao = packageManager.getPackageInfo(packageName,0).versionName.orEmpty()
+                withContext(Dispatchers.IO) {
+                    val texto = SgeBackup.criar(valores,versao)
+                    SgeBackup.validar(texto)
+                    contentResolver.openOutputStream(uri,"wt")!!.use { it.write(texto.toByteArray(Charsets.UTF_8)) }
+                }
+                aviso("Backup salvo no local escolhido")
+            } catch (e: CancellationException) { throw e }
+            catch (e: Exception) { aviso("Não foi possível salvar o backup. Confira o local escolhido.") }
+            finally { operando = false }
+        }
+    }
+    private fun restaurarBackup(b: SgeBackup.Validado) {
+        comProtecao { lifecycleScope.launch {
+            operando = true
+            try {
+                cancelarConsultas()
+                withContext(Dispatchers.IO) {
+                    // Aguarda o cancelamento das filas antes da transação de restauração.
+                    val wm = androidx.work.WorkManager.getInstance(this@MainActivity)
+                    listOf("sge_sync_now","sge_periodic_sync","sge_coord","sge_docentes_lista","sge_docentes_horarios","sge_coord_noturna").forEach { wm.cancelUniqueWork(it).result.get() }
+                    SgeBackup.restaurar(this@MainActivity,b)
+                }
+                reagendar(); SgeWidgets.atualizar(this@MainActivity)
+                aviso("Backup restaurado. Confira a sessão no SGE Web antes de atualizar.")
+            } catch (e: CancellationException) { throw e }
+            catch (e: Exception) { aviso("Não foi possível restaurar o backup.") }
+            finally { operando = false }
+        } }
+    }
+    private fun gerarLote(gs: List<GrupoPendencias>, escola: String, responsavel: String, recorte: String) {
+        if (operando) return
+        comProtecao { lifecycleScope.launch {
+            operando = true
+            try {
+                val l = withContext(Dispatchers.IO) { SgeRelatoriosLote.criar(File(cacheDir,"relatorios"),gs,escola,responsavel,recorte) }
+                lifecycle.withResumed { lotePronto = l }
+            } catch (e: CancellationException) { throw e }
+            catch (e: Exception) { aviso("Não foi possível gerar o lote de relatórios.") }
+            finally { operando = false }
+        } }
+    }
+    private fun compartilharArquivo(arquivo: File, tipo: String) {
+        comProtecao {
+            runCatching {
+                val uri = FileProvider.getUriForFile(this,"$packageName.arquivos",arquivo)
+                val enviar = Intent(Intent.ACTION_SEND).setType(tipo).putExtra(Intent.EXTRA_STREAM,uri)
+                    .apply { clipData = android.content.ClipData.newUri(contentResolver,"Arquivo SGE",uri); addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION) }
+                startActivity(Intent.createChooser(enviar,"Salvar ou compartilhar arquivo"))
+            }.onFailure { aviso("Não foi possível abrir o compartilhamento deste arquivo.") }
         }
     }
     private fun comProtecao(acao: () -> Unit) {
@@ -212,7 +328,7 @@ class MainActivity : FragmentActivity() {
     private fun limparDadosLocais() {
         cancelarConsultas()
         val prefs = getSharedPreferences(SgePainelStore.PREFS_NAME, MODE_PRIVATE)
-        val manter = setOf("tema", "estilo", "papel", "lembrete", "introducao_v2", "web_user_agent", "coord_biometria", "coord_noturna", "sessao_geracao")
+        val manter = SgeEconomia.chaves + setOf("tema", "estilo", "papel", "lembrete", "introducao_v2", "web_user_agent", "coord_biometria", "coord_noturna", "sessao_geracao")
         prefs.edit().also { e -> prefs.all.keys.filter { it !in manter }.forEach { e.remove(it) } }.apply()
         lifecycleScope.launch { SgeWidgets.atualizar(this@MainActivity) }
         Toast.makeText(this, "Dados locais apagados", Toast.LENGTH_SHORT).show()
@@ -247,37 +363,6 @@ class MainActivity : FragmentActivity() {
             .getOrNull()?.let { pedidoWidget.value = it }
     }
     override fun onNewIntent(intent: Intent) { super.onNewIntent(intent); setIntent(intent); receberDestino(intent) }
-    private fun montarDiagnosticoCoord(c: CoordPainel): String {
-        val prefs = getSharedPreferences(SgePainelStore.PREFS_NAME, MODE_PRIVATE)
-        val v = runCatching { packageManager.getPackageInfo(packageName, 0).versionName }.getOrNull()
-        val n = runCatching { org.json.JSONArray(prefs.getString("turmas_escola", "[]")).length() }.getOrDefault(0)
-        return buildString {
-            appendLine("SGE Diário v$v (coordenação)")
-            appendLine("Mensagem: ${c.mensagem}")
-            appendLine("Turmas conhecidas: $n; verificadas: ${c.turmas.size}")
-            c.turmas.forEachIndexed { i, t ->
-                appendLine("Turma ${i + 1}: ${t.disciplinas.size} disciplina(s)")
-                t.disciplinas.forEach { d -> d.modulos.forEachIndexed { j, m ->
-                    if (m.quantidade == null || !m.coberturaCompleta) appendLine("  ${d.turma.disciplina} ${SgePainelStore.NOMES_MODULOS.getOrElse(j) { "Módulo" }}: ${m.resumo()} ${m.detalhe}")
-                } }
-            }
-            appendLine(prefs.getString("diagnostico_v1", "(sem diagnóstico guardado)"))
-        }
-    }
-
-    private fun montarDiagnostico(p: PainelSge): String {
-        val prefs = getSharedPreferences(SgePainelStore.PREFS_NAME, MODE_PRIVATE)
-        val v = runCatching { packageManager.getPackageInfo(packageName, 0).versionName }.getOrNull()
-        return buildString {
-            appendLine("SGE Diário v$v")
-            appendLine("Mensagem: ${p.mensagem}")
-            p.turmas.forEachIndexed { i, r -> r.modulos.forEachIndexed { j, m ->
-                appendLine("Turma ${i + 1} ${SgePainelStore.NOMES_MODULOS.getOrElse(j) { "Módulo" }}: ${m.resumo()} ${m.detalhe}")
-            } }
-            appendLine(prefs.getString("diagnostico_v1", "(sem diagnóstico guardado)"))
-        }
-    }
-
     /** O SGE monta #TurmaContextoId no navegador; guardamos a lista lida do WebView logado para o Worker. */
     private fun extrairTurmas(depois: () -> Unit) {
         if (!::web.isInitialized) { depois(); return }

@@ -116,7 +116,7 @@ fun TelaCartoes(
     fonte: FontePainel, painel: PainelSge, coord: CoordPainel, docentes: PainelDocentes,
     conhecidas: List<Pair<String, String>>, por: Agrupamento, aoAgrupar: (Agrupamento) -> Unit,
     aoAbrir: (GrupoPendencias) -> Unit, aoSincronizar: () -> Unit, aoCarregarTurmas: () -> Unit,
-    aoAtualizarDocentes: () -> Unit, aoAbrirSge: () -> Unit, aoAjuda: () -> Unit, selecionada: String? = null
+    aoAtualizarDocentes: () -> Unit, aoAbrirSge: () -> Unit, aoAjuda: () -> Unit, selecionada: String? = null, filtroAvancado: FiltroAvancado = FiltroAvancado(), organizacao: Map<String,DadosTurma> = emptyMap(), aoFiltros: ()->Unit = {}, aoMapa: ()->Unit = {}, aoLote: ()->Unit = {}
 ) {
     var busca by rememberSaveable(fonte.name) { mutableStateOf("") }
     var filtro by rememberSaveable(fonte.name) { mutableStateOf(0) }
@@ -124,10 +124,10 @@ fun TelaCartoes(
     var menuFiltro by remember { mutableStateOf(false) }
     var mostrarMensagem by remember { mutableStateOf(false) }
     val escola = fonte == FontePainel.COORDENACAO
-    val resultados = remember(escola, coord.turmas, painel.turmas) { if (escola) coord.turmas.flatMap { it.disciplinas } else painel.turmas }
-    val grupos = remember(resultados, docentes, conhecidas, por, escola) {
+    val resultados = remember(escola, coord.turmas, painel.turmas, filtroAvancado, organizacao, docentes) { SgeOrganizacao.filtrar(if (escola) coord.turmas.flatMap { it.disciplinas } else painel.turmas, filtroAvancado, organizacao, docentes) }
+    val grupos = remember(resultados, docentes, conhecidas, por, escola, filtroAvancado) {
         val list = SgeDashboard.agrupar(resultados, por, docentes.vinculos, docentes.locais)
-        if (escola && por == Agrupamento.TURMA) list + conhecidas.filter { (id, _) -> list.none { id in it.turmaIds } }
+        if (escola && por == Agrupamento.TURMA && !filtroAvancado.ativo) list + conhecidas.filter { (id, _) -> list.none { id in it.turmaIds } }
             .map { (id, nome) -> GrupoPendencias("turma:$id", nome.substringBefore('/'), nome.substringAfter('/', "Ainda não consultada"), emptyList(), setOf(id)) }
         else list
     }
@@ -165,6 +165,15 @@ fun TelaCartoes(
                         maxLines = 2, overflow = TextOverflow.Ellipsis)
                     if (escola) TextButton(onClick = aoCarregarTurmas) { Text(if (conhecidas.isEmpty()) "Carregar turmas" else "Reler turmas") }
                 }
+            }
+        }
+        item(span = { GridItemSpan(maxLineSpan) }) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (escola) Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = aoMapa, modifier = Modifier.weight(1f)) { Text("Mapa da escola") }
+                    OutlinedButton(onClick = aoLote, modifier = Modifier.weight(1f)) { Text("Relatórios em lote") }
+                }
+                BarraRecorte(filtroAvancado, aoFiltros)
             }
         }
         item(span = { GridItemSpan(maxLineSpan) }) {

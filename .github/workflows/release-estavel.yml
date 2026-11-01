@@ -56,6 +56,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           cp app/build/outputs/apk/release/app-release.apk "SGE-Diario-$SGE_VERSAO.apk"
-          gh release create "v$SGE_VERSAO" "SGE-Diario-$SGE_VERSAO.apk" --latest --target "$GITHUB_SHA" \
+          python scripts/metadata-atualizacao.py "SGE-Diario-$SGE_VERSAO.apk" atualizacao.json
+          gh release create "v$SGE_VERSAO" "SGE-Diario-$SGE_VERSAO.apk" atualizacao.json --latest --target "$GITHUB_SHA" \
             --title "SGE Diário $SGE_VERSAO" \
             --notes-file release/NOTAS.md

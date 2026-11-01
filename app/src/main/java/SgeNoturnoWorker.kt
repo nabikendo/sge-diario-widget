@@ -11,8 +11,8 @@ import java.time.ZonedDateTime
 import java.util.concurrent.TimeUnit
 
 object SgeAgendaNoturna {
-    fun atraso(agora: ZonedDateTime): Long {
-        var alvo = agora.toLocalDate().atTime(3, 0).atZone(agora.zone)
+    fun atraso(agora: ZonedDateTime, hora: Int = 3): Long {
+        var alvo = agora.toLocalDate().atTime(hora.coerceIn(0, 23), 0).atZone(agora.zone)
         if (!alvo.isAfter(agora)) alvo = alvo.plusDays(1)
         return Duration.between(agora, alvo).toMillis()
     }
@@ -35,7 +35,7 @@ class SgeNoturnoWorker(private val ctx: Context, params: WorkerParameters) : Cor
             if (!escola) { status("Verificação noturna: mantenha uma sessão Unidade escolar para consultar a escola."); return Result.success() }
             status("Verificação noturna enfileirada para ${ids.size} turmas.")
             // KEEP evita substituir uma fila manual que começa enquanto o perfil é verificado.
-            SgeSyncWorker.verificarTurmas(ctx, ids, substituir = false)
+            SgeSyncWorker.verificarTurmas(ctx, ids, substituir = false, automatica = true)
         } catch (e: CancellationException) { if (e !is TimeoutCancellationException) throw e; status("Verificação noturna: tempo de consulta esgotado.") }
         catch (e: SessaoExpirada) { SgeSessaoStore.salvar(ctx, PerfilSge.EXPIRADO); status("Verificação noturna: entre novamente no SGE Web.") }
         catch (e: Exception) { status("Verificação noturna: não foi possível consultar a escola. Tente uma verificação manual.") }
@@ -47,9 +47,9 @@ class SgeNoturnoWorker(private val ctx: Context, params: WorkerParameters) : Cor
         fun agendar(ctx: Context, ativo: Boolean, recriar: Boolean = false) {
             val wm = WorkManager.getInstance(ctx)
             if (!ativo) { wm.cancelUniqueWork("sge_coord_noturna"); return }
-            val rede = Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).setRequiresBatteryNotLow(true).build()
+            val rede = SgeEconomia.restricoes(ctx)
             wm.enqueueUniquePeriodicWork("sge_coord_noturna", if (recriar) ExistingPeriodicWorkPolicy.UPDATE else ExistingPeriodicWorkPolicy.KEEP,
-                PeriodicWorkRequestBuilder<SgeNoturnoWorker>(24, TimeUnit.HOURS).setInitialDelay(SgeAgendaNoturna.atraso(ZonedDateTime.now()), TimeUnit.MILLISECONDS).setConstraints(rede).build())
+                PeriodicWorkRequestBuilder<SgeNoturnoWorker>(24, TimeUnit.HOURS).setInitialDelay(SgeAgendaNoturna.atraso(ZonedDateTime.now(), SgeEconomia.ler(ctx).horaNoturna), TimeUnit.MILLISECONDS).setConstraints(rede).build())
         }
     }
 }

@@ -154,7 +154,7 @@ class SgeSyncWorker(private val ctx: Context, params: WorkerParameters) : Corout
             } }
             c?.historico?.forEach { appendLine(it) }
         }
-        ctx.getSharedPreferences(SgePainelStore.PREFS_NAME, Context.MODE_PRIVATE).edit().putString("diagnostico_v1", t.take(20000)).commit()
+        ctx.getSharedPreferences(SgePainelStore.PREFS_NAME, Context.MODE_PRIVATE).edit().putString(if (inputData.getString("coord_alvo") != null) "diagnostico_coord_v2" else "diagnostico_pessoal_v2", t.take(20000)).commit()
     }
 
     companion object {
@@ -162,12 +162,12 @@ class SgeSyncWorker(private val ctx: Context, params: WorkerParameters) : Corout
         private fun rede() = Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()
         fun agendarPeriodico(context: Context) {
             WorkManager.getInstance(context).enqueueUniquePeriodicWork("sge_periodic_sync", ExistingPeriodicWorkPolicy.UPDATE,
-                PeriodicWorkRequestBuilder<SgeSyncWorker>(2, TimeUnit.HOURS).setConstraints(rede()).build())
+                PeriodicWorkRequestBuilder<SgeSyncWorker>(SgeEconomia.ler(context).horas.toLong(), TimeUnit.HOURS).setConstraints(SgeEconomia.restricoes(context)).build())
         }
         /** Coordenação: enfileira uma consulta por turma, em sequência (cada uma cabe no limite de tempo do WorkManager). */
-        fun verificarTurmas(context: Context, ids: List<String>, substituir: Boolean = true) {
+        fun verificarTurmas(context: Context, ids: List<String>, substituir: Boolean = true, automatica: Boolean = false) {
             if (ids.isEmpty()) return
-            val reqs = ids.map { OneTimeWorkRequestBuilder<SgeSyncWorker>().setConstraints(rede()).setInputData(workDataOf("coord_alvo" to it)).build() }
+            val reqs = ids.map { OneTimeWorkRequestBuilder<SgeSyncWorker>().setConstraints(if (automatica) SgeEconomia.restricoes(context) else rede()).setInputData(workDataOf("coord_alvo" to it)).build() }
             var c = WorkManager.getInstance(context).beginUniqueWork("sge_coord", if (substituir) ExistingWorkPolicy.REPLACE else ExistingWorkPolicy.KEEP, reqs.first())
             reqs.drop(1).forEach { c = c.then(it) }
             c.enqueue()
