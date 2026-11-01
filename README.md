@@ -22,7 +22,7 @@ Um valor com `*` tem cobertura parcial; `—` significa não verificado. O app n
 1. Você entra no SGE pela aba **SGE Web** (um WebView). O app não pede nem guarda usuário e senha.
 2. O `SgeSyncWorker` (WorkManager) reutiliza a sessão do WebView, lê o horário do professor e consulta cada turma.
 3. O resultado é salvo localmente (`SgePainelStore`) e exibido no app e no widget (Jetpack Glance).
-4. A sincronização roda a cada 2 horas, ao abrir o app, no botão **Sincronizar agora** e no botão ↻ do widget.
+4. A sincronização roda a cada 2 horas, ao abrir o app, no botão **Atualizar diário** do cabeçalho e no botão de atualização dos widgets que o exibem. O Android determina quando as tarefas periódicas realmente executam.
 
 A lista de turmas (`#TurmaContextoId`) é montada por JavaScript no SGE, então o app a lê do WebView logado e a guarda para o worker.
 
@@ -30,8 +30,10 @@ A lista de turmas (`#TurmaContextoId`) é montada por JavaScript no SGE, então 
 
 1. Abra a aba **Releases** deste repositório.
 2. Baixe `SGE-Diario-Widget.apk` em **Assets** e instale (permita instalar apps desta fonte).
-3. Abra o app, entre no SGE na aba **SGE Web**, volte para **Turmas** e toque em **Sincronizar agora**.
-4. Adicione o widget "SGE 3.0 • Pendências" à tela inicial.
+3. Abra o app, siga a introdução e entre no SGE na aba **SGE Web**. Volte para **Meu diário** e toque no ícone de atualização do cabeçalho.
+4. Em **Ajustes → Galeria de widgets**, escolha um formato e configure seu recorte. Também é possível adicioná-lo pelo seletor de widgets do aparelho.
+
+A prévia do PR #2 é distribuída como `SGE-Diario-previa-N.apk` nos artefatos do workflow. Ela se chama **SGE Diário (teste)** e tem pacote `.teste`, separado da versão estável.
 
 O APK é assinado sempre com a mesma chave (`app/debug.keystore`), então as atualizações funcionam por cima. É uma chave de **debug**, pública de propósito: serve para atualizar, não para distribuição na Play Store.
 
@@ -45,7 +47,7 @@ O APK é assinado sempre com a mesma chave (`app/debug.keystore`), então as atu
 
 ## Diagnóstico
 
-- **Copiar diagnóstico** (aba Turmas): copia a versão, a mensagem e as últimas chamadas ao SGE, só com a *estrutura* das respostas (ids, colunas, campos), sem nomes de alunos nem valores.
+- **Copiar diagnóstico** (Ajustes): copia a versão, a mensagem e as últimas chamadas ao SGE, só com a *estrutura* das respostas (ids, colunas, campos), sem nomes de alunos nem valores.
 - **Copiar página** (aba SGE Web): copia a estrutura da tela aberta. Serve para mapear telas novas, como a visão de coordenação.
 
 Quando o SGE mudar o HTML, o app mostra exatamente em que etapa falhou, em vez de exibir zero.
