@@ -79,6 +79,7 @@ fun CartaoGrupo(grupo: GrupoPendencias, por: Agrupamento, abrir: () -> Unit) {
                 EstadoGrupo.SEM_DADOS -> "Toque para consultar esta turma."
                 else -> "Existem dados que precisam de conferência."
             }, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (grupo.estado == EstadoGrupo.PENDENTE && grupo.exigeConferencia) Text("Inclui dados a conferir", style = MaterialTheme.typography.labelSmall, color = corAlerta())
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text("Ver detalhes", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary,
@@ -130,10 +131,10 @@ fun TelaCartoes(
     }
     val porTurma = SgeDashboard.agrupar(resultados, Agrupamento.TURMA)
     val pendentes = porTurma.count { it.estado == EstadoGrupo.PENDENTE }
-    val conferir = porTurma.count { it.estado == EstadoGrupo.CONFERIR } + if (escola) conhecidas.count { (id, _) -> porTurma.none { id in it.turmaIds } } else 0
+    val conferir = porTurma.count { it.exigeConferencia } + if (escola) conhecidas.count { (id, _) -> porTurma.none { id in it.turmaIds } } else 0
     val visiveis = grupos.filter { g ->
         (busca.isBlank() || normalizarSge(g.titulo + " " + g.subtitulo + " " + g.resultados.joinToString { it.turma.nome }).contains(normalizarSge(busca))) &&
-            when(filtro) { 1 -> g.estado == EstadoGrupo.PENDENTE; 2 -> g.estado == EstadoGrupo.CONFERIR || g.estado == EstadoGrupo.SEM_DADOS
+            when(filtro) { 1 -> g.estado == EstadoGrupo.PENDENTE; 2 -> g.exigeConferencia
                 3 -> g.estado == EstadoGrupo.EM_DIA; else -> true }
     }
     val carregando = if (escola) coord.sincronizando else painel.sincronizando

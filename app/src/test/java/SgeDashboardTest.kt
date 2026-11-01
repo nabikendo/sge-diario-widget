@@ -18,6 +18,10 @@ class SgeDashboardTest {
         val g = SgeDashboard.agrupar(listOf(r("1", primeiro = ResultadoModulo(0))), Agrupamento.TURMA).single()
         assertEquals(EstadoGrupo.CONFERIR, g.estado)
     }
+    @Test fun pendenciaConhecidaNaoEscondeNecessidadeDeConferencia() {
+        val g = SgeDashboard.agrupar(listOf(r("1", primeiro = ResultadoModulo(2))), Agrupamento.TURMA).single()
+        assertEquals(EstadoGrupo.PENDENTE, g.estado); assertTrue(g.exigeConferencia)
+    }
     @Test fun aguardandoAvaliacaoFicaForaDasPendencias() {
         val g = SgeDashboard.agrupar(listOf(r("1", primeiro = ResultadoModulo(0, aguardando = 6, coberturaCompleta = true))), Agrupamento.TURMA).single()
         assertEquals(EstadoGrupo.EM_DIA, g.estado); assertEquals(6, g.modulos[0].aguardando)

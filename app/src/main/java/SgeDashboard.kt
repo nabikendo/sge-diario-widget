@@ -41,6 +41,7 @@ data class GrupoPendencias(
     val vinculoLocal: Boolean = false
 ) {
     val modulos get() = SgeDashboard.resumir(resultados)
+    val exigeConferencia get() = resultados.isEmpty() || modulos.any { !it.completa }
     val estado get() = when {
         resultados.isEmpty() -> EstadoGrupo.SEM_DADOS
         modulos.any { (it.quantidade ?: 0) > 0 } -> EstadoGrupo.PENDENTE

@@ -4,7 +4,7 @@ import org.jsoup.Jsoup
 
 /** Reutiliza a estrutura do horário já empregada pela consulta pessoal; não presume IDs nem nomes. */
 object SgeDocentesParsing {
-    fun professores(html: String): List<DocenteRef> = Jsoup.parse(html).select("#ProfessorId option[value]")
+    fun professores(html: String): List<DocenteRef> = Jsoup.parse(html).select("#ProfessorId option[value]").toList()
         .filter { it.attr("value").isNotBlank() && it.attr("value") != "0" && !it.hasAttr("disabled") }
         .filter { !normalizarSge(it.text()).startsWith("selecione") }
         .map { DocenteRef(it.attr("value"), it.text().trim()) }.filter { it.nome.isNotBlank() }

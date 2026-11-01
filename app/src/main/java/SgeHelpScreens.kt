@@ -109,6 +109,7 @@ fun TelaAjuda() {
                 EstadoExplicado(EstadoGrupo.SEM_DADOS, "A turma aparece na lista da escola, mas ainda não tem uma consulta concluída.")
             }
         }
+        Text("Uma turma pode ter pendências conhecidas e também dados a conferir. Por isso, ela pode aparecer nos dois contadores da visão geral.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text("Os cinco módulos", style = MaterialTheme.typography.titleLarge)
         SgeDashboard.nomes.forEachIndexed { i, nome ->
             LinhaExplicacao(iconeModulo(i), nome, SgeDashboard.descricoes[i])

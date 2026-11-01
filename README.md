@@ -82,3 +82,42 @@ gradle testDebugUnitTest assembleDebug
 ## Licença
 
 MIT. Veja o arquivo [LICENSE](LICENSE).
+
+## Prévia do novo painel
+
+O branch `feat/ios-inspired-neutral-ui` contém a reformulação em avaliação no PR #2.
+O APK de debug tem pacote `.teste` e nome **SGE Diário (teste)**, independente da versão estável.
+Cada compilação mostra `1.3-preview.N` nos Ajustes e entrega `SGE-Diario-previa-N.apk` no artefato do Actions.
+
+- **Cartões**: busca e filtros por turma ou componente; cada cartão abre uma página com os cinco módulos, os detalhes originais da consulta e o resumo compartilhável.
+- **Coordenação**: visões por turma, componente e vínculo docente. A ação Atualizar vínculos docentes consulta a lista `#ProfessorId` e o quadro de horário já usado pelo cliente. Uma tarefa consulta cada professor, evitando concentrar a escola inteira em um único Worker.
+- **Vínculos**: os resultados continuam sendo da turma/componente. Uma turma com vários docentes fica em Docência compartilhada; o mesmo registro não é somado uma vez por professor. Uma correspondência ambígua fica sem atribuição. É possível ajustar os vínculos apenas no aparelho, com indicação de vínculo local.
+- **Introdução e ajuda**: a primeira abertura apresenta o funcionamento; os Ajustes permitem rever a introdução e consultar as legendas. As paletas se chamam Neutras e Do sistema.
+- **Seis widgets**: Resumo do diário, Minhas turmas, Por componente, Coordenação, Por professor e Cartão em foco. Cada instância tem origem, agrupamento e recorte próprios, filtro de atenção e opção de ocultar nomes. O cartão em foco tem controles anterior/próximo; as listas usam rolagem vertical.
+
+### Contagens e cobertura
+
+Conteúdos e frequência contam **dias**, não quantidade de aulas nem alunos faltosos. Os outros módulos contam documentos.
+Um resultado desconhecido permanece `—`; um total com qualquer parte não conferida permanece `*`, inclusive `0*`.
+Em dia exige todos os cinco módulos com cobertura completa e contagem zero. Aguardando avaliação fica separado.
+Uma turma com pendências e cobertura parcial pode aparecer tanto no contador de pendências quanto no de conferência.
+
+### Tela bloqueada
+
+Os widgets são widgets Android comuns. O host do fabricante determina se podem ser colocados na tela bloqueada e quais interações funcionam ali.
+O app não cria uma tela sobre o bloqueio, não exige sobreposição e não usa `showWhenLocked` para abrir dados sem autenticação.
+Resumo do diário e Cartão em foco são as opções compactas; Ocultar nomes permite apresentar contagens sem expor os rótulos dos cartões.
+
+### Validação da prévia
+
+Os testes JVM cobrem agrupamentos, contagens parciais/desconhecidas, docência compartilhada, prioridade dos vínculos locais e identificação conservadora das turmas do horário.
+O job `ui-previews` executa testes de navegação em emulador Android e gera capturas com **dados ilustrativos**, sem sessão do SGE.
+A leitura de vínculos no SGE real depende do perfil Unidade escolar e precisa ser validada com uma sessão do usuário. Falhas preservam vínculos anteriores ou deixam a atribuição desconhecida.
+
+### Próximas melhorias sugeridas
+
+1. Histórico local de consultas com comparação de cobertura para distinguir melhoria real de uma leitura incompleta.
+2. Favoritos e ordenação por registros mais antigos, quando as datas forem representadas como dados estruturados.
+3. Alertas locais opcionais, por período e módulo, sem repetir notificações sobre os mesmos dados.
+4. Widget de aula atual/próxima turma, depois de persistir o horário e cruzá-lo com o calendário escolar.
+5. Exportação de resumo em PDF e backup local dos filtros, favoritos e vínculos informados no aparelho.

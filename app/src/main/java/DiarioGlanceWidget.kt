@@ -244,11 +244,11 @@ open class SgeBaseWidget(private val tipo: TipoWidget) : GlanceAppWidget() {
                     Text("turmas pendentes", style = TextStyle(color = ColorProvider(c.secundario), fontSize = 10.sp), maxLines = 2)
                 }
                 Column(GlanceModifier.defaultWeight()) {
-                    Text((turmas.count { it.estado == EstadoGrupo.CONFERIR } + semConsulta).toString(), style = TextStyle(color = ColorProvider(c.conferir), fontSize = if (compacto) 29.sp else 36.sp, fontWeight = FontWeight.Bold))
+                    Text((turmas.count { it.exigeConferencia } + semConsulta).toString(), style = TextStyle(color = ColorProvider(c.conferir), fontSize = if (compacto) 29.sp else 36.sp, fontWeight = FontWeight.Bold))
                     Text("a conferir", style = TextStyle(color = ColorProvider(c.secundario), fontSize = 10.sp))
                 }
             }
-            if (!compacto) Text("${turmas.count { it.estado == EstadoGrupo.EM_DIA }} turma(s) com todos os módulos em dia", GlanceModifier.padding(top = 10.dp),
+            if (!compacto && !config.soAtencao) Text("${turmas.count { it.estado == EstadoGrupo.EM_DIA }} turma(s) com todos os módulos em dia", GlanceModifier.padding(top = 10.dp),
                 style = TextStyle(color = ColorProvider(c.ok), fontSize = 11.sp), maxLines = 2)
         }
     }
