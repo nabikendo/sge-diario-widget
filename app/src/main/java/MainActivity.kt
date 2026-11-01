@@ -14,7 +14,14 @@ import android.webkit.CookieManager
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Toast
-import androidx.activity.ComponentActivity
+import androidx.fragment.app.FragmentActivity
+import androidx.core.content.FileProvider
+import androidx.lifecycle.Lifecycle
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.CancellationException
+import br.to.seduc.sgediariowidget.worker.SgeNoturnoWorker
+import java.io.File
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.*
 import androidx.compose.ui.graphics.luminance
@@ -31,15 +38,19 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.json.JSONTokener
 
-class MainActivity : ComponentActivity() {
+class MainActivity : FragmentActivity() {
     private lateinit var web: WebView
+    private lateinit var protecao: CoordProtecao
+    private val coordDesbloqueada = mutableStateOf(false)
     private val pedidoWidget = mutableStateOf<PedidoWidget?>(null)
     private val pedirNotificacao = registerForActivityResult(ActivityResultContracts.RequestPermission()) { ok -> definirLembrete(ok) }
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        protecao = CoordProtecao(this)
         val prefs = getSharedPreferences(SgePainelStore.PREFS_NAME, MODE_PRIVATE)
         SgeSyncWorker.agendarPeriodico(this)
+        SgeNoturnoWorker.agendar(this, prefs.getBoolean("coord_noturna", false))
         LembreteWorker.agendar(this, prefs.getBoolean("lembrete", false))
         // Cookies permanecem no CookieManager; o app nunca copia a senha do formulário.
         prefs.edit().remove("sge_cookies").apply()
@@ -47,10 +58,11 @@ class MainActivity : ComponentActivity() {
             settings.javaScriptEnabled = true
             settings.domStorageEnabled = true
             CookieManager.getInstance().setAcceptCookie(true)
-            CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
+            CookieManager.getInstance().setAcceptThirdPartyCookies(this, false)
             prefs.edit().putString("web_user_agent", settings.userAgentString).apply()
             webViewClient = object : WebViewClient() {
                 override fun onPageFinished(view: WebView?, url: String?) {
+                    if (url?.contains("/Acesso/Entrar", true) == true) SgeSessaoStore.salvar(this@MainActivity, PerfilSge.EXPIRADO)
                     CookieManager.getInstance().flush(); verificarSessao(); extrairEscola(); instalarHook()
                 }
             }
@@ -60,6 +72,11 @@ class MainActivity : ComponentActivity() {
         receberDestino(intent)
         val versao = runCatching { packageManager.getPackageInfo(packageName, 0).versionName }.getOrNull() ?: "Prévia"
         setContent {
+            var historico by remember { mutableStateOf(SgeHistoricoStore.ler(this)) }
+            var perfil by remember { mutableStateOf(SgeSessaoStore.perfil(this)) }
+            var bloqueio by remember { mutableStateOf(SgeSessaoStore.protegida(this)) }
+            var noturna by remember { mutableStateOf(prefs.getBoolean("coord_noturna", false)) }
+            var statusNoturno by remember { mutableStateOf(prefs.getString("coord_noturna_status", "").orEmpty()) }
             var tema by remember { mutableStateOf(prefs.getInt("tema", 0)) }
             var cor by remember { mutableStateOf(prefs.getInt("estilo", 0)) }
             var painel by remember { mutableStateOf(SgePainelStore.ler(this)) }
@@ -72,6 +89,9 @@ class MainActivity : ComponentActivity() {
             val scope = rememberCoroutineScope()
             DisposableEffect(prefs) {
                 val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, _ -> runOnUiThread {
+                    historico = SgeHistoricoStore.ler(this@MainActivity)
+                    perfil = SgeSessaoStore.perfil(this@MainActivity); bloqueio = SgeSessaoStore.protegida(this@MainActivity)
+                    noturna = prefs.getBoolean("coord_noturna", false); statusNoturno = prefs.getString("coord_noturna_status", "").orEmpty()
                     painel = SgePainelStore.ler(this@MainActivity)
                     coord = SgeCoordStore.ler(this@MainActivity)
                     docentes = SgeDocentesStore.ler(this@MainActivity)
@@ -84,7 +104,7 @@ class MainActivity : ComponentActivity() {
             }
             LaunchedEffect(Unit) { SgeWidgets.atualizar(this@MainActivity) }
             LaunchedEffect(webVisivel) {
-                while (webVisivel) { extrairEscola(); instalarHook(); delay(4000) }
+                while (webVisivel) { extrairEscola(); instalarHook(); lerPerfilDaPagina(); delay(4000) }
             }
             SgeTema(tema, cor) {
                 val scheme = MaterialTheme.colorScheme
@@ -103,16 +123,66 @@ class MainActivity : ComponentActivity() {
                     { sincronizarPessoal() }, { verificarTurmas(it) },
                     { extrairEscola(); Toast.makeText(this@MainActivity, "Lendo as turmas da página do SGE…", Toast.LENGTH_SHORT).show() },
                     { SgeDocentesWorker.atualizar(this@MainActivity) },
-                    { escola -> copiarTexto(if (escola) montarDiagnosticoCoord(coord) else montarDiagnostico(painel), "Diagnóstico copiado") },
+                    { escola -> comProtecao { copiarTexto(if (escola) montarDiagnosticoCoord(coord) else montarDiagnostico(painel), "Diagnóstico copiado") } },
                     { copiarPagina() },
                     { resultado, ps -> SgeDocentesStore.vincularLocal(this@MainActivity, resultado, ps); scope.launch { SgeWidgets.atualizar(this@MainActivity) } },
                     { tipo -> if (!SgeWidgets.fixar(this@MainActivity, tipo)) Toast.makeText(this@MainActivity,
                         "Abra o seletor de widgets da tela inicial e procure SGE Diário.", Toast.LENGTH_LONG).show() },
                     { compartilhar(it) }, { webVisivel = it },
-                    papel, lembrete, { definirPapel(it) }, { alternarLembrete(it) }, { sairDoSge() }, { limparDadosLocais() }, { abrirUrl(it) })
+                    papel, lembrete, { definirPapel(it) }, { alternarLembrete(it) }, { sairDoSge() }, { comProtecao { limparDadosLocais() } }, { abrirUrl(it) },
+                    historico, perfil, bloqueio, coordDesbloqueada.value, { comProtecao {} }, { alterarBloqueio(it) },
+                    noturna, { ativarNoturna(it) }, statusNoturno, { g, fonte -> exportarPdf(g, fonte) })
             }
         }
     }
+    private fun comProtecao(acao: () -> Unit) {
+        if (!SgeSessaoStore.protegida(this) || coordDesbloqueada.value) acao()
+        else protecao.autenticar { coordDesbloqueada.value = true; acao() }
+    }
+    private fun alterarBloqueio(ativo: Boolean) {
+        val aplicar = {
+            getSharedPreferences(SgePainelStore.PREFS_NAME, MODE_PRIVATE).edit().putBoolean("coord_biometria", ativo).apply()
+            coordDesbloqueada.value = ativo
+            lifecycleScope.launch { SgeWidgets.atualizar(this@MainActivity) }
+            Unit
+        }
+        if (ativo) protecao.autenticar(aplicar) else comProtecao(aplicar)
+    }
+    private fun ativarNoturna(ativa: Boolean) {
+        getSharedPreferences(SgePainelStore.PREFS_NAME, MODE_PRIVATE).edit().putBoolean("coord_noturna", ativa).apply()
+        SgeNoturnoWorker.agendar(this, ativa, recriar = true)
+    }
+    private fun exportarPdf(g: GrupoPendencias, fonte: FontePainel) {
+        val iniciar = {
+            lifecycleScope.launch {
+                try {
+                    val arquivo = withContext(Dispatchers.IO) { SgeRelatorioPdf.criar(File(cacheDir, "relatorios"), g, fonte) }
+                    if (!lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED) || (fonte == FontePainel.COORDENACAO && SgeSessaoStore.protegida(this@MainActivity) && !coordDesbloqueada.value)) return@launch
+                    val uri = FileProvider.getUriForFile(this@MainActivity, "$packageName.arquivos", arquivo)
+                    val enviar = Intent(Intent.ACTION_SEND).setType("application/pdf").putExtra(Intent.EXTRA_STREAM, uri)
+                        .setClipData(android.content.ClipData.newUri(contentResolver, "Relatório SGE", uri)).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    startActivity(Intent.createChooser(enviar, "Compartilhar PDF"))
+                } catch (e: CancellationException) { throw e }
+                catch (e: Exception) { Toast.makeText(this@MainActivity, "Não foi possível gerar ou compartilhar o PDF.", Toast.LENGTH_LONG).show() }
+            }
+            Unit
+        }
+        if (fonte == FontePainel.COORDENACAO) comProtecao(iniciar) else iniciar()
+    }
+    private fun lerPerfilDaPagina() {
+        if (!::web.isInitialized || web.url?.startsWith(SgeSyncWorker.BASE + "/") != true) return
+        web.evaluateJavascript("""(function(){var e=document.querySelector('#ehPerfilEscola'),p=document.querySelector('#ehPerfilProfessor');if(!e||!p)return null;return JSON.stringify({escola:e.value,professor:p.value});})()""") { raw ->
+            runCatching {
+                val value = JSONTokener(raw).nextValue()
+                if (value is String) {
+                    val j = org.json.JSONObject(value)
+                    val e = j.optString("escola").equals("true", true); val p = j.optString("professor").equals("true", true)
+                    if (e != p) SgeSessaoStore.salvar(this, if (e) PerfilSge.COORDENACAO else PerfilSge.PROFESSOR)
+                }
+            }
+        }
+    }
+    override fun onStop() { coordDesbloqueada.value = false; super.onStop() }
     private fun definirPapel(valor: Int) { getSharedPreferences(SgePainelStore.PREFS_NAME, MODE_PRIVATE).edit().putInt("papel", valor).apply() }
     private fun definirLembrete(ligado: Boolean) {
         getSharedPreferences(SgePainelStore.PREFS_NAME, MODE_PRIVATE).edit().putBoolean("lembrete", ligado).apply()
@@ -127,6 +197,7 @@ class MainActivity : ComponentActivity() {
         if (ligar) Toast.makeText(this, "Lembrete diário ativado para as 17h", Toast.LENGTH_SHORT).show()
     }
     private fun sairDoSge() {
+        coordDesbloqueada.value = false; SgeSessaoStore.salvar(this, PerfilSge.EXPIRADO)
         CookieManager.getInstance().removeAllCookies(null); CookieManager.getInstance().flush()
         val prefs = getSharedPreferences(SgePainelStore.PREFS_NAME, MODE_PRIVATE)
         prefs.edit().remove("turmas_contexto").remove("turmas_escola").apply()
@@ -135,7 +206,7 @@ class MainActivity : ComponentActivity() {
     }
     private fun limparDadosLocais() {
         val prefs = getSharedPreferences(SgePainelStore.PREFS_NAME, MODE_PRIVATE)
-        val manter = setOf("tema", "estilo", "papel", "lembrete", "introducao_v2", "web_user_agent")
+        val manter = setOf("tema", "estilo", "papel", "lembrete", "introducao_v2", "web_user_agent", "coord_biometria", "coord_noturna")
         prefs.edit().also { e -> prefs.all.keys.filter { it !in manter }.forEach { e.remove(it) } }.apply()
         lifecycleScope.launch { SgeWidgets.atualizar(this@MainActivity) }
         Toast.makeText(this, "Dados locais apagados", Toast.LENGTH_SHORT).show()
@@ -277,7 +348,7 @@ class MainActivity : ComponentActivity() {
         if (!::web.isInitialized) return
         web.evaluateJavascript("Boolean(document.querySelector('#TurmaContextoId') || document.querySelector('#ProfessorId') || document.querySelector('#left-panel'))") { raw ->
             val active = runCatching { JSONTokener(raw).nextValue() == true }.getOrDefault(false)
-            if (active) { CookieManager.getInstance().flush(); extrairTurmas {}; web.postDelayed({ extrairTurmas {} }, 3000) }
+            if (active) { lerPerfilDaPagina(); CookieManager.getInstance().flush(); extrairTurmas {}; web.postDelayed({ extrairTurmas {} }, 3000) }
         }
     }
     override fun onPause() { CookieManager.getInstance().flush(); super.onPause() }

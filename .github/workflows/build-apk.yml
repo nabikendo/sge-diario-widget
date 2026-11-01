@@ -2,7 +2,7 @@ name: Build SGE Widget APK
 
 on:
   push:
-    branches: [ main, master, feat/ios-inspired-neutral-ui ]
+    branches: [ main, master, feat/ios-inspired-neutral-ui, feat/tablet-history-coordination ]
   workflow_dispatch:
 
 permissions:
@@ -28,7 +28,7 @@ jobs:
         with:
           gradle-version: '8.7'
       - name: Build debug APK
-        run: gradle testDebugUnitTest assembleDebug -Pversao=1.3-preview.${{ github.run_number }} -Pcodigo=${{ github.run_number }} --no-daemon --stacktrace
+        run: gradle testDebugUnitTest assembleDebug -Pversao=1.7-preview.${{ github.run_number }} -Pcodigo=${{ github.run_number }} --no-daemon --stacktrace
       - name: Identificar APK de prévia
         run: cp app/build/outputs/apk/debug/app-debug.apk "SGE-Diario-previa-${{ github.run_number }}.apk"
       - name: Upload APK
@@ -48,10 +48,18 @@ jobs:
             --notes "APK de teste gerado automaticamente. Baixe SGE-Diario-teste.apk abaixo, em Assets. Para uso diário, prefira a versão estável (tag vX.Y)."
 
   ui-previews:
-    if: github.ref == 'refs/heads/feat/ios-inspired-neutral-ui'
+    if: startsWith(github.ref, 'refs/heads/feat/')
     needs: build
     runs-on: ubuntu-22.04
     timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - perfil: pixel_2
+            api: 29
+          - perfil: pixel_c
+            api: 34
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v5
@@ -69,16 +77,17 @@ jobs:
       - name: Navegação e capturas em Android
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 29
+          api-level: ${{ matrix.api }}
           arch: x86_64
-          profile: pixel_2
+          profile: ${{ matrix.perfil }}
           disable-animations: true
-          script: bash scripts/verify-ui.sh -Pversao=1.3-preview.${{ github.run_number }} -Pcodigo=${{ github.run_number }}
+          script: bash scripts/verify-ui.sh -Pversao=1.7-preview.${{ github.run_number }} -Pcodigo=${{ github.run_number }}
       - name: Capturas da prévia
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sge-layout-preview-${{ github.run_number }}
+          name: sge-layout-preview-${{ github.run_number }}-${{ matrix.perfil }}
           path: |
             ui-previews/*.png
+            pdf-previews/*.pdf
             app/build/reports/androidTests/connected/debug/**

@@ -14,6 +14,8 @@ class SessaoExpirada : IllegalStateException("Sessão expirada. Entre novamente 
 
 /** Only the ListarFrequencia search uses POST; no save endpoint is called. */
 class SgeReadClient(cookies: String, private val userAgent: String, private val contextoSalvo: String? = null, private val onCookie: (String) -> Unit) {
+    var perfilObservado: PerfilSge = PerfilSge.DESCONHECIDO
+        private set
     private val jar = cookies.split(';').mapNotNull {
         val p = it.trim().split('=', limit = 2)
         if (p.size == 2) p[0] to p[1] else null
@@ -32,11 +34,8 @@ class SgeReadClient(cookies: String, private val userAgent: String, private val 
             throw IllegalStateException("Falha de rede em $path: ${e.message ?: e.javaClass.simpleName}", e)
         }
         jar.putAll(response.cookies())
-        // CookieManager.setCookie expects the cookie pair, not the complete
-        // Set-Cookie header (which also contains Path/Expires/SameSite).
-        // Passing the header verbatim makes refreshed SGE sessions unreliable
-        // on Android WebView.
-        response.cookies().forEach { (name, value) -> onCookie("$name=$value") }
+        // Mantém Path, Expires, HttpOnly, Secure e SameSite ao devolver cookies ao WebView.
+        response.headers("Set-Cookie").forEach(onCookie)
         registrar(path, response)
         if (response.url().path.contains("/Acesso/Entrar", true)) throw SessaoExpirada()
         val body = response.body()
@@ -55,11 +54,12 @@ class SgeReadClient(cookies: String, private val userAgent: String, private val 
     fun ehPerfilEscola(): Boolean {
         val resposta = request("/horariodeauladoprofessor")
         val html = runCatching { JSONObject(resposta) }.getOrNull()?.optString("html")?.takeIf { it.isNotBlank() } ?: resposta
+        perfilObservado = SgePerfil.ler(html)
         val d = Jsoup.parse(html)
         fun v(id: String) = d.selectFirst("#$id")?.attr("value")?.trim()?.lowercase()
         val esc = v("ehPerfilEscola"); val prof = v("ehPerfilProfessor"); val n = d.select("#ProfessorId option").size
         historico.add("Perfil: ehPerfilEscola=$esc ehPerfilProfessor=$prof professores=$n")
-        return when { esc == "true" -> true; prof == "true" -> false; else -> n > 3 }
+        return when (perfilObservado) { PerfilSge.COORDENACAO -> true; PerfilSge.PROFESSOR -> false; else -> error("Perfil do SGE não confirmado. Abra o horário no SGE Web e tente novamente.") }
     }
     /** Coordenação: aulas sem registro (ícone +) de uma turma, em todos os componentes. */
     fun pendenciasConteudoTurma(turmaId: String, tipo: String): List<PendenciaDia> {

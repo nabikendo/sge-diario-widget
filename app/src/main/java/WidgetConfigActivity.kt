@@ -5,7 +5,9 @@ import android.appwidget.AppWidgetManager
 import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
-import androidx.activity.ComponentActivity
+import androidx.fragment.app.FragmentActivity
+import br.to.seduc.sgediariowidget.CoordProtecao
+import br.to.seduc.sgediariowidget.TelaCoordenacaoProtegida
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -25,9 +27,13 @@ import br.to.seduc.sgediariowidget.SgeTema
 import br.to.seduc.sgediariowidget.data.*
 import kotlinx.coroutines.launch
 
-class WidgetConfigActivity : ComponentActivity() {
+class WidgetConfigActivity : FragmentActivity() {
+    private val liberado = mutableStateOf(false)
+    private lateinit var protecao: CoordProtecao
+    override fun onStop() { liberado.value = false; super.onStop() }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        protecao = CoordProtecao(this)
         val id = intent.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID)
         val resposta = Intent().putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, id)
         setResult(Activity.RESULT_CANCELED, resposta)
@@ -38,7 +44,8 @@ class WidgetConfigActivity : ComponentActivity() {
         setContent {
             var salvando by remember { mutableStateOf(false) }
             SgeTema(prefs.getInt("tema", 0), prefs.getInt("estilo", 0)) {
-                TelaConfig(tipo, inicial, salvando, { finish() }) { config ->
+                if (SgeSessaoStore.protegida(this) && !liberado.value) TelaCoordenacaoProtegida { protecao.autenticar { liberado.value = true } }
+                else TelaConfig(tipo, inicial, salvando, { finish() }) { config ->
                     salvando = true
                     SgeWidgetStore.salvar(this, id, config)
                     lifecycleScope.launch {

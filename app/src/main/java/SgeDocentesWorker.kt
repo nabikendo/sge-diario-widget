@@ -27,7 +27,7 @@ class SgeDocentesWorker(private val ctx: Context, params: WorkerParameters) : Co
             val client = SgeReadClient(cookies, agent, prefs.getString("turmas_contexto", null)) { cookiesAtualizados.add(it) }
             val anteriores = SgeDocentesStore.ler(ctx)
             if (id == null) {
-                check(withContext(Dispatchers.IO) { withTimeout(60_000L) { client.ehPerfilEscola() } }) {
+                check(withContext(Dispatchers.IO) { withTimeout(60_000L) { client.ehPerfilEscola().also { SgeSessaoStore.salvar(ctx, client.perfilObservado) } } }) {
                     "Ative o perfil Unidade escolar no SGE Web para ler os professores."
                 }
                 val professores = withContext(Dispatchers.IO) { withTimeout(60_000L) { client.professoresDaEscola() } }

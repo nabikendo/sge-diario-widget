@@ -20,7 +20,8 @@ import java.util.UUID
 
 @Composable
 fun TelaDetalhes(grupo: GrupoPendencias, fonte: FontePainel, docentes: PainelDocentes,
-    aoAtualizar: () -> Unit, aoAbrirSge: () -> Unit, aoVincular: (ResultadoTurma) -> Unit, aoCompartilhar: () -> Unit) {
+    aoAtualizar: () -> Unit, aoAbrirSge: () -> Unit, aoVincular: (ResultadoTurma) -> Unit, aoCompartilhar: () -> Unit, aoPdf: () -> Unit = {}) {
+    var menuCompartilhar by remember { mutableStateOf(false) }
     LazyColumn(contentPadding = PaddingValues(20.dp, 12.dp, 20.dp, 30.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         item {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -35,8 +36,14 @@ fun TelaDetalhes(grupo: GrupoPendencias, fonte: FontePainel, docentes: PainelDoc
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(onClick = aoAbrirSge) { Text("Abrir SGE") }
-                    OutlinedButton(onClick = aoCompartilhar, enabled = grupo.resultados.isNotEmpty()) {
-                        Icon(SgeIcons.Export, null, Modifier.size(17.dp)); Spacer(Modifier.width(6.dp)); Text("Resumo")
+                    Box {
+                        OutlinedButton(onClick = { menuCompartilhar = true }, enabled = grupo.resultados.isNotEmpty()) {
+                            Icon(SgeIcons.Export, null, Modifier.size(17.dp)); Spacer(Modifier.width(6.dp)); Text("Compartilhar")
+                        }
+                        DropdownMenu(expanded = menuCompartilhar, onDismissRequest = { menuCompartilhar = false }) {
+                            DropdownMenuItem(text = { Text("Texto / WhatsApp") }, onClick = { menuCompartilhar = false; aoCompartilhar() })
+                            DropdownMenuItem(text = { Text("Relatório em PDF") }, onClick = { menuCompartilhar = false; aoPdf() })
+                        }
                     }
                 }
             }

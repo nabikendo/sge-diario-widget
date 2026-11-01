@@ -31,9 +31,9 @@ class LembreteWorker(private val ctx: Context, params: WorkerParameters) : Corou
         if (total == 0) return Result.success()
         val partes = buildList {
             if (meu > 0) add("$meu ${if (meu == 1) "turma" else "turmas"} com pendências no seu diário")
-            if (escola > 0) add("$escola ${if (escola == 1) "turma" else "turmas"} com pendências na coordenação")
+            if (escola > 0) add(if (SgeSessaoStore.protegida(ctx)) "Coordenação: abra o app para conferir" else "$escola ${if (escola == 1) "turma" else "turmas"} com pendências na coordenação")
         }
-        val variacao = when { anterior < 0 -> ""; total > anterior -> " (+${total - anterior} desde o último lembrete)"
+        val variacao = when { SgeSessaoStore.protegida(ctx) -> ""; anterior < 0 -> ""; total > anterior -> " (+${total - anterior} desde o último lembrete)"
             total < anterior -> " (${anterior - total} a menos desde o último lembrete)"; else -> "" }
         val nm = ctx.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         if (Build.VERSION.SDK_INT >= 26) nm.createNotificationChannel(NotificationChannel("lembrete", "Lembrete diário", NotificationManager.IMPORTANCE_DEFAULT))

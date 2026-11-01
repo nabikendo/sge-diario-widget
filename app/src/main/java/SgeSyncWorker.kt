@@ -27,16 +27,17 @@ class SgeSyncWorker(private val ctx: Context, params: WorkerParameters) : Corout
         val coordenacao = alvo != null
         if (!coordenacao) mostrar(antigo.copy(sincronizando = true, inicioConsulta = System.currentTimeMillis(), mensagem = "Consultando o horário do professor…"))
         var cliente: SgeReadClient? = null
+        val updatedCookies = mutableListOf<String>()
         try {
             val cookies = withContext(Dispatchers.Main) { CookieManager.getInstance().getCookie(BASE) }
             if (cookies.isNullOrBlank()) throw SessaoExpirada()
             val agent = ctx.getSharedPreferences(SgePainelStore.PREFS_NAME, Context.MODE_PRIVATE)
                 .getString("web_user_agent", null) ?: error("Abra o SGE no aplicativo antes de sincronizar.")
-            val updatedCookies = mutableListOf<String>()
             val client = SgeReadClient(cookies, agent, ctx.getSharedPreferences(SgePainelStore.PREFS_NAME, Context.MODE_PRIVATE).getString("turmas_contexto", null)) { updatedCookies.add(it) }
             cliente = client
             // Dois perfis no SGE: Servidor (professor) e Unidade escolar (coordenação). Cada um tem seu painel.
             val escola = withTimeout(30_000L) { withContext(Dispatchers.IO) { client.ehPerfilEscola() } }
+            SgeSessaoStore.salvar(ctx, client.perfilObservado)
             if (escola) {
                 if (coordenacao) return sincronizarCoordenacao(client, alvo!!)
                 guardarDiagnostico("Perfil Unidade escolar ativo; painel do professor preservado", client)
@@ -64,10 +65,7 @@ class SgeSyncWorker(private val ctx: Context, params: WorkerParameters) : Corout
                 }
                 resultados.add(ResultadoTurma(turma, modulos, LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd/MM HH:mm"))))
             }
-            withContext(Dispatchers.Main) {
-                updatedCookies.forEach { CookieManager.getInstance().setCookie(BASE, it) }
-                CookieManager.getInstance().flush()
-            }
+            SgeHistoricoStore.registrar(ctx, FontePainel.PESSOAL, resultados)
             val falhas = resultados.sumOf { r -> r.modulos.count { it.quantidade == null } }
             val parciais = resultados.sumOf { r -> r.modulos.count { !it.coberturaCompleta } }
             if (falhas > 0 || parciais > 0) guardarDiagnostico("Módulos com falha ou cobertura parcial", cliente, resultados)
@@ -83,6 +81,7 @@ class SgeSyncWorker(private val ctx: Context, params: WorkerParameters) : Corout
             return if (coordenacao) Result.success() else Result.failure()
         } catch (e: CancellationException) { throw e }
         catch (e: SessaoExpirada) {
+            SgeSessaoStore.salvar(ctx, PerfilSge.EXPIRADO)
             guardarDiagnostico("Sessão expirada", cliente)
             avisar(coordenacao, antigo.copy(mensagem = "Sessão expirada. Entre novamente no SGE. Dados abaixo são da última consulta.", sincronizando = false, sessaoAtiva = false))
             return Result.success()
@@ -99,7 +98,10 @@ class SgeSyncWorker(private val ctx: Context, params: WorkerParameters) : Corout
             }
             // Refresh after every exit path, including cancellation/retry, so the
             // launcher widget never stays visually stuck on a stale loading view.
-            withContext(NonCancellable + Dispatchers.Main) { SgeWidgets.atualizar(ctx) }
+            withContext(NonCancellable + Dispatchers.Main) {
+                updatedCookies.forEach { CookieManager.getInstance().setCookie(BASE, it) }; CookieManager.getInstance().flush()
+                SgeWidgets.atualizar(ctx)
+            }
         }
     }
     private suspend fun avisar(coordenacao: Boolean, p: PainelSge) {
@@ -137,6 +139,7 @@ class SgeSyncWorker(private val ctx: Context, params: WorkerParameters) : Corout
             feitas.add(ResultadoTurma(t, modulos, agora()))
         }
         gravar(CoordTurma(alvo, nome, feitas, null, agora()), "$nome verificada: ${feitas.size} disciplina(s).", false)
+        SgeHistoricoStore.registrar(ctx, FontePainel.COORDENACAO, feitas)
         guardarDiagnostico("Coordenação: $nome", client, feitas)
         return Result.success()
     }
@@ -161,10 +164,10 @@ class SgeSyncWorker(private val ctx: Context, params: WorkerParameters) : Corout
                 PeriodicWorkRequestBuilder<SgeSyncWorker>(2, TimeUnit.HOURS).setConstraints(rede()).build())
         }
         /** Coordenação: enfileira uma consulta por turma, em sequência (cada uma cabe no limite de tempo do WorkManager). */
-        fun verificarTurmas(context: Context, ids: List<String>) {
+        fun verificarTurmas(context: Context, ids: List<String>, substituir: Boolean = true) {
             if (ids.isEmpty()) return
             val reqs = ids.map { OneTimeWorkRequestBuilder<SgeSyncWorker>().setConstraints(rede()).setInputData(workDataOf("coord_alvo" to it)).build() }
-            var c = WorkManager.getInstance(context).beginUniqueWork("sge_coord", ExistingWorkPolicy.REPLACE, reqs.first())
+            var c = WorkManager.getInstance(context).beginUniqueWork("sge_coord", if (substituir) ExistingWorkPolicy.REPLACE else ExistingWorkPolicy.KEEP, reqs.first())
             reqs.drop(1).forEach { c = c.then(it) }
             c.enqueue()
         }

@@ -27,3 +27,15 @@
 - Versão estável 1.5 publicada: https://github.com/nabikendo/sge-diario-widget/releases/tag/v1.5
 - O workflow estável 3 aprova testes JVM, valida assinatura e compila o APK de produção (pacote original, versionCode 3). Commit do APK: `e7aa7994c7d9b0da660e014ef642f184fa999233`.
 - Alterações futuras de `release/versao.txt` na `main` disparam a publicação estável; o disparo manual continua disponível.
+
+## Evolução após v1.6 — períodos adiados pelo usuário
+- [ ] Tela lista/detalhe simultânea em largura útil de tablet, preservando navegação no celular.
+- [ ] Histórico local de sete dias, sem converter desconhecidos em zero e comparando apenas escopos/coberturas compatíveis.
+- [ ] Exportar agrupamentos, inclusive por professor, em PDF paginado e texto pelo compartilhamento nativo (WhatsApp).
+- [ ] Bloqueio opcional da coordenação por biometria/credencial, com novo bloqueio em segundo plano e widgets protegidos.
+- [ ] Consulta noturna opcional às 03h, condicionada à sessão escolar, rede e bateria; sem alterar o SGE.
+- [ ] Selo do perfil realmente observado no SGE, separado da preferência de uso.
+- [ ] Preservar atributos Set-Cookie e retirar aceitação desnecessária de cookies de terceiros.
+- [ ] Testes JVM, interface no emulador, PDF renderizado e APK da prévia.
+
+O erro de datas dos períodos permanece sem correção nesta etapa; a cobertura parcial continua explícita em painéis, histórico e relatórios. O targetSdk permanece 34; a migração de SDK fica fora desta evolução.
