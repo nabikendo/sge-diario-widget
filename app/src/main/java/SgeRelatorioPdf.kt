@@ -48,7 +48,7 @@ object SgeRelatorioPdf {
                 canvas.drawText(titulo.take(limite) + if (limite < titulo.length) "…" else "", 36f, y, tinta); y += 23f
             }
         }
-        fun linha(texto: String, tamanho: Float = 11f, negrito: Boolean = false, cor: Int = Color.rgb(35, 39, 47)) {
+        fun linha(texto: String, tamanho: Float = 11f, negrito: Boolean = false, cor: Int = Color.rgb(35, 39, 47), maxLinhas: Int = Int.MAX_VALUE) {
             tinta.textSize = tamanho; tinta.typeface = Typeface.create("sans-serif", if (negrito) Typeface.BOLD else Typeface.NORMAL)
             val palavras = texto.replace('\n', ' ').split(Regex("\\s+")); val linhas = mutableListOf<String>(); var atual = ""
             for (palavra in palavras) {
@@ -65,10 +65,11 @@ object SgeRelatorioPdf {
                 }
             }
             if (atual.isNotBlank()) linhas.add(atual)
-            for (l in linhas) {
+            for ((indice, l) in linhas.take(maxLinhas).withIndex()) {
                 if (y + tamanho + 5 > 784f) novaPagina()
                 tinta.textSize = tamanho; tinta.typeface = Typeface.create("sans-serif", if (negrito) Typeface.BOLD else Typeface.NORMAL); tinta.color = cor
-                canvas.drawText(l, 36f, y, tinta); y += tamanho + 6f
+                val visivel = if (linhas.size > maxLinhas && indice == maxLinhas - 1) l.dropLast(3) + "…" else l
+                canvas.drawText(visivel, 36f, y, tinta); y += tamanho + 6f
             }
         }
         try {
@@ -108,16 +109,16 @@ object SgeRelatorioPdf {
                 if (!recibos) novaPagina()
                 linha("RECEBIMENTO E CIÊNCIA", 21f, true)
                 y += 10f
-                linha("Professor(a): ${grupo.titulo.take(130)}", 14f, true)
-                if (escola.isNotBlank()) linha("Escola: $escola", 12f)
+                linha("Professor(a): ${grupo.titulo}", 14f, true, maxLinhas = 2)
+                if (escola.isNotBlank()) linha("Escola: $escola", 12f, maxLinhas = 2)
                 linha("Relatório gerado em ${agora.format(DateTimeFormatter.ofPattern("dd/MM/uuuu HH:mm"))}.", 10f)
-                if (recorte.isNotBlank()) linha("Recorte: ${recorte.take(180)}", 10f)
+                if (recorte.isNotBlank()) linha("Recorte: $recorte", 10f, maxLinhas = 2)
                 y += 12f
                 linha("Turmas e componentes contemplados", 13f, true)
                 // O recibo é uma folha de protocolo. A relação completa permanece no relatório anexo.
                 val itens = grupo.resultados.map { "${it.turma.nome} · ${it.turma.disciplina}" }.distinct()
-                itens.take(6).forEach { linha(it.take(95), 10f) }
-                if (itens.size > 6) linha("Mais ${itens.size - 6} item(ns), discriminados no relatório anexo.", 10f)
+                itens.take(5).forEach { linha(it, 10f, maxLinhas = 1) }
+                if (itens.size > 5) linha("Mais ${itens.size - 5} item(ns), discriminados no relatório anexo.", 10f)
                 y += 12f
                 linha("Declaro que recebo o relatório de acompanhamento do SGE Diário identificado acima e tomo ciência das informações, pendências e itens a conferir nele indicados.", 12f)
                 linha("Os dados refletem a última consulta de cada turma e componente. Itens não verificados ou com cobertura parcial exigem conferência no SGE. O recebimento não confirma a exatidão de itens não verificados.", 10f)
@@ -128,7 +129,7 @@ object SgeRelatorioPdf {
                 linha("________________________________________________________", 12f)
                 linha("Assinatura do(a) professor(a)", 10f)
                 y += 25f
-                linha("Entregue por: ${responsavel.ifBlank { "____________________________________________" }}", 11f)
+                linha("Entregue por: ${responsavel.ifBlank { "____________________________________________" }}", 11f, maxLinhas = 2)
                 linha("Assinatura de quem entregou: ___________________________________", 11f)
                 linha("Anexar o relatório correspondente a esta folha. Não somar relatórios individuais para obter o total da escola.", 9f)
             }

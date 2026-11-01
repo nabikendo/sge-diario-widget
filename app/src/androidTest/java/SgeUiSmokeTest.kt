@@ -234,6 +234,10 @@ class SgeUiSmokeTest {
     @Test fun loteGeraZipPDFsIndividuaisERecibosPaginados() {
         val ctx=InstrumentationRegistry.getInstrumentation().targetContext
         val grupos=SgeOrganizacao.porProfessor(rs,docentes)
+        val longo = grupos.single().copy(titulo="Nome de professor muito longo ".repeat(8),resultados=(1..36).map { resultado(it.toString(),"Componente de demonstração com descrição extensa ".repeat(4),2) },compartilhado=true)
+        val reciboLongo=File(ctx.cacheDir,"recibo-longo.pdf")
+        reciboLongo.outputStream().use { SgeRelatorioPdf.escreverGrupos(it,listOf(longo),FontePainel.COORDENACAO,recibos=true,escola="Escola ".repeat(25),responsavel="Responsável ".repeat(20),recorte="Recorte selecionado ".repeat(20)) }
+        PdfRenderer(ParcelFileDescriptor.open(reciboLongo,ParcelFileDescriptor.MODE_READ_ONLY)).use { check(it.pageCount==1) }
         val lote=SgeRelatoriosLote.criar(File(ctx.cacheDir,"relatorios"),grupos,"Escola de demonstração","Coordenação de exemplo","Todos · dados ilustrativos")
         java.util.zip.ZipFile(lote.zip).use { z->check(z.size()==grupos.size+2);check(z.getEntry("Recebimento-e-ciencia.pdf")!=null) }
         PdfRenderer(ParcelFileDescriptor.open(lote.recibos,ParcelFileDescriptor.MODE_READ_ONLY)).use { check(it.pageCount==grupos.size) }
@@ -254,6 +258,11 @@ class SgeUiSmokeTest {
             val b=SgeBackup.validar(SgeBackup.criar(prefs.all,"1.8"))
             prefs.edit().remove("painel_v2").commit();SgeBackup.restaurar(ctx,b)
             check(SgePainelStore.ler(ctx).turmas.size==2);check(prefs.getBoolean("coord_biometria",false));check(prefs.getString("web_user_agent","")=="agente-local")
+            val contextoAntigo=SgeSessaoStore.contextoConsulta(ctx)
+            SgeSessaoStore.invalidar(ctx)
+            runBlocking(contextoAntigo) { kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { SgePainelStore.salvar(ctx,PainelSge()) } }
+            check(SgePainelStore.ler(ctx).turmas.size==2) // resposta atrasada não apaga o backup restaurado
+
             val invalido=org.json.JSONObject(SgeBackup.criar(prefs.all,"1.8"));invalido.getJSONObject("dados").put("sge_cookies","proibido")
             val antes=prefs.getString("painel_v2","");check(runCatching{ SgeBackup.validar(invalido.toString()) }.isFailure);check(antes==prefs.getString("painel_v2",""))
         } finally { val e=prefs.edit().clear(); original.forEach { (k,v)->when(v) {is String->e.putString(k,v);is Boolean->e.putBoolean(k,v);is Int->e.putInt(k,v);is Long->e.putLong(k,v)} };e.commit() }
@@ -279,6 +288,29 @@ class SgeUiSmokeTest {
         compose.runOnIdle { liberada=false }
         compose.onNodeWithText("Coordenação protegida").assertIsDisplayed()
         compose.onNodeWithText("Organizar escola, série e turno").assertDoesNotExist()
+    }
+
+    @Test fun diagnosticoUnicoIncluiOsDoisPaineisSemCopiarCredenciais() {
+        val ctx=InstrumentationRegistry.getInstrumentation().targetContext
+        val prefs=ctx.getSharedPreferences(SgePainelStore.PREFS_NAME,0)
+        SgePainelStore.salvar(ctx,PainelSge(rs,mensagem="Consulta pessoal de exemplo"));SgeCoordStore.salvar(ctx,coord)
+        prefs.edit().putString("sge_cookies","SEGREDO-NAO-COPIAR").commit()
+        try { val texto=SgeDiagnosticoUnico.gerar(ctx);check(texto.contains("Professor: Consulta pessoal de exemplo"));check(texto.contains("Coordenação: Duas turmas consultadas"));check(!texto.contains("SEGREDO-NAO-COPIAR")) }
+        finally { prefs.edit().remove("sge_cookies").commit() }
+    }
+    @Test fun atualizacaoOfereceBaixarOuMaisTardeSemInstalarSozinha() {
+        val ctx=InstrumentationRegistry.getInstrumentation().targetContext
+        val prefs=ctx.getSharedPreferences("sge_atualizacoes",0)
+        val info=ctx.packageManager.getPackageInfo(ctx.packageName,0)
+        prefs.edit().clear().putString("oferta",OfertaAtualizacao(ctx.packageName,"Próxima versão · exemplo",info.longVersionCode+1,29,"SGE.apk",16*1024*1024,"a".repeat(64),"https://github.com/nabikendo/sge-diario-widget/releases/download/latest/SGE.apk","Exemplo de aviso de atualização.").json()).commit()
+        try {
+            val a=SgeAtualizador(ctx).apply { aberto=true }
+            content { AtualizacoesDialog(a) { error("Não deve instalar automaticamente") } }
+            compose.onNodeWithText("Baixar atualização").assertIsDisplayed()
+            foto("13-atualizacao-app")
+            compose.onNodeWithText("Mais tarde").performClick()
+            compose.runOnIdle { check(!a.aberto && prefs.getLong("adiar_ate",0)>System.currentTimeMillis() && prefs.getLong("download",-1)==-1L) }
+        } finally { prefs.edit().clear().commit() }
     }
 
 }

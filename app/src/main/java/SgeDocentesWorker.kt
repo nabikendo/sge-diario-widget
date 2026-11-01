@@ -15,7 +15,8 @@ import org.json.JSONArray
 
 /** Uma consulta de horário por tarefa evita que uma escola inteira estoure o tempo do Worker. */
 class SgeDocentesWorker(private val ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, params) {
-    override suspend fun doWork(): Result {
+    override suspend fun doWork(): Result = withContext(SgeSessaoStore.contextoConsulta(ctx)) { executar() }
+    private suspend fun executar(): Result {
         val geracao = SgeSessaoStore.geracao(ctx)
         val id = inputData.getString("professor_id")
         val ultimo = inputData.getBoolean("ultimo", false)
@@ -39,7 +40,7 @@ class SgeDocentesWorker(private val ctx: Context, params: WorkerParameters) : Co
                     .setConstraints(rede()).setInputData(workDataOf("professor_id" to p.id, "professor_nome" to p.nome,
                         "posicao" to i + 1, "total" to professores.size, "ultimo" to (i == professores.lastIndex))).build() }
                 var chain = WorkManager.getInstance(ctx).beginUniqueWork("sge_docentes_horarios", ExistingWorkPolicy.REPLACE, reqs.first())
-                reqs.drop(1).forEach { chain = chain.then(it) }; chain.enqueue()
+                reqs.drop(1).forEach { chain = chain.then(it) }; SgeSessaoStore.gravarSeAtual(ctx) { chain.enqueue() }
             } else {
                 val a = JSONArray(prefs.getString("turmas_escola", "[]"))
                 val turmas = (0 until a.length()).map { a.getJSONObject(it).let { o -> o.getString("v") to o.getString("t") } }

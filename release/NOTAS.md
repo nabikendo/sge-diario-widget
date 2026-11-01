@@ -1,13 +1,17 @@
-SGE Diário 1.7
+SGE Diário 1.8
 
-- Lista e detalhe lado a lado em telas largas, com seleção e rolagem preservadas.
-- Histórico semanal local das novas consultas, preservando dados parciais e desconhecidos.
-- Compartilhar por turma, componente ou professor em texto/WhatsApp e PDF A4 paginado.
-- Proteção opcional da coordenação e do SGE Web com biometria ou credencial compatível do aparelho; bloqueia novamente em segundo plano e protege widgets e diagnósticos.
-- Verificação noturna opcional a partir das 03h, respeitando rede, bateria e sessão Unidade escolar.
-- Indicação do perfil observado no SGE no cabeçalho.
-- Cookies renovados preservam atributos; consultas anteriores não restauram a sessão após sair.
+- Avisos de atualização dentro do app, com baixar agora ou mais tarde. Confere integridade, pacote, versão e assinatura; a instalação é confirmada pelo Android.
+- Mapa de pendências da escola por turma/professor, com acesso aos detalhes.
+- Filtros avançados por escola, série, turno, componente, professor, módulo e situação; organização local das turmas e filtros incluídos no backup.
+- Relatórios em lote: um PDF por professor, PDF reunido para imprimir e folhas de recebimento e ciência com assinatura, todos em ZIP.
+- Backup e restauração pelo seletor de arquivos, sem senha, cookies, sessão ou autorização biométrica. Valida antes de substituir; mantém a proteção do aparelho.
+- Sincronização econômica: rede sem franquia, carregamento, bateria, intervalo e horário noturno configuráveis.
+- Diagnóstico único para professor e coordenação; consultas antigas não sobrescrevem dados restaurados.
 
-A leitura das datas de alguns períodos dos planos permanece adiada. Esses resultados continuam com cobertura não verificada/parcial: zero parcial não confirma ausência de pendências. O app permanece somente leitura.
+Para acessar os recursos, instale esta versão e abra Coordenação ou Ajustes. A primeira instalação da 1.8 precisa deste APK; as próximas atualizações compatíveis poderão ser baixadas dentro do app. Não é necessário desinstalar a versão estável anterior.
 
-Versão estável, assinada com a chave do app principal, para instalar como atualização.
+O login permanece no SGE Web: uma conta Google não substitui o acesso ao SGE. O seletor do Android permite guardar backups no Drive quando esse provedor estiver disponível.
+
+A leitura das datas de alguns períodos dos planos permanece adiada. Esses resultados continuam parciais/não verificados; zero parcial não confirma ausência de pendências. O app permanece somente leitura.
+
+Versão estável assinada com a chave do app principal. O canal de testes (.teste) permanece separado.

@@ -18,7 +18,8 @@ object SgeAgendaNoturna {
     }
 }
 class SgeNoturnoWorker(private val ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, params) {
-    override suspend fun doWork(): Result {
+    override suspend fun doWork(): Result = withContext(SgeSessaoStore.contextoConsulta(ctx)) { executar() }
+    private suspend fun executar(): Result {
         val geracao = SgeSessaoStore.geracao(ctx)
         val prefs = ctx.getSharedPreferences(SgePainelStore.PREFS_NAME, Context.MODE_PRIVATE)
         if (!prefs.getBoolean("coord_noturna", false)) return Result.success()
@@ -42,7 +43,7 @@ class SgeNoturnoWorker(private val ctx: Context, params: WorkerParameters) : Cor
         finally { withContext(NonCancellable + Dispatchers.Main) { if (SgeSessaoStore.geracao(ctx) == geracao) { cookiesAtualizados.forEach { CookieManager.getInstance().setCookie(SgeSyncWorker.BASE, it) }; CookieManager.getInstance().flush() } } }
         return Result.success()
     }
-    private fun status(texto: String) { ctx.getSharedPreferences(SgePainelStore.PREFS_NAME, Context.MODE_PRIVATE).edit().putString("coord_noturna_status", texto).apply() }
+    private fun status(texto: String) { SgeSessaoStore.gravarSeAtual(ctx) { ctx.getSharedPreferences(SgePainelStore.PREFS_NAME, Context.MODE_PRIVATE).edit().putString("coord_noturna_status", texto).apply() } }
     companion object {
         fun agendar(ctx: Context, ativo: Boolean, recriar: Boolean = false) {
             val wm = WorkManager.getInstance(ctx)

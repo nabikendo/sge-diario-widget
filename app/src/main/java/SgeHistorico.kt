@@ -49,6 +49,6 @@ object SgeHistoricoStore {
     fun ler(ctx: Context) = runCatching { SgeHistorico.ler(ctx.getSharedPreferences(SgePainelStore.PREFS_NAME, Context.MODE_PRIVATE).getString(KEY, "[]")!!) }.getOrDefault(emptyList())
     @Synchronized fun registrar(ctx: Context, fonte: FontePainel, resultados: List<ResultadoTurma>) {
         val dias = SgeHistorico.registrar(ler(ctx), fonte, resultados, LocalDate.now())
-        check(ctx.getSharedPreferences(SgePainelStore.PREFS_NAME, Context.MODE_PRIVATE).edit().putString(KEY, SgeHistorico.json(dias)).commit())
+        SgeSessaoStore.gravarSeAtual(ctx) { check(ctx.getSharedPreferences(SgePainelStore.PREFS_NAME, Context.MODE_PRIVATE).edit().putString(KEY, SgeHistorico.json(dias)).commit()) }
     }
 }

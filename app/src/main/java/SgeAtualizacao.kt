@@ -52,7 +52,11 @@ object SgeValidadorApk {
         val digest = MessageDigest.getInstance("SHA-256")
         arquivo.inputStream().use { entrada -> val buffer = ByteArray(32768); while(true) { val n=entrada.read(buffer);if(n<0)break;digest.update(buffer,0,n) } }
         require(digest.digest().joinToString("") { "%02x".format(it) } == o.sha256) { "Integridade do APK inválida." }
-        val novo = ctx.packageManager.getPackageArchiveInfo(arquivo.absolutePath,PackageManager.GET_SIGNING_CERTIFICATES) ?: error("APK inválido.")
+        // Android 10 só coleta certificados do arquivo quando GET_SIGNATURES também está ligado.
+        // A comparação continua usando SigningInfo (inclusive a cadeia autorizada de rotação).
+        @Suppress("DEPRECATION")
+        val flags = PackageManager.GET_SIGNING_CERTIFICATES or PackageManager.GET_SIGNATURES
+        val novo = ctx.packageManager.getPackageArchiveInfo(arquivo.absolutePath,flags) ?: error("APK inválido.")
         require(novo.packageName == ctx.packageName && novo.packageName == o.pacote && novo.longVersionCode == o.codigo && novo.longVersionCode > atual.longVersionCode && (novo.applicationInfo?.minSdkVersion ?: Int.MAX_VALUE) <= Build.VERSION.SDK_INT) { "APK incompatível com este aplicativo." }
         fun certs(s: Array<android.content.pm.Signature>?): Set<String> = s.orEmpty().map { it.toCharsString() }.toSet()
         require(PoliticaAtualizacao.assinaturaPermitida(certs(atual.signingInfo?.apkContentsSigners),certs(novo.signingInfo?.apkContentsSigners),certs(novo.signingInfo?.signingCertificateHistory))) { "A assinatura não corresponde ao aplicativo instalado." }
