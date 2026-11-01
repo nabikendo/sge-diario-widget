@@ -23,4 +23,7 @@
 - Prévia 72: 29 testes JVM e cinco testes no emulador Android 10 passaram, incluindo capturas dos widgets compactos.
 - Prévia 73: 29 testes JVM, cinco testes de interface e compilação aprovados após o ajuste de fundos arredondados compatíveis com Android 10. Capturas finais revisadas.
 - Integração com vínculos docentes no SGE real ainda depende de uma sessão do usuário; o ajuste local está disponível.
-- Alterações mantidas no PR #2; a branch principal e o release oficial não foram substituídos.
+- PR #2 incorporado à `main` com a aprovação do proprietário em 01/11/2026 (merge `5cbe64dc406b85215c8fb74f6c63eb8758cbabb8`).
+- Versão estável 1.5 publicada: https://github.com/nabikendo/sge-diario-widget/releases/tag/v1.5
+- O workflow estável 3 aprova testes JVM, valida assinatura e compila o APK de produção (pacote original, versionCode 3). Commit do APK: `e7aa7994c7d9b0da660e014ef642f184fa999233`.
+- Alterações futuras de `release/versao.txt` na `main` disparam a publicação estável; o disparo manual continua disponível.
