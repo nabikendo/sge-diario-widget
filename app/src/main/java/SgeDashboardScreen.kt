@@ -122,18 +122,18 @@ fun TelaCartoes(
     var busca by rememberSaveable(fonte.name) { mutableStateOf("") }
     var filtro by rememberSaveable(fonte.name) { mutableStateOf(0) }
     val escola = fonte == FontePainel.COORDENACAO
-    val resultados = if (escola) coord.turmas.flatMap { it.disciplinas } else painel.turmas
+    val resultados = remember(escola, coord.turmas, painel.turmas) { if (escola) coord.turmas.flatMap { it.disciplinas } else painel.turmas }
     val grupos = remember(resultados, docentes, conhecidas, por, escola) {
         val list = SgeDashboard.agrupar(resultados, por, docentes.vinculos, docentes.locais)
         if (escola && por == Agrupamento.TURMA) list + conhecidas.filter { (id, _) -> list.none { id in it.turmaIds } }
             .map { (id, nome) -> GrupoPendencias("turma:$id", nome.substringBefore('/'), nome.substringAfter('/', "Ainda não consultada"), emptyList(), setOf(id)) }
         else list
     }
-    val porTurma = SgeDashboard.agrupar(resultados, Agrupamento.TURMA)
+    val porTurma = remember(resultados) { SgeDashboard.agrupar(resultados, Agrupamento.TURMA) }
     val pendentes = porTurma.count { it.estado == EstadoGrupo.PENDENTE }
     val conferir = porTurma.count { it.exigeConferencia } + if (escola) conhecidas.count { (id, _) -> porTurma.none { id in it.turmaIds } } else 0
     val visiveis = grupos.filter { g ->
-        (busca.isBlank() || normalizarSge(g.titulo + " " + g.subtitulo + " " + g.resultados.joinToString { it.turma.nome }).contains(normalizarSge(busca))) &&
+        (busca.isBlank() || normalizarSge(g.titulo + " " + g.subtitulo + " " + g.resultados.joinToString { it.turma.nome + " " + it.turma.disciplina }).contains(normalizarSge(busca))) &&
             when(filtro) { 1 -> g.estado == EstadoGrupo.PENDENTE; 2 -> g.exigeConferencia
                 3 -> g.estado == EstadoGrupo.EM_DIA; else -> true }
     }

@@ -73,12 +73,7 @@ jobs:
           arch: x86_64
           profile: pixel_2
           disable-animations: true
-          script: |
-            set +e
-            gradle connectedDebugAndroidTest -Pversao=1.3-preview.${{ github.run_number }} -Pcodigo=${{ github.run_number }} --no-daemon --stacktrace
-            sge_ui_status=$?
-            adb pull /sdcard/Android/data/br.to.seduc.sgediariowidget.teste/files/ui-previews ./ui-previews || true
-            exit "$sge_ui_status"
+          script: bash scripts/verify-ui.sh -Pversao=1.3-preview.${{ github.run_number }} -Pcodigo=${{ github.run_number }}
       - name: Capturas da prévia
         if: always()
         uses: actions/upload-artifact@v4

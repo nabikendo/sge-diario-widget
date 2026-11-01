@@ -53,6 +53,13 @@ class SgeDashboardTest {
         val gs = SgeDashboard.agrupar(listOf(r("1"), r("1", "Física")), Agrupamento.TURMA)
         assertEquals(1, gs.size); assertEquals(2, gs.single().resultados.size)
     }
+    @Test fun atualizacaoMantemCacheValidoAteChegarResultadoNovo() {
+        val antiga = r("1", primeiro = ResultadoModulo(5, coberturaCompleta = true))
+        val outra = r("2")
+        val nova = r("1", primeiro = ResultadoModulo(2, coberturaCompleta = true))
+        assertEquals(listOf(antiga), SgeDashboard.progresso(listOf(antiga, outra), emptyList(), setOf(chaveResultado(antiga))))
+        assertEquals(listOf(nova), SgeDashboard.progresso(listOf(antiga, outra), listOf(nova), setOf(chaveResultado(antiga))))
+    }
     @Test fun linhasRepetidasNaoInflamTotais() {
         val resultado = r("1", primeiro = ResultadoModulo(2, coberturaCompleta = true))
         assertEquals(2, SgeDashboard.resumir(listOf(resultado, resultado))[0].quantidade)

@@ -53,7 +53,9 @@ class SgeUiSmokeTest {
                 rs.map { it.turma.id to it.turma.nome }, false, null, 1, 0, "prévia ilustrativa", {}, {}, {}, {}, {}, {}, {}, {}, {}, { _, _ -> }, {}, {}, {})
         }
         foto("01-painel")
-        compose.onNodeWithText("13.01", useUnmergedTree = true).performScrollTo().performClick()
+        compose.onNode(hasScrollAction()).performScrollToNode(hasText("13.01"))
+        foto("01b-cartoes")
+        compose.onNodeWithText("13.01").performClick()
         compose.onNodeWithText("PENDÊNCIAS POR MÓDULO").assertExists()
         foto("02-detalhes")
     }
@@ -63,8 +65,10 @@ class SgeUiSmokeTest {
             TelaCartoes(FontePainel.COORDENACAO, PainelSge(), coord, docentes, rs.map { it.turma.id to it.turma.nome },
                 por, { por = it }, {}, {}, {}, {}, {}, {})
         }
-        compose.onNodeWithText("Professores", useUnmergedTree = true).performScrollTo().performClick()
-        compose.onNodeWithText("Docente de exemplo", useUnmergedTree = true).performScrollTo().assertIsDisplayed()
+        compose.onNode(hasScrollAction()).performScrollToNode(hasText("Professores"))
+        compose.onNodeWithText("Professores").performClick()
+        compose.onNode(hasScrollAction()).performScrollToNode(hasText("Docente de exemplo"))
+        compose.onNodeWithText("Docente de exemplo").assertIsDisplayed()
         foto("03-coordenacao-professor")
     }
     @Test fun introducaoExplicaEstadosEConclui() {

@@ -51,6 +51,11 @@ data class GrupoPendencias(
 }
 
 object SgeDashboard {
+    fun progresso(anteriores: List<ResultadoTurma>, concluidos: List<ResultadoTurma>, escopo: Set<String>): List<ResultadoTurma> {
+        val novas = concluidos.map(::chaveResultado).toSet()
+        return (anteriores.filter { chaveResultado(it) in escopo && chaveResultado(it) !in novas } + concluidos).distinctBy(::chaveResultado)
+    }
+
     val nomes = listOf("Conteúdos", "Frequência", "Plano de aula", "Plano de curso", "PEI")
     val descricoes = listOf(
         "Dias com conteúdo ainda sem registro até a data da consulta. Várias aulas no mesmo dia e componente contam como um dia.",

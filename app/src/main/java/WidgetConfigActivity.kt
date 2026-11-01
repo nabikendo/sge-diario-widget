@@ -76,7 +76,13 @@ private fun TelaConfig(tipo: TipoWidget, inicial: ConfigWidget, salvando: Boolea
     val efetiva = if (fonte in origens) fonte else origens.first()
     val agrupamento = if (por in opcoes) por else opcoes.first()
     val config = ConfigWidget(efetiva, agrupamento)
-    val grupos = SgeWidgetStore.grupos(context, config)
+    val revisao by produceState(0) {
+        val prefs = context.getSharedPreferences(SgePainelStore.PREFS_NAME, android.content.Context.MODE_PRIVATE)
+        val listener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, _ -> value++ }
+        prefs.registerOnSharedPreferenceChangeListener(listener)
+        awaitDispose { prefs.unregisterOnSharedPreferenceChangeListener(listener) }
+    }
+    val grupos = remember(revisao, config) { SgeWidgetStore.grupos(context, config) }
     val valido = grupo.isBlank() || grupos.any { it.chave == grupo }
     Column(Modifier.fillMaxSize()) {
         Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {

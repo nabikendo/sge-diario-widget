@@ -49,7 +49,7 @@ class SgeDocentesWorker(private val ctx: Context, params: WorkerParameters) : Co
                 val falhas = prefs.getInt("docentes_falhas", 0)
                 SgeDocentesStore.salvar(ctx, p.copy(
                     vinculos = p.vinculos.filter { it.docente.id != id || it.turmaId !in escopo } + vinculos,
-                    sincronizando = !ultimo, mensagem = if (ultimo) mensagemFinal(falhas)
+                    sincronizando = !ultimo, inicio = if (ultimo) 0L else System.currentTimeMillis(), mensagem = if (ultimo) mensagemFinal(falhas)
                         else "Horários consultados: ${inputData.getInt("posicao", 0)}/${inputData.getInt("total", 0)}"))
             }
             return Result.success()
@@ -65,7 +65,7 @@ class SgeDocentesWorker(private val ctx: Context, params: WorkerParameters) : Co
             val falhas = prefs.getInt("docentes_falhas", 0) + 1
             prefs.edit().putInt("docentes_falhas", falhas).commit()
             val encerrar = id == null || ultimo || e is SessaoExpirada
-            SgeDocentesStore.salvar(ctx, p.copy(sincronizando = !encerrar,
+            SgeDocentesStore.salvar(ctx, p.copy(sincronizando = !encerrar, inicio = if (encerrar) 0L else System.currentTimeMillis(),
                 mensagem = if (encerrar) "${mensagemFinal(falhas)} ${e.message.orEmpty().take(180)}"
                     else "Um horário não pôde ser lido; os vínculos anteriores são preservados."))
             return if (e is SessaoExpirada || id == null) Result.failure() else Result.success()

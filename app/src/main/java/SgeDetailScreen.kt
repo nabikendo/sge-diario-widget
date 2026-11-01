@@ -3,6 +3,8 @@ package br.to.seduc.sgediariowidget
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -144,7 +146,7 @@ fun VinculoDialog(resultado: ResultadoTurma, dados: PainelDocentes, cancelar: ()
     var nomeNovo by remember { mutableStateOf("") }
     AlertDialog(onDismissRequest = cancelar, title = { Text("Vincular professor") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text("${resultado.turma.nome.substringBefore('/')} · ${resultado.turma.disciplina}", style = MaterialTheme.typography.bodyMedium)
                 Text("Escolha um ou mais docentes. Este ajuste só organiza os dados neste aparelho.", style = MaterialTheme.typography.bodySmall)
                 OutlinedTextField(busca, { busca = it }, singleLine = true, label = { Text("Buscar professor") })

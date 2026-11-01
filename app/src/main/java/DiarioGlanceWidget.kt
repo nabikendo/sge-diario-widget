@@ -60,7 +60,7 @@ object SgeWidgets {
     }
     suspend fun atualizar(context: Context) {
         TipoWidget.values().forEach { t -> try { instancia(t).updateAll(context) }
-            catch (e: CancellationException) { throw e } catch (_: Exception) { /* Outra instância pode atualizar normalmente. */ } }
+            catch (e: CancellationException) { throw e } catch (e: Exception) { android.util.Log.w("SgeWidgets", "Falha ao atualizar ${t.name}", e) } }
     }
     fun fixar(context: Context, tipo: TipoWidget): Boolean {
         val manager = AppWidgetManager.getInstance(context)

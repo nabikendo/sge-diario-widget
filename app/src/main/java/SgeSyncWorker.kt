@@ -55,7 +55,7 @@ class SgeSyncWorker(private val ctx: Context, params: WorkerParameters) : Corout
             }
             val resultados = mutableListOf<ResultadoTurma>()
             for ((indice, turma) in turmas.withIndex()) {
-                mostrar(PainelSge(resultados.toList(), "Consultando ${indice + 1}/${turmas.size}: ${turma.nome} • ${turma.disciplina}", true, true, System.currentTimeMillis()))
+                mostrar(PainelSge(SgeDashboard.progresso(antigo.turmas, resultados, turmas.map { chaveVinculo(it.id, it.disciplina) }.toSet()), "Consultando ${indice + 1}/${turmas.size}: ${turma.nome} • ${turma.disciplina}", true, true, System.currentTimeMillis()))
                 val modulos = withTimeout(90_000L) {
                     withContext(Dispatchers.IO) { listOf(
                         client.conteudos(turma), client.frequencia(turma), client.planos(turma, "PLANO DE AULA"),
@@ -127,7 +127,7 @@ class SgeSyncWorker(private val ctx: Context, params: WorkerParameters) : Corout
         val nomes = withTimeout(60_000L) { withContext(Dispatchers.IO) { client.disciplinasDaTurma(alvo) } }
         val feitas = mutableListOf<ResultadoTurma>()
         for ((i, d) in nomes.withIndex()) {
-            gravar(CoordTurma(alvo, nome, feitas.toList(), null, anterior.atualizado), "Consultando $nome • $d (${i + 1}/${nomes.size})", true)
+            gravar(CoordTurma(alvo, nome, SgeDashboard.progresso(anterior.disciplinas, feitas, nomes.map { chaveVinculo(alvo, it) }.toSet()), null, anterior.atualizado), "Consultando $nome • $d (${i + 1}/${nomes.size})", true)
             val t = TurmaMonitorada(alvo, nome, "", d)
             val modulos = try {
                 withTimeout(180_000L) { withContext(Dispatchers.IO) { listOf(
