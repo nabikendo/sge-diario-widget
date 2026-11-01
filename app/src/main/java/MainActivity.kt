@@ -171,6 +171,14 @@ class MainActivity : ComponentActivity() {
             r.tabelas=A(document.querySelectorAll('table')).slice(0,8).map(function(tb){return {id:tb.id,cab:A(tb.querySelectorAll('thead th')).map(function(h){return t(h.textContent)}),linhas:tb.querySelectorAll('tbody tr').length}});
             r.menu=A(document.querySelectorAll('#left-panel a')).slice(0,100).map(function(a){var h=a.getAttribute('href')||'';return t(a.textContent)+' -> '+h.split('?')[0].slice(0,60)});
             r.rotas=A(new Set(A(document.querySelectorAll('a[href],[data-url],[onclick]')).map(function(e){var s=e.getAttribute('href')||e.getAttribute('data-url')||e.getAttribute('onclick')||'';var m=s.match(/\/[A-Za-z]+(\/[A-Za-z]+)*/);return m?m[0]:null}).filter(Boolean))).slice(0,60);
+            r.abas=A(document.querySelectorAll('.nav-tabs a,[role=tab]')).slice(0,12).map(function(a){return t(a.textContent)});
+            r.turmasSel=A(document.querySelectorAll('#SelecaoDeTurma option,#TurmaContextoId option')).slice(0,4).map(function(o){return {v:o.value.replace(/[0-9]/g,'9').slice(0,30),attrs:A(o.attributes).map(function(a){return a.name}).join(','),t:t(o.text)}});
+            function est(el){var d=document.createElement('div');d.innerHTML=el.getAttribute('data-content')||'';return {cls:(el.className||'').slice(0,60),cab:A(d.querySelectorAll('th')).map(function(h){return t(h.textContent)}),linhas:d.querySelectorAll('tr').length,col1:A(d.querySelectorAll('tr td:first-child')).map(function(c){return t(c.textContent)}).slice(0,6),acoes:A(d.querySelectorAll('a,button')).map(function(b){return t(b.textContent)+'|'+(b.className||'').slice(0,40)}).slice(0,6)}}
+            var dv=A(document.querySelectorAll('.calendario .semana [data-content]'));
+            var verm=dv.filter(function(e){return /vermelho/.test(e.className)}).slice(0,2);
+            var outros=dv.filter(function(e){return !/vermelho/.test(e.className)}).slice(0,2);
+            r.diasVermelhos=verm.map(est);r.diasOutros=outros.map(est);
+            r.legenda=A(document.querySelectorAll('.calendario .legenda *,.legenda *')).slice(0,12).map(function(e){return (e.className||'').slice(0,30)+':'+t(e.textContent)});
             return JSON.stringify(r)})()"""
         web.evaluateJavascript(js) { raw ->
             val txt = runCatching { JSONTokener(raw).nextValue() as? String }.getOrNull() ?: "(não foi possível ler a página)"
