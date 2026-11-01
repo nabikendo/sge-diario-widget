@@ -25,6 +25,7 @@ object SgeRelatorioPdf {
     }
     fun escreverGrupos(saida: OutputStream, grupos: List<GrupoPendencias>, fonte: FontePainel, agora: LocalDateTime = LocalDateTime.now(), recibos: Boolean = false, comRecibo: Boolean = false, escola: String = "", responsavel: String = "", recorte: String = "") {
         require(grupos.isNotEmpty())
+        if (!recibos) { SgeRelatorioTabela.escrever(saida, grupos, fonte, agora, comRecibo, escola, responsavel, recorte); return }
         var grupo = grupos.first()
         val pdf = PdfDocument()
         val tinta = Paint(Paint.ANTI_ALIAS_FLAG)
