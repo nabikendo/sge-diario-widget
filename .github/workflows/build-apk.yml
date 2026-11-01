@@ -28,12 +28,14 @@ jobs:
         with:
           gradle-version: '8.7'
       - name: Build debug APK
-        run: gradle testDebugUnitTest assembleDebug --no-daemon --stacktrace
+        run: gradle testDebugUnitTest assembleDebug -Pversao=1.3-preview.${{ github.run_number }} -Pcodigo=${{ github.run_number }} --no-daemon --stacktrace
+      - name: Identificar APK de prévia
+        run: cp app/build/outputs/apk/debug/app-debug.apk "SGE-Diario-previa-${{ github.run_number }}.apk"
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: sge-diario-widget-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          path: SGE-Diario-previa-${{ github.run_number }}.apk
       - name: Publicar no Releases
         if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
         env:
@@ -44,3 +46,44 @@ jobs:
           gh release create latest SGE-Diario-teste.apk --prerelease --target "$GITHUB_SHA" \
             --title "Canal de testes (última versão)" \
             --notes "APK de teste gerado automaticamente. Baixe SGE-Diario-teste.apk abaixo, em Assets. Para uso diário, prefira a versão estável (tag vX.Y)."
+
+  ui-previews:
+    if: github.ref == 'refs/heads/feat/ios-inspired-neutral-ui'
+    needs: build
+    runs-on: ubuntu-22.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+      - name: Habilitar aceleração do emulador
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Navegação e capturas em Android
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 29
+          arch: x86_64
+          profile: pixel_2
+          disable-animations: true
+          script: |
+            set +e
+            gradle connectedDebugAndroidTest -Pversao=1.3-preview.${{ github.run_number }} -Pcodigo=${{ github.run_number }} --no-daemon --stacktrace
+            sge_ui_status=$?
+            adb pull /sdcard/Android/data/br.to.seduc.sgediariowidget.teste/files/ui-previews ./ui-previews || true
+            exit "$sge_ui_status"
+      - name: Capturas da prévia
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sge-layout-preview-${{ github.run_number }}
+          path: |
+            ui-previews/*.png
+            app/build/reports/androidTests/connected/debug/**

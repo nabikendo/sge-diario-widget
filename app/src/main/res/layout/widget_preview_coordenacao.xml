@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:orientation="vertical" android:padding="18dp" android:background="@drawable/widget_preview_bg">
+    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="SGE DIÁRIO"
+        android:textColor="@color/widget_preview_secondary" android:textSize="10sp" android:fontFamily="sans-serif-medium" />
+    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="5dp"
+        android:text="Coordenação" android:textColor="@color/widget_preview_text" android:textSize="20sp" android:textStyle="bold" />
+    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="18dp"
+        android:text="Seu recorte, com clareza" android:textColor="@color/widget_preview_text" android:textSize="15sp" />
+    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp"
+        android:text="Conteúdos · Frequência\nPlano de aula · Plano de curso · PEI"
+        android:textColor="@color/widget_preview_secondary" android:textSize="11sp" />
+</LinearLayout>

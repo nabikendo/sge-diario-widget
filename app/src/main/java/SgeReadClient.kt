@@ -75,6 +75,30 @@ class SgeReadClient(cookies: String, private val userAgent: String, private val 
         return (0 until a.length()).map { a.getJSONObject(it).optString("Descricao").trim() }.filter { it.isNotEmpty() }.distinct().sorted()
     }
 
+    private fun horarioHtml(): String {
+        val resposta = request("/horariodeauladoprofessor")
+        val json = runCatching { JSONObject(resposta) }.getOrNull()
+        return json?.optString("html")?.takeIf { it.isNotBlank() }
+            ?: json?.optString("data")?.takeIf { it.isNotBlank() } ?: resposta
+    }
+
+    fun professoresDaEscola(): List<DocenteRef> = SgeDocentesParsing.professores(horarioHtml()).also {
+        check(it.isNotEmpty()) { "O SGE não retornou a lista de professores do perfil Unidade escolar." }
+    }
+
+    fun vinculosDocente(professor: DocenteRef, turmas: List<Pair<String, String>>): List<VinculoDocente> {
+        val form = horarioHtml()
+        val doc = Jsoup.parse(form)
+        val escola = doc.selectFirst("#EscolaId")?.let { el ->
+            el.attr("value").ifBlank { el.selectFirst("option[selected]")?.attr("value").orEmpty() }
+        }.orEmpty()
+        val json = JSONObject(request("/HorarioDeAulaDoProfessor/QuadroHorarioProfessor", mapOf(
+            "dataReferencia" to LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM/uuuu")),
+            "tipo" to SgeDocentesParsing.tipoHorario(form), "colaboradorId" to professor.id,
+            "escolaId" to escola, "turno" to "", "somenteConflitos" to "false")))
+        return SgeDocentesParsing.vinculos(json.getString("html"), professor, turmas)
+    }
+
     fun turmas(): List<TurmaMonitorada> {
         val home = Jsoup.parse(request("/", ajax = false))
         // O SGE carrega esta tela em #content por AJAX. O GET direto da rota

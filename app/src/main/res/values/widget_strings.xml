@@ -1,0 +1,14 @@
+<resources>
+    <string name="widget_turmas">SGE · Minhas turmas</string>
+    <string name="widget_turmas_desc">Turmas e seus módulos, com rolagem e filtros.</string>
+    <string name="widget_resumo">SGE · Resumo do diário</string>
+    <string name="widget_resumo_desc">Resumo compacto de turmas pendentes e a conferir.</string>
+    <string name="widget_componentes">SGE · Por componente</string>
+    <string name="widget_componentes_desc">Contagens por componente curricular.</string>
+    <string name="widget_coordenacao">SGE · Coordenação</string>
+    <string name="widget_coordenacao_desc">Recortes do painel da escola.</string>
+    <string name="widget_professores">SGE · Por professor</string>
+    <string name="widget_professores_desc">Resultados por vínculo docente do horário.</string>
+    <string name="widget_foco">SGE · Cartão em foco</string>
+    <string name="widget_foco_desc">Um recorte de cada vez, com anterior e próximo.</string>
+</resources>

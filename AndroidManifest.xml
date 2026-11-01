@@ -14,6 +14,7 @@
 
         <activity
             android:name=".MainActivity"
+            android:launchMode="singleTop"
             android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden|uiMode"
             android:exported="true">
             <intent-filter>
@@ -22,16 +23,38 @@
             </intent-filter>
         </activity>
 
-        <receiver
-            android:name=".widget.DiarioGlanceWidgetReceiver"
-            android:exported="true"
-            android:label="SGE 3.0 • Pendências">
-            <intent-filter>
-                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-            </intent-filter>
-            <meta-data
-                android:name="android.appwidget.provider"
-                android:resource="@xml/diario_widget_info" />
+        <activity android:name=".widget.WidgetConfigActivity" android:exported="true">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" /></intent-filter>
+        </activity>
+
+        <receiver android:name=".widget.DiarioGlanceWidgetReceiver" android:exported="true" android:label="@string/widget_turmas">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/diario_widget_info" />
+        </receiver>
+
+        <receiver android:name=".widget.ResumoWidgetReceiver" android:exported="true" android:label="@string/widget_resumo">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/resumo_widget_info" />
+        </receiver>
+
+        <receiver android:name=".widget.ComponenteWidgetReceiver" android:exported="true" android:label="@string/widget_componentes">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/componente_widget_info" />
+        </receiver>
+
+        <receiver android:name=".widget.CoordenacaoWidgetReceiver" android:exported="true" android:label="@string/widget_coordenacao">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/coordenacao_widget_info" />
+        </receiver>
+
+        <receiver android:name=".widget.ProfessorWidgetReceiver" android:exported="true" android:label="@string/widget_professores">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/professor_widget_info" />
+        </receiver>
+
+        <receiver android:name=".widget.FocoWidgetReceiver" android:exported="true" android:label="@string/widget_foco">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/foco_widget_info" />
         </receiver>
 
     </application>
