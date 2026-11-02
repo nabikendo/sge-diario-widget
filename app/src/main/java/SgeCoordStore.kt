@@ -13,7 +13,8 @@ data class CoordTurma(
     val nome: String,
     val disciplinas: List<ResultadoTurma> = emptyList(),
     val erro: String? = null,
-    val atualizado: String = ""
+    val atualizado: String = "",
+    val atualizadoMs: Long = 0L
 )
 data class CoordPainel(
     val turmas: List<CoordTurma> = emptyList(),
@@ -29,7 +30,7 @@ object SgeCoordStore {
             .put("inicio", p.inicioConsulta).put("turmas", JSONArray().also { a ->
                 p.turmas.forEach { t ->
                     a.put(JSONObject().put("id", t.id).put("nome", t.nome).put("erro", t.erro ?: JSONObject.NULL)
-                        .put("atualizado", t.atualizado)
+                        .put("atualizado", t.atualizado).put("ms", t.atualizadoMs)
                         .put("disc", JSONArray().also { da -> t.disciplinas.forEach { da.put(it.json()) } }))
                 }
             })
@@ -44,7 +45,7 @@ object SgeCoordStore {
             val o = ts.getJSONObject(i); val da = o.getJSONArray("disc")
             CoordTurma(o.getString("id"), o.getString("nome"),
                 (0 until da.length()).map { k -> ResultadoTurma.ler(da.getJSONObject(k)) },
-                if (o.isNull("erro")) null else o.getString("erro"), o.optString("atualizado"))
+                if (o.isNull("erro")) null else o.getString("erro"), o.optString("atualizado"), o.optLong("ms"))
         }, j.optString("mensagem"), j.optBoolean("sincronizando"), j.optLong("inicio"))
         if (painel.sincronizando && (painel.inicioConsulta <= 0L || System.currentTimeMillis() - painel.inicioConsulta > 15 * 60 * 1000L))
             painel.copy(sincronizando = false, mensagem = "A consulta da coordenação foi interrompida. Verifique as turmas novamente.") else painel

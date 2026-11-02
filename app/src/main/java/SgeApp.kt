@@ -123,7 +123,7 @@ fun AppDiario(
                 }
                 if (pagina == null && detalhe == null && aba != 2) IconButton(
                     onClick = { if (aba == 1) aoVerificarTurmas(conhecidas.map { it.first }) else aoSincronizarPessoal() },
-                    enabled = !protegida && !(if (aba == 1) coord.sincronizando else painel.sincronizando) && (aba != 1 || conhecidas.isNotEmpty())) {
+                    enabled = !protegida && (aba == 1 || !painel.sincronizando) && (aba != 1 || conhecidas.isNotEmpty())) {
                     if (if (aba == 1) coord.sincronizando else painel.sincronizando) CircularProgressIndicator(Modifier.size(19.dp), strokeWidth = 2.dp)
                     else Icon(SgeIcons.Refresh, if (aba == 1) "Verificar turmas" else "Atualizar diário", Modifier.size(21.dp))
                 }

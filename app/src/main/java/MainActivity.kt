@@ -352,9 +352,12 @@ class MainActivity : FragmentActivity() {
         extrairEscola(); extrairTurmas { SgeSyncWorker.sincronizarAgora(this) }
     }
     private fun verificarTurmas(ids: List<String>) {
-        if (ids.isEmpty() || SgeCoordStore.ler(this).sincronizando) return
-        SgeCoordStore.salvar(this, SgeCoordStore.ler(this).copy(sincronizando = true, inicioConsulta = System.currentTimeMillis(),
-            mensagem = "Na fila: ${ids.size} turma(s), uma por vez…"))
+        if (ids.isEmpty()) return
+        val fila = SgeFila.ler(this)
+        val todas = fila != null && ids.toSet().containsAll(fila.ids)
+        // Com a fila andando, tocar no botão geral pausa; com a fila pausada, retoma de onde parou.
+        if (SgeCoordStore.ler(this).sincronizando) { if (todas) SgeSyncWorker.pausar(this); return }
+        if (fila != null && fila.pausada && fila.ids.isNotEmpty() && todas) { SgeSyncWorker.retomar(this); return }
         SgeSyncWorker.verificarTurmas(this, ids.distinct())
     }
     private fun copiarTexto(texto: String, mensagem: String) {
