@@ -14,6 +14,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
@@ -116,9 +119,7 @@ fun AppDiario(
                 } else Icon(SgeIcons.Book, null, Modifier.padding(12.dp).size(22.dp), tint = MaterialTheme.colorScheme.primary)
                 Column(Modifier.weight(1f)) {
                     Text(titulo, style = MaterialTheme.typography.titleMedium)
-                    Text("SGE · ${perfil.titulo}", style = MaterialTheme.typography.labelSmall,
-                        color = if (perfil == PerfilSge.EXPIRADO) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    SeloPerfil(perfil)
                 }
                 if (pagina == null && detalhe == null && aba != 2) IconButton(
                     onClick = { if (aba == 1) aoVerificarTurmas(conhecidas.map { it.first }) else aoSincronizarPessoal() },
@@ -129,6 +130,15 @@ fun AppDiario(
                 if (webVisivel) IconButton(onClick = aoCopiarPagina) { Icon(SgeIcons.Export, "Copiar estrutura da página", Modifier.size(20.dp)) }
                 IconButton(onClick = { focus.clearFocus(); pagina = "ajuda" }) { Icon(SgeIcons.Info, "Legendas e ajuda", Modifier.size(21.dp)) }
                 IconButton(onClick = { focus.clearFocus(); pagina = "ajustes" }) { Icon(SgeIcons.Settings, "Ajustes", Modifier.size(21.dp)) }
+            }
+            val avisoPerfil = when {
+                aba == 0 && perfil == PerfilSge.COORDENACAO -> "O SGE está no perfil Unidade escolar. Para atualizar o seu diário, troque para Servidor no SGE Web."
+                aba == 1 && perfil == PerfilSge.PROFESSOR -> "O SGE está no perfil Servidor. Para verificar turmas, troque para Unidade escolar no SGE Web."
+                else -> null
+            }
+            if (avisoPerfil != null && pagina == null && detalhe == null) Surface(color = Color(0xFFFF9500).copy(alpha = .14f), shape = MaterialTheme.shapes.medium,
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp).fillMaxWidth()) {
+                Text(avisoPerfil, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(10.dp))
             }
             Box(Modifier.weight(1f)) {
                 // O documento do SGE permanece anexado para preservar sessão, rolagem e navegação.
@@ -209,6 +219,21 @@ fun AppDiario(
         vincular?.takeIf { autorizado }?.let { resultado -> VinculoDialog(resultado, docentes, { vincular = null }) { ps ->
             aoSalvarVinculo(resultado, ps); vincular = null; detalhe = null
         } }
+    }
+}
+
+@Composable private fun SeloPerfil(perfil: PerfilSge) {
+    val cor = when (perfil) {
+        PerfilSge.PROFESSOR -> MaterialTheme.colorScheme.primary
+        PerfilSge.COORDENACAO -> MaterialTheme.colorScheme.tertiary
+        PerfilSge.EXPIRADO -> MaterialTheme.colorScheme.error
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    Surface(color = cor.copy(alpha = .14f), shape = RoundedCornerShape(50)) {
+        Row(Modifier.padding(horizontal = 9.dp, vertical = 2.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+            Box(Modifier.size(6.dp).background(cor, CircleShape))
+            Text("Perfil: ${perfil.titulo}", style = MaterialTheme.typography.labelSmall, color = cor, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
     }
 }
 

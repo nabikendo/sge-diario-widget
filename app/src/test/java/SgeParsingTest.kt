@@ -80,4 +80,12 @@ class SgeParsingTest {
         val l = SgeParsing.pendenciasCoordenacao(html, LocalDate.of(2026, 10, 30))
         assertEquals(listOf(PendenciaDia("2026-10-29", "MATEMÁTICA", "07:50")), l)
     }
+    @Test fun periodosEmFormatosComunsSaoIdentificadosSemEstimar() {
+        assertEquals(LocalDate.of(2026, 6, 1), SgeParsing.janelaOuNull("Jun/2026", "5", 2026)!!.first)
+        assertEquals(LocalDate.of(2026, 6, 30), SgeParsing.janelaOuNull("06/2026", "5", 2026)!!.second)
+        assertEquals(LocalDate.of(2026, 6, 1), SgeParsing.janelaOuNull("Período letivo", "202606", 2026)!!.first)
+        assertEquals(LocalDate.of(2026, 10, 26) to LocalDate.of(2026, 11, 1), SgeParsing.janelaOuNull("26/10 a 01/11", "9", 2026))
+        assertEquals(LocalDate.of(2026, 7, 1), SgeParsing.janelaOuNull("2º semestre", "2", 2026)!!.first)
+        assertEquals(null, SgeParsing.janelaOuNull("Período especial", "19", 2026))
+    }
 }

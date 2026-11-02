@@ -83,6 +83,7 @@ object SgeRelatorioTabela {
         val nivel = if (qs.any { (it ?: 0) > 0 }) 2 else if (qs.any { it == null } || ms.any { it != null && !it.coberturaCompleta }) 1 else 0
         val notas = ms.withIndex().mapNotNull { (i, m) ->
             if (m != null && m.quantidade == null) "${turmaCurta(r.turma.nome)} ${r.turma.disciplina}: ${SgeDashboard.nomes[i]} não verificado (${m.detalhe.substringAfter(':', m.detalhe).trim().take(90)})."
+            else if (m != null && !m.coberturaCompleta) "${turmaCurta(r.turma.nome)} ${r.turma.disciplina}: ${SgeDashboard.nomes[i]} com cobertura parcial (${(m.detalhe.substringAfter("não contados:", m.detalhe.substringAfter("Cobertura não verificada:", "")).trim()).take(90)})."
             else null
         }
         return Linha(turmaCurta(r.turma.nome), turno(r.turma.nome), r.turma.disciplina, cont, freq, docs, nivel, qs.sumOf { it ?: 0 }, notas)

@@ -231,11 +231,13 @@ class SgeReadClient(cookies: String, private val userAgent: String, private val 
         val html = response.getString("html")
         val existentes = SgeParsing.planos(html)
         try {
-            val cobertura = ausentes(t, tipo, Jsoup.parse(html))
+            val (cobertura, semDatas) = ausentes(t, tipo, Jsoup.parse(html))
             existentes.copy(quantidade = existentes.quantidade!! + cobertura,
                 detalhe = "$cobertura documentos ausentes; ${existentes.quantidade} não enviados/reprovados; " +
                     "${existentes.aguardando} aguardando avaliação; ${existentes.aprovados} aprovados. " +
-                    "Cobertura dos períodos iniciados, conforme configuração e elegibilidade do SGE.", coberturaCompleta = true)
+                    (if (semDatas.isEmpty()) "Cobertura dos períodos iniciados, conforme configuração e elegibilidade do SGE."
+                     else "Períodos sem datas identificadas e não contados: ${semDatas.take(4).joinToString(", ")}. Valor parcial."),
+                coberturaCompleta = semDatas.isEmpty())
         } catch (e: SessaoExpirada) { throw e }
         catch (e: Exception) {
             val causa = e.message?.replace(Regex("\\s+"), " ")?.take(150) ?: e.javaClass.simpleName
@@ -243,7 +245,7 @@ class SgeReadClient(cookies: String, private val userAgent: String, private val 
         }
     }
 
-    private fun ausentes(t: TurmaMonitorada, tipo: String, lista: Document): Int {
+    private fun ausentes(t: TurmaMonitorada, tipo: String, lista: Document): Pair<Int, List<String>> {
         val gradeId = grade(t)
         val form = Jsoup.parse(request("/PlanejamentoTurma/Editar/0", mapOf(
             "tipoDeTurma" to "0", "tipoDeRegistroPedagogicoId" to tipo, "gradeEscolarId" to gradeId, "turmaId" to t.id)))
@@ -290,11 +292,13 @@ class SgeReadClient(cookies: String, private val userAgent: String, private val 
             }
         }
         var ausentes = 0
+        val semDatas = mutableListOf<String>()
         for (i in 0 until periodos.length()) {
             val periodo = periodos.getJSONObject(i)
             val codigo = periodo.get("Codigo").toString()
             val descricao = periodo.getString("Descricao")
-            val janela = SgeParsing.janela(descricao, codigo, inicioLetivo.year)
+            val janela = SgeParsing.janelaOuNull(descricao, codigo, inicioLetivo.year) ?: janelaBimestre(descricao, t.id)
+            if (janela == null) { semDatas.add("${descricao.trim().take(30)} (cód. $codigo)"); continue }
             if (janela.first.isAfter(hoje) || janela.first.isAfter(fimLetivo) || janela.second.isBefore(inicioLetivo)) continue
             val temAula = mesesComAula.any { month -> month >= YearMonth.from(janela.first) &&
                 month <= YearMonth.from(janela.second) && month <= YearMonth.from(hoje) }
@@ -309,7 +313,16 @@ class SgeReadClient(cookies: String, private val userAgent: String, private val 
                 ausentes += (alunos - (atribuicoes[codigo] ?: emptySet())).size
             }
         }
-        return ausentes
+        if (semDatas.isNotEmpty()) historico.add("Períodos sem datas (${t.disciplina}): " + semDatas.joinToString(" | "))
+        return ausentes to semDatas
+    }
+    private fun janelaBimestre(descricao: String, turmaId: String): Pair<LocalDate, LocalDate>? {
+        val n = Regex("(\\d)\\s*[º°ªo]?\\s*bimestre", RegexOption.IGNORE_CASE).find(descricao)?.groupValues?.get(1) ?: return null
+        return runCatching {
+            val j = JSONObject(request("/NotasFaltas/ObtenhaInicioFimParametros", mapOf("turmaId" to turmaId, "bimestre" to n, "mes" to "")))
+            val f = DateTimeFormatter.ofPattern("dd/MM/uuuu")
+            LocalDate.parse(j.getString("dataInicio"), f) to LocalDate.parse(j.getString("dataFim"), f)
+        }.getOrNull()
     }
 }
 
@@ -329,22 +342,38 @@ object SgeParsing {
             if (numero in 1..12 && total != null && total > 0) YearMonth.of(ano, numero) else null
         }.toSet()
     }
-    fun janela(descricao: String, codigo: String, ano: Int): Pair<LocalDate, LocalDate> {
+    private val abreviacoes = listOf("jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez")
+    /** Identifica a janela de datas de um período do SGE; devolve null quando o formato não é reconhecido (nunca estima). */
+    fun janelaOuNull(descricao: String, codigo: String, ano: Int): Pair<LocalDate, LocalDate>? {
         val texto = descricao.trim().lowercase()
-        val mes = meses.indexOfFirst { texto.startsWith(it) } + 1
-        if (mes in 1..12) {
-            val y = Regex("\\b(20\\d{2})\\b").find(texto)?.value?.toInt() ?: ano
-            val ym = YearMonth.of(y, mes)
-            return ym.atDay(1) to ym.atEndOfMonth()
+        fun mesInteiro(y: Int, m: Int): Pair<LocalDate, LocalDate>? =
+            runCatching { YearMonth.of(y, m).let { it.atDay(1) to it.atEndOfMonth() } }.getOrNull()
+        val anoNoTexto = Regex("\\b(20\\d{2})\\b").find(texto)?.value?.toInt()
+        val mes = meses.indexOfFirst { texto.startsWith(it) }.let { i -> if (i >= 0) i + 1 else abreviacoes.indexOfFirst { texto.startsWith(it) } + 1 }
+        if (mes in 1..12) return mesInteiro(anoNoTexto ?: ano, mes)
+        Regex("(1|2|primeiro|segundo)\\s*[º°o]?\\s*semestre").find(texto)?.let { s ->
+            val primeiro = s.groupValues[1].let { it == "1" || it == "primeiro" }
+            return if (primeiro) LocalDate.of(ano, 1, 1) to LocalDate.of(ano, 6, 30) else LocalDate.of(ano, 7, 1) to LocalDate.of(ano, 12, 31)
         }
-        if (texto == "primeiro semestre") return LocalDate.of(ano, 1, 1) to LocalDate.of(ano, 6, 30)
-        if (texto == "segundo semestre") return LocalDate.of(ano, 7, 1) to LocalDate.of(ano, 12, 31)
-        val range = dateRegex.findAll(descricao).map { LocalDate.parse(it.value, format) }.toList()
-        if (range.size == 2) return range[0] to range[1]
-
-        // Fallback para evitar o erro fatal e o asterisco: tenta estimar pelo código ou usa janela padrão
-        return LocalDate.of(ano, 1, 1) to LocalDate.of(ano, 12, 31)
+        val completas = dateRegex.findAll(descricao).map { LocalDate.parse(it.value, format) }.toList()
+        if (completas.size >= 2) return minOf(completas[0], completas[1]) to maxOf(completas[0], completas[1])
+        if (completas.isEmpty()) {
+            Regex("\\b(\\d{1,2})/(20\\d{2})\\b").find(descricao)?.let { return mesInteiro(it.groupValues[2].toInt(), it.groupValues[1].toInt()) }
+            Regex("\\b(20\\d{2})-(\\d{2})\\b").find(descricao)?.let { return mesInteiro(it.groupValues[1].toInt(), it.groupValues[2].toInt()) }
+            Regex("^(20\\d{2})(0[1-9]|1[0-2])$").find(codigo.trim())?.let { return mesInteiro(it.groupValues[1].toInt(), it.groupValues[2].toInt()) }
+            val curtas = Regex("\\b(\\d{1,2})/(\\d{1,2})\\b").findAll(descricao).toList()
+            if (curtas.size == 2) return runCatching {
+                val a = LocalDate.of(ano, curtas[0].groupValues[2].toInt(), curtas[0].groupValues[1].toInt())
+                var b = LocalDate.of(ano, curtas[1].groupValues[2].toInt(), curtas[1].groupValues[1].toInt())
+                if (b.isBefore(a)) b = b.plusYears(1)
+                a to b
+            }.getOrNull()
+        }
+        return null
     }
+    fun janela(descricao: String, codigo: String, ano: Int): Pair<LocalDate, LocalDate> =
+        janelaOuNull(descricao, codigo, ano)
+            ?: error("Datas do período $codigo não identificadas (descrição no SGE: \"${descricao.trim().take(40)}\")")
     private val curto = DateTimeFormatter.ofPattern("dd/MM")
     private fun listaDatas(l: List<LocalDate>) =
         if (l.isEmpty()) "." else ": " + l.take(15).joinToString(", ") { it.format(curto) } + if (l.size > 15) "…" else ""
