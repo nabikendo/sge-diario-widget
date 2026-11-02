@@ -13,3 +13,24 @@ object SgeConfiguracao {
         }
     }
 }
+
+/** Diagnóstico enxuto: consultas com o mesmo módulo e o mesmo motivo viram uma única linha com contagem. */
+object SgeDiagnosticoAgrupado {
+    private fun motivo(m: ResultadoModulo): String = when {
+        m.naoConfigurado -> "periodicidade não definida"
+        else -> m.detalhe.replace(Regex("\\s+"), " ").replace(Regex("\\d+"), "#").trim().take(110)
+    }
+    fun linhas(resultados: List<ResultadoTurma>): List<String> {
+        data class Chave(val modulo: Int, val motivo: String, val resumo: String)
+        val grupos = LinkedHashMap<Chave, MutableList<String>>()
+        resultados.forEach { r -> r.modulos.forEachIndexed { i, m ->
+            if (m.quantidade == null || !m.coberturaCompleta)
+                grupos.getOrPut(Chave(i, motivo(m), if (m.naoConfigurado) "n/c" else m.resumo())) { mutableListOf() }.add("${r.turma.disciplina} ${r.turma.nome.substringBefore('/')}")
+        } }
+        return grupos.map { (k, itens) ->
+            val modulo = SgeDashboard.nomes.getOrElse(k.modulo) { "Módulo" }
+            if (itens.size == 1) "$modulo (${itens[0]}): ${k.resumo} · ${k.motivo}"
+            else "${itens.size} consultas com ${k.motivo.ifBlank { "cobertura incompleta" }} · $modulo (${k.resumo})"
+        }.sortedByDescending { it.substringBefore(' ').toIntOrNull() ?: 1 }
+    }
+}

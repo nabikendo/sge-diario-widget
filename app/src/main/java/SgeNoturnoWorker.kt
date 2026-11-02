@@ -38,7 +38,7 @@ class SgeNoturnoWorker(private val ctx: Context, params: WorkerParameters) : Cor
             // KEEP evita substituir uma fila manual que começa enquanto o perfil é verificado.
             SgeSyncWorker.verificarTurmas(ctx, ids, substituir = false, automatica = true)
         } catch (e: CancellationException) { if (e !is TimeoutCancellationException) throw e; status("Verificação noturna: tempo de consulta esgotado.") }
-        catch (e: SessaoExpirada) { SgeSessaoStore.salvar(ctx, PerfilSge.EXPIRADO); status("Verificação noturna: entre novamente no SGE Web.") }
+        catch (e: SessaoExpirada) { SgeSessaoStore.salvar(ctx, PerfilSge.EXPIRADO); status("Verificação noturna: entre novamente no SGE Web."); SgeAvisos.sessaoExpirada(ctx) }
         catch (e: Exception) { status("Verificação noturna: não foi possível consultar a escola. Tente uma verificação manual.") }
         finally { withContext(NonCancellable + Dispatchers.Main) { if (SgeSessaoStore.geracao(ctx) == geracao) { cookiesAtualizados.forEach { CookieManager.getInstance().setCookie(SgeSyncWorker.BASE, it) }; CookieManager.getInstance().flush() } } }
         return Result.success()

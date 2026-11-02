@@ -17,7 +17,7 @@ object SgeDiagnosticoUnico {
             appendLine("Professores: ${d.professores.size}; vínculos: ${d.vinculos.size}; vínculos locais: ${d.locais.size}. ${d.mensagem}")
             fun painel(nome: String, mensagem: String, rs: List<ResultadoTurma>) {
                 appendLine("\n$nome: $mensagem · ${rs.size} turma(s)/componente(s)")
-                rs.forEachIndexed { i, r -> r.modulos.forEachIndexed { m, v -> if (v.quantidade == null || !v.coberturaCompleta) appendLine("Consulta ${i+1}, ${r.turma.disciplina}, ${SgeDashboard.nomes.getOrElse(m) { "Módulo" }}: ${v.resumo()} · ${v.detalhe}") } }
+                SgeDiagnosticoAgrupado.linhas(rs).forEach { appendLine(it) }
             }
             painel("Professor", p.mensagem, p.turmas)
             painel("Coordenação", c.mensagem, c.turmas.flatMap { it.disciplinas })

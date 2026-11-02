@@ -106,15 +106,17 @@ fun TelaDetalhes(grupo: GrupoPendencias, fonte: FontePainel, docentes: PainelDoc
                     }
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         Text(SgeDashboard.nomes[resumo.indice], style = MaterialTheme.typography.titleMedium)
-                        Text(if (resumo.quantidade == null) "Não verificado" else "${resumo.valor()} ${resumo.unidade()} ${if (resumo.quantidade == 1) "pendente" else "pendentes"}",
-                            style = MaterialTheme.typography.bodyMedium, color = cor)
+                        Text(if (resumo.naoConfigurado) "Não configurado" else if (resumo.quantidade == null) "Não verificado" else "${resumo.valor()} ${resumo.unidade()} ${if (resumo.quantidade == 1) "pendente" else "pendentes"}",
+                            style = MaterialTheme.typography.bodyMedium, color = if (resumo.naoConfigurado) MaterialTheme.colorScheme.onSurfaceVariant else cor)
                     }
                     Icon(if (aberto) SgeIcons.Close else SgeIcons.Chevron, if (aberto) "Recolher" else "Ver detalhes",
                         Modifier.size(17.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 Text(SgeDashboard.descricoes[resumo.indice], style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
-                if (!resumo.completa) Text(if (resumo.quantidade == null) "A consulta não confirma uma contagem para este módulo."
+                if (resumo.naoConfigurado) Text("O professor ainda não definiu a periodicidade no SGE; não há como saber quantos documentos deveriam existir.",
+                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                else if (!resumo.completa) Text(if (resumo.quantidade == null) "A consulta não confirma uma contagem para este módulo."
                     else "* Parte dos dados não está conferida. O valor conhecido pode aumentar.",
                     style = MaterialTheme.typography.bodySmall, color = corAlerta())
                 if (resumo.aguardando > 0) Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = MaterialTheme.shapes.small) {

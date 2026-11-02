@@ -44,7 +44,7 @@ class SgeSyncWorker(private val ctx: Context, params: WorkerParameters) : Corout
                 if (coordenacao) return sincronizarCoordenacao(client, alvo!!)
                 guardarDiagnostico("Perfil Unidade escolar ativo; painel do professor preservado", client)
                 mostrar(antigo.copy(sincronizando = false, inicioConsulta = 0L,
-                    mensagem = "Perfil Unidade escolar ativo. Troque para Servidor no SGE Web para atualizar este painel. Dados abaixo são da última consulta."))
+                    mensagem = "Perfil Unidade escolar ativo. Seu diário atualiza no perfil Servidor. Dados abaixo são da última consulta."))
                 return Result.success()
             }
             if (coordenacao) {
@@ -84,6 +84,7 @@ class SgeSyncWorker(private val ctx: Context, params: WorkerParameters) : Corout
         } catch (e: CancellationException) { throw e }
         catch (e: SessaoExpirada) {
             SgeSessaoStore.salvar(ctx, PerfilSge.EXPIRADO)
+            if (!inputData.getBoolean("manual", false) && (!coordenacao || inputData.getBoolean("auto", false))) SgeAvisos.sessaoExpirada(ctx)
             guardarDiagnostico("Sessão expirada", cliente)
             avisar(coordenacao, antigo.copy(mensagem = "Sessão expirada. Entre novamente no SGE. Dados abaixo são da última consulta.", sincronizando = false, sessaoAtiva = false))
             return Result.success()
@@ -149,10 +150,7 @@ class SgeSyncWorker(private val ctx: Context, params: WorkerParameters) : Corout
     private fun guardarDiagnostico(titulo: String, c: SgeReadClient?, resultados: List<ResultadoTurma> = emptyList()) {
         val t = buildString {
             appendLine("${LocalDateTime.now()} · $titulo")
-            resultados.forEachIndexed { i, r -> r.modulos.forEachIndexed { j, m ->
-                if (m.quantidade == null || !m.coberturaCompleta)
-                    appendLine("Turma ${i + 1} ${SgePainelStore.NOMES_MODULOS.getOrElse(j) { "Módulo" }}: ${m.resumo()} ${m.detalhe}")
-            } }
+            SgeDiagnosticoAgrupado.linhas(resultados).forEach { appendLine(it) }
             c?.historico?.forEach { appendLine(it) }
         }
         SgeSessaoStore.gravarSeAtual(ctx) { ctx.getSharedPreferences(SgePainelStore.PREFS_NAME, Context.MODE_PRIVATE).edit().putString(if (inputData.getString("coord_alvo") != null) "diagnostico_coord_v2" else "diagnostico_pessoal_v2", t.take(20000)).commit() }
@@ -168,14 +166,14 @@ class SgeSyncWorker(private val ctx: Context, params: WorkerParameters) : Corout
         /** Coordenação: enfileira uma consulta por turma, em sequência (cada uma cabe no limite de tempo do WorkManager). */
         fun verificarTurmas(context: Context, ids: List<String>, substituir: Boolean = true, automatica: Boolean = false) {
             if (ids.isEmpty()) return
-            val reqs = ids.map { OneTimeWorkRequestBuilder<SgeSyncWorker>().setConstraints(if (automatica) SgeEconomia.restricoes(context) else rede()).setInputData(workDataOf("coord_alvo" to it)).build() }
+            val reqs = ids.map { OneTimeWorkRequestBuilder<SgeSyncWorker>().setConstraints(if (automatica) SgeEconomia.restricoes(context) else rede()).setInputData(workDataOf("coord_alvo" to it, "auto" to automatica)).build() }
             var c = WorkManager.getInstance(context).beginUniqueWork("sge_coord", if (substituir) ExistingWorkPolicy.REPLACE else ExistingWorkPolicy.KEEP, reqs.first())
             reqs.drop(1).forEach { c = c.then(it) }
             SgeSessaoStore.gravarSeAtual(context) { c.enqueue() }
         }
         fun sincronizarAgora(context: Context) {
             WorkManager.getInstance(context).enqueueUniqueWork("sge_sync_now", ExistingWorkPolicy.REPLACE,
-                OneTimeWorkRequestBuilder<SgeSyncWorker>().setConstraints(rede()).build())
+                OneTimeWorkRequestBuilder<SgeSyncWorker>().setConstraints(rede()).setInputData(workDataOf("manual" to true)).build())
         }
     }
 }

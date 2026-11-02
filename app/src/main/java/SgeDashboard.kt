@@ -27,7 +27,9 @@ data class ResumoModulo(
 ) {
     val aConferir get() = consultas - verificadas
     val parcial get() = quantidade != null && !completa
-    fun valor(): String = quantidade?.let { "$it${if (completa) "" else "*"}" } ?: "—"
+    /** Todas as consultas sem periodicidade definida: não há número a mostrar (cinza), diferente do * de cobertura parcial. */
+    val naoConfigurado get() = consultas > 0 && naoConfigurados == consultas
+    fun valor(): String = if (naoConfigurado) "n/c" else quantidade?.let { "$it${if (completa) "" else "*"}" } ?: "—"
     fun unidade(): String = if (indice < 2) { if (quantidade == 1) "dia" else "dias" }
         else if (quantidade == 1) "documento" else "documentos"
 }
