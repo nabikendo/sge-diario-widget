@@ -91,6 +91,7 @@ class MainActivity : FragmentActivity() {
         }
         val state = savedInstanceState?.getBundle("web_state")
         if (state == null || web.restoreState(state) == null) web.loadUrl(SgeSyncWorker.BASE + "/")
+        registrarAtalhos()
         receberDestino(intent)
         val versao = runCatching { packageManager.getPackageInfo(packageName, 0).versionName }.getOrNull() ?: "Prévia"
         setContent {
@@ -191,6 +192,7 @@ class MainActivity : FragmentActivity() {
                             Button(onClick = { compartilharArquivo(l.zip,"application/zip") }) { Text("ZIP por professor") }
                             OutlinedButton(onClick = { compartilharArquivo(l.impressao,"application/pdf") }) { Text("PDF para impressão") }
                             OutlinedButton(onClick = { compartilharArquivo(l.recibos,"application/pdf") }) { Text("Folhas de recebimento") }
+                            l.planilha?.let { p -> OutlinedButton(onClick = { compartilharArquivo(p,"text/csv") }) { Text("Planilha (CSV) para reunião") } }
                         } }, confirmButton = { TextButton(onClick = { lotePronto = null }) { Text("Concluir") } }) }
                 }
             }
@@ -369,7 +371,40 @@ class MainActivity : FragmentActivity() {
         val texto = SgeRelatorioTexto.gerar(g)
         startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, texto), "Compartilhar resumo"))
     }
+    private fun registrarAtalhos() {
+        runCatching {
+            fun atalho(id: String, curto: String, longo: String, icone: Int) = androidx.core.content.pm.ShortcutInfoCompat.Builder(this, id)
+                .setShortLabel(curto).setLongLabel(longo).setIcon(androidx.core.graphics.drawable.IconCompat.createWithResource(this, icone))
+                .setIntent(Intent(this, MainActivity::class.java).setAction(Intent.ACTION_VIEW).putExtra("sge_atalho", id)).build()
+            androidx.core.content.pm.ShortcutManagerCompat.setDynamicShortcuts(this, listOf(
+                atalho("sincronizar", "Sincronizar", "Sincronizar agora", R.drawable.ic_widget_refresh),
+                atalho("coordenacao", "Coordenação", "Abrir a coordenação", R.drawable.ic_widget_settings),
+                atalho("relatorio", "Relatório", "Gerar relatório em PDF", R.drawable.ic_widget_down)))
+        }
+    }
+    private fun atalhoSincronizar() {
+        if (SgeSessaoStore.perfil(this) == PerfilSge.COORDENACAO) comProtecao { verificarTurmas(SgeWidgetStore.conhecidas(this).map { it.first }.distinct()) }
+        else sincronizarPessoal()
+    }
+    private fun atalhoRelatorio() {
+        val escola = SgeSessaoStore.perfil(this) == PerfilSge.COORDENACAO
+        val rs = if (escola) SgeCoordStore.ler(this).turmas.flatMap { it.disciplinas } else SgePainelStore.ler(this).turmas
+        if (rs.isEmpty()) { aviso("Ainda não há consulta para gerar o relatório."); return }
+        val g = GrupoPendencias(if (escola) "escola" else "diario", if (escola) "Escola inteira" else "Seu diário",
+            "${rs.map { it.turma.id }.distinct().size} turma(s)", rs, rs.map { it.turma.id }.toSet())
+        exportarPdf(g, if (escola) FontePainel.COORDENACAO else FontePainel.PESSOAL)
+    }
     private fun receberDestino(intent: Intent?) {
+        intent?.getStringExtra("sge_atalho")?.let { a ->
+            intent?.removeExtra("sge_atalho")
+            android.os.Handler(android.os.Looper.getMainLooper()).post {
+                when (a) {
+                    "sincronizar" -> atalhoSincronizar()
+                    "coordenacao" -> pedidoWidget.value = PedidoWidget(FontePainel.COORDENACAO, Agrupamento.TURMA, "")
+                    "relatorio" -> atalhoRelatorio()
+                }
+            }
+        }
         if (intent?.hasExtra("sge_fonte") != true) return
         runCatching { PedidoWidget(FontePainel.valueOf(intent.getStringExtra("sge_fonte")!!),
             Agrupamento.valueOf(intent.getStringExtra("sge_por") ?: "TURMA"), intent.getStringExtra("sge_grupo").orEmpty()) }

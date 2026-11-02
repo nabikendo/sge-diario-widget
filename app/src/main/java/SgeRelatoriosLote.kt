@@ -6,7 +6,7 @@ import java.time.LocalDateTime
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 
-data class ArquivosLote(val zip: File, val impressao: File, val recibos: File, val professores: Int)
+data class ArquivosLote(val zip: File, val impressao: File, val recibos: File, val professores: Int, val planilha: File? = null)
 object SgeRelatoriosLote {
     fun criar(pasta: File, grupos: List<GrupoPendencias>, escola: String, responsavel: String, recorte: String): ArquivosLote {
         require(grupos.isNotEmpty())
@@ -23,9 +23,10 @@ object SgeRelatoriosLote {
             impressao.outputStream().use { SgeRelatorioPdf.escreverGrupos(it,grupos,FontePainel.COORDENACAO,agora,comRecibo=true,escola=escola,responsavel=responsavel,recorte=recorte) }
             val recibos = File(dir,"Recebimento-e-ciencia.pdf")
             recibos.outputStream().use { SgeRelatorioPdf.escreverGrupos(it,grupos,FontePainel.COORDENACAO,agora,recibos=true,escola=escola,responsavel=responsavel,recorte=recorte) }
+            val planilha = File(dir,"SGE-Resumo-para-reuniao.csv").also { it.writeText(SgeCsv.gerar(grupos, agora), Charsets.UTF_8) }
             val zip = File(dir,"SGE-Relatorios-por-professor.zip")
-            ZipOutputStream(zip.outputStream()).use { z -> (individuais + impressao + recibos).forEach { f -> z.putNextEntry(ZipEntry(f.name)); f.inputStream().use { it.copyTo(z) }; z.closeEntry() } }
-            return ArquivosLote(zip,impressao,recibos,grupos.size)
+            ZipOutputStream(zip.outputStream()).use { z -> (individuais + impressao + recibos + planilha).forEach { f -> z.putNextEntry(ZipEntry(f.name)); f.inputStream().use { it.copyTo(z) }; z.closeEntry() } }
+            return ArquivosLote(zip,impressao,recibos,grupos.size,planilha)
         } catch (e: Exception) { dir.deleteRecursively(); throw e }
     }
 }

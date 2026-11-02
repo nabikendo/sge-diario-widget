@@ -16,6 +16,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import br.to.seduc.sgediariowidget.data.*
+import java.time.LocalDateTime
 
 @Composable fun corEstado(estado: EstadoGrupo): Color = when (estado) {
     EstadoGrupo.PENDENTE -> MaterialTheme.colorScheme.error
@@ -60,6 +61,18 @@ fun CartaoGrupo(grupo: GrupoPendencias, por: Agrupamento, selecionado: Boolean =
                 Text(grupo.titulo, style = MaterialTheme.typography.titleLarge, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 Text(grupo.subtitulo, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 2, overflow = TextOverflow.Ellipsis)
+            }
+            val horasDado = remember(grupo) { SgeIdade.maisAntiga(grupo.resultados, LocalDateTime.now()) }
+            if (horasDado != null) {
+                val corIdade = when (SgeIdade.faixa(horasDado)) {
+                    SgeIdade.Faixa.RECENTE -> MaterialTheme.colorScheme.tertiary
+                    SgeIdade.Faixa.MEDIA -> corAlerta()
+                    SgeIdade.Faixa.ANTIGA -> MaterialTheme.colorScheme.error
+                }
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                    Icon(SgeIcons.Clock, null, Modifier.size(13.dp), tint = corIdade)
+                    Text("Dados ${SgeIdade.texto(horasDado)}", style = MaterialTheme.typography.labelSmall, color = corIdade)
+                }
             }
             val pendentes = grupo.modulos.filter { (it.quantidade ?: 0) > 0 }
             if (pendentes.isNotEmpty()) {
@@ -134,8 +147,10 @@ fun TelaCartoes(
     val porTurma = remember(resultados) { SgeDashboard.agrupar(resultados, Agrupamento.TURMA) }
     val pendentes = porTurma.count { it.estado == EstadoGrupo.PENDENTE }
     val conferir = porTurma.count { it.exigeConferencia } + if (escola) conhecidas.count { (id, _) -> porTurma.none { id in it.turmaIds } } else 0
+    val nomesProf = remember(docentes) { SgeBusca.indiceProfessores(docentes.vinculos, docentes.locais) }
+    val sgeMudou = remember(resultados) { SgeSaude.sgeMudou(resultados) }
     val visiveis = grupos.filter { g ->
-        (busca.isBlank() || normalizarSge(g.titulo + " " + g.subtitulo + " " + g.resultados.joinToString { it.turma.nome + " " + it.turma.disciplina }).contains(normalizarSge(busca))) &&
+        (busca.isBlank() || SgeBusca.combina(busca, g.titulo + " " + g.subtitulo + " " + g.resultados.joinToString { it.turma.nome + " " + it.turma.disciplina + " " + nomesProf(it) })) &&
             when(filtro) { 1 -> g.estado == EstadoGrupo.PENDENTE; 2 -> g.exigeConferencia
                 3 -> g.estado == EstadoGrupo.EM_DIA; else -> true }
     }
@@ -165,6 +180,12 @@ fun TelaCartoes(
                         maxLines = 2, overflow = TextOverflow.Ellipsis)
                     if (escola) TextButton(onClick = aoCarregarTurmas) { Text(if (conhecidas.isEmpty()) "Carregar turmas" else "Reler turmas") }
                 }
+            }
+        }
+        if (sgeMudou) item(span = { GridItemSpan(maxLineSpan) }) {
+            Surface(shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.errorContainer) {
+                Text("O SGE parece ter mudado: várias telas não foram reconhecidas. Atualize o app (Ajustes → Atualizações do app) antes de confiar nesta consulta.",
+                    Modifier.padding(14.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onErrorContainer)
             }
         }
         item(span = { GridItemSpan(maxLineSpan) }) {
@@ -217,7 +238,7 @@ fun TelaCartoes(
         }
         if (mostrarBusca || busca.isNotBlank()) item(span = { GridItemSpan(maxLineSpan) }) {
             OutlinedTextField(value = busca, onValueChange = { busca = it }, modifier = Modifier.fillMaxWidth(), singleLine = true,
-                placeholder = { Text("Buscar ${por.titulo.lowercase()}") }, leadingIcon = { Icon(SgeIcons.Search, null, Modifier.size(19.dp)) },
+                placeholder = { Text("Buscar turma, disciplina ou professor") }, leadingIcon = { Icon(SgeIcons.Search, null, Modifier.size(19.dp)) },
                 trailingIcon = ({ IconButton(onClick = { busca = ""; mostrarBusca = false }) { Icon(SgeIcons.Close, "Fechar busca", Modifier.size(17.dp)) } }),
                 shape = MaterialTheme.shapes.medium)
         }

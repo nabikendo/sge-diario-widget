@@ -85,6 +85,7 @@ object SgeCachePlanos {
     }
     private fun mapa(ctx: Context): JSONObject = runCatching { JSONObject(ctx.getSharedPreferences(SgePainelStore.PREFS_NAME, Context.MODE_PRIVATE).getString(KEY, "{}")) }.getOrDefault(JSONObject())
     fun ts(ctx: Context, chave: String): Long = mapa(ctx).optLong(chave, 0L)
+    fun limpar(ctx: Context) { ctx.getSharedPreferences(SgePainelStore.PREFS_NAME, Context.MODE_PRIVATE).edit().remove(KEY).apply() }
     fun marcar(ctx: Context, chave: String, agora: Long) {
         val m = mapa(ctx).put(chave, agora)
         ctx.getSharedPreferences(SgePainelStore.PREFS_NAME, Context.MODE_PRIVATE).edit().putString(KEY, m.toString()).apply()
