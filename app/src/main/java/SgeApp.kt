@@ -23,6 +23,8 @@ import androidx.compose.ui.draw.blur
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.viewinterop.AndroidView
@@ -124,7 +126,7 @@ fun AppDiario(
                 if (pagina == null && detalhe == null && aba != 2) IconButton(
                     onClick = { if (aba == 1) aoVerificarTurmas(conhecidas.map { it.first }) else aoSincronizarPessoal() },
                     enabled = !protegida && (aba == 1 || !painel.sincronizando) && (aba != 1 || conhecidas.isNotEmpty())) {
-                    if (if (aba == 1) coord.sincronizando else painel.sincronizando) CircularProgressIndicator(Modifier.size(19.dp), strokeWidth = 2.dp)
+                    if (if (aba == 1) coord.sincronizando else painel.sincronizando) CircularProgressIndicator(Modifier.size(19.dp).semantics { contentDescription = if (aba == 1) "Verificação em andamento. Toque para pausar" else "Atualizando o diário" }, strokeWidth = 2.dp)
                     else Icon(SgeIcons.Refresh, if (aba == 1) "Verificar turmas" else "Atualizar diário", Modifier.size(21.dp))
                 }
                 if (webVisivel) IconButton(onClick = aoCopiarPagina) { Icon(SgeIcons.Export, "Copiar estrutura da página", Modifier.size(20.dp)) }

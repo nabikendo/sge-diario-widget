@@ -8,6 +8,9 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -70,10 +73,17 @@ fun SgeTema(tema: Int, estilo: Int = 0, content: @Composable () -> Unit) {
     val esquema = if (estilo == 1 && Build.VERSION.SDK_INT >= 31) {
         if (escuro) dynamicDarkColorScheme(ctx) else dynamicLightColorScheme(ctx)
     } else if (escuro) NeutroEscuro else NeutroClaro
-    MaterialTheme(colorScheme = esquema, typography = TipografiaNeutra,
-        shapes = Shapes(extraSmall = RoundedCornerShape(8.dp), small = RoundedCornerShape(14.dp),
-            medium = RoundedCornerShape(20.dp), large = RoundedCornerShape(28.dp), extraLarge = RoundedCornerShape(34.dp))) {
-        Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background, content = content)
+    // Alto contraste: textos secundários e contornos mais fortes; a situação nunca depende só da cor (há texto e ícone).
+    val finalEsquema = if (SgeUi.altoContraste) esquema.copy(onSurfaceVariant = esquema.onSurface,
+        outline = esquema.onSurface.copy(alpha = .7f), outlineVariant = esquema.onSurface.copy(alpha = .5f),
+        error = if (escuro) Color(0xFFFFB4A9) else Color(0xFF8C1D18), tertiary = if (escuro) Color(0xFFB8F0D0) else Color(0xFF1B5E42)) else esquema
+    val dens = LocalDensity.current
+    CompositionLocalProvider(LocalDensity provides Density(dens.density, dens.fontScale * (if (SgeUi.fonteGrande) 1.3f else 1f))) {
+        MaterialTheme(colorScheme = finalEsquema, typography = TipografiaNeutra,
+            shapes = Shapes(extraSmall = RoundedCornerShape(8.dp), small = RoundedCornerShape(14.dp),
+                medium = RoundedCornerShape(20.dp), large = RoundedCornerShape(28.dp), extraLarge = RoundedCornerShape(34.dp))) {
+            Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background, content = content)
+        }
     }
 }
 @Composable fun corErro() = MaterialTheme.colorScheme.error

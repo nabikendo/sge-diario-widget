@@ -12,6 +12,10 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -46,7 +50,15 @@ fun EmblemaEstado(estado: EstadoGrupo) {
 
 @Composable
 fun CartaoGrupo(grupo: GrupoPendencias, por: Agrupamento, selecionado: Boolean = false, abrir: () -> Unit) {
-    Surface(onClick = abrir, color = MaterialTheme.colorScheme.surface, shape = MaterialTheme.shapes.large,
+    val horasDado = remember(grupo) { SgeIdade.maisAntiga(grupo.resultados, LocalDateTime.now()) }
+    val tituloV = tituloVisivel(grupo)
+    val descricao = buildString {
+        append(tituloV).append(". ").append(nomeEstado(grupo.estado))
+        horasDado?.let { append(". Dados ").append(SgeIdade.texto(it)) }
+        append(". Toque para ver detalhes.")
+    }
+    Surface(onClick = abrir, modifier = Modifier.semantics(mergeDescendants = true) { contentDescription = descricao },
+        color = MaterialTheme.colorScheme.surface, shape = MaterialTheme.shapes.large,
         border = BorderStroke(if (selecionado) 1.5.dp else .6.dp, if (selecionado) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant), shadowElevation = .5.dp) {
         Column(Modifier.fillMaxWidth().padding(19.dp), verticalArrangement = Arrangement.spacedBy(13.dp)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -58,11 +70,10 @@ fun CartaoGrupo(grupo: GrupoPendencias, por: Agrupamento, selecionado: Boolean =
                 EmblemaEstado(grupo.estado)
             }
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(grupo.titulo, style = MaterialTheme.typography.titleLarge, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                Text(grupo.subtitulo, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                Text(tituloV, style = MaterialTheme.typography.titleLarge, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Text(subtituloVisivel(grupo), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 2, overflow = TextOverflow.Ellipsis)
             }
-            val horasDado = remember(grupo) { SgeIdade.maisAntiga(grupo.resultados, LocalDateTime.now()) }
             if (horasDado != null) {
                 val corIdade = when (SgeIdade.faixa(horasDado)) {
                     SgeIdade.Faixa.RECENTE -> MaterialTheme.colorScheme.tertiary
@@ -136,6 +147,9 @@ fun TelaCartoes(
     var mostrarBusca by rememberSaveable(fonte.name) { mutableStateOf(false) }
     var menuFiltro by remember { mutableStateOf(false) }
     var mostrarMensagem by remember { mutableStateOf(false) }
+    val focoBusca = remember { FocusRequester() }
+    LaunchedEffect(SgeUi.buscaPedida) { if (SgeUi.buscaPedida > 0) mostrarBusca = true }
+    LaunchedEffect(mostrarBusca) { if (mostrarBusca) runCatching { focoBusca.requestFocus() } }
     val escola = fonte == FontePainel.COORDENACAO
     val resultados = remember(escola, coord.turmas, painel.turmas, filtroAvancado, organizacao, docentes) { SgeOrganizacao.filtrar(if (escola) coord.turmas.flatMap { it.disciplinas } else painel.turmas, filtroAvancado, organizacao, docentes) }
     val grupos = remember(resultados, docentes, conhecidas, por, escola, filtroAvancado) {
@@ -237,7 +251,7 @@ fun TelaCartoes(
             }
         }
         if (mostrarBusca || busca.isNotBlank()) item(span = { GridItemSpan(maxLineSpan) }) {
-            OutlinedTextField(value = busca, onValueChange = { busca = it }, modifier = Modifier.fillMaxWidth(), singleLine = true,
+            OutlinedTextField(value = busca, onValueChange = { busca = it }, modifier = Modifier.fillMaxWidth().focusRequester(focoBusca), singleLine = true,
                 placeholder = { Text("Buscar turma, disciplina ou professor") }, leadingIcon = { Icon(SgeIcons.Search, null, Modifier.size(19.dp)) },
                 trailingIcon = ({ IconButton(onClick = { busca = ""; mostrarBusca = false }) { Icon(SgeIcons.Close, "Fechar busca", Modifier.size(17.dp)) } }),
                 shape = MaterialTheme.shapes.medium)

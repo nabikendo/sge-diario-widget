@@ -91,6 +91,7 @@ class MainActivity : FragmentActivity() {
         }
         val state = savedInstanceState?.getBundle("web_state")
         if (state == null || web.restoreState(state) == null) web.loadUrl(SgeSyncWorker.BASE + "/")
+        SgeUi.carregar(this); SgeUi.aplicarJanela(this)
         registrarAtalhos()
         receberDestino(intent)
         val versao = runCatching { packageManager.getPackageInfo(packageName, 0).versionName }.getOrNull() ?: "Prévia"
@@ -409,6 +410,18 @@ class MainActivity : FragmentActivity() {
         runCatching { PedidoWidget(FontePainel.valueOf(intent.getStringExtra("sge_fonte")!!),
             Agrupamento.valueOf(intent.getStringExtra("sge_por") ?: "TURMA"), intent.getStringExtra("sge_grupo").orEmpty()) }
             .getOrNull()?.let { pedidoWidget.value = it }
+    }
+    /** Teclado externo (notebook/tablet): Ctrl+R atualiza, Ctrl+F busca, Ctrl+1 e Ctrl+2 trocam de painel. */
+    override fun dispatchKeyEvent(e: android.view.KeyEvent): Boolean {
+        if (e.action == android.view.KeyEvent.ACTION_DOWN && e.isCtrlPressed && e.repeatCount == 0) {
+            when (e.keyCode) {
+                android.view.KeyEvent.KEYCODE_R -> { atalhoSincronizar(); return true }
+                android.view.KeyEvent.KEYCODE_F -> { SgeUi.buscaPedida++; return true }
+                android.view.KeyEvent.KEYCODE_1 -> { pedidoWidget.value = PedidoWidget(FontePainel.PESSOAL, Agrupamento.TURMA, ""); return true }
+                android.view.KeyEvent.KEYCODE_2 -> { pedidoWidget.value = PedidoWidget(FontePainel.COORDENACAO, Agrupamento.TURMA, ""); return true }
+            }
+        }
+        return super.dispatchKeyEvent(e)
     }
     override fun onNewIntent(intent: Intent) { super.onNewIntent(intent); setIntent(intent); receberDestino(intent) }
     /** O SGE monta #TurmaContextoId no navegador; guardamos a lista lida do WebView logado para o Worker. */

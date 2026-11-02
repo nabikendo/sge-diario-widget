@@ -26,8 +26,8 @@ fun TelaDetalhes(grupo: GrupoPendencias, fonte: FontePainel, docentes: PainelDoc
         item {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 EmblemaEstado(grupo.estado)
-                Text(grupo.titulo, style = MaterialTheme.typography.displaySmall)
-                Text(grupo.subtitulo, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(tituloVisivel(grupo), style = MaterialTheme.typography.displaySmall)
+                Text(subtituloVisivel(grupo), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 grupo.resultados.map { it.atualizado }.filter { it.isNotBlank() }.lastOrNull()?.let {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                         Icon(SgeIcons.Clock, null, Modifier.size(15.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
