@@ -52,7 +52,7 @@ object SgeRelatorioTabela {
         val d = dm.substringBefore('/').toIntOrNull() ?: return -1; val m = dm.substringAfter('/').toIntOrNull() ?: return -1
         return runCatching {
             var data = LocalDate.of(hoje.year, m, d); if (data.isAfter(hoje)) data = data.minusYears(1)
-            ChronoUnit.DAYS.between(data, hoje).toInt()
+            SgeCalendario.diasUteisEntre(data, hoje)
         }.getOrDefault(-1)
     }
 
@@ -63,7 +63,7 @@ object SgeRelatorioTabela {
         if (ds.isEmpty()) return Celula(1, listOf("${m.quantidade} ${if (m.quantidade == 1) "dia" else "dias"}"))
         val maisAntiga = ds.maxOf { diasDesde(it, hoje) }
         val linhas = mutableListOf(ds.joinToString(", ") + if (ds.size < m.quantidade) "…" else "")
-        if (maisAntiga >= 7) linhas.add("mais antiga: há $maisAntiga dias")
+        if (maisAntiga >= 5) linhas.add("mais antiga: há $maisAntiga dias úteis")
         return Celula(1, linhas, maisAntiga)
     }
 
@@ -74,16 +74,17 @@ object SgeRelatorioTabela {
         listOf(Triple(2, "Plano de Aula", "Planos de Aula"), Triple(4, "PEI", "PEIs"), Triple(3, "Plano de Curso", "Planos de Curso")).forEach { (i, sing, plur) ->
             val m = ms[i]; val q = m?.quantidade
             when {
+                m != null && m.naoConfigurado -> Unit
                 m == null || q == null -> docs.add("$sing: N/V")
                 q > 0 -> docs.add("$q ${if (q == 1) sing else plur}")
                 !m.coberturaCompleta -> docs.add(if (i == 4 && m.detalhe.contains("periodicidade", true)) "PEI: definir periodicidade*" else "$sing: conferir*")
             }
         }
         val qs = ms.map { it?.quantidade }
-        val nivel = if (qs.any { (it ?: 0) > 0 }) 2 else if (qs.any { it == null } || ms.any { it != null && !it.coberturaCompleta }) 1 else 0
+        val nivel = if (qs.any { (it ?: 0) > 0 }) 2 else if (qs.any { it == null } || ms.any { it != null && !it.coberturaCompleta && !it.naoConfigurado }) 1 else 0
         val notas = ms.withIndex().mapNotNull { (i, m) ->
             if (m != null && m.quantidade == null) "${turmaCurta(r.turma.nome)} ${r.turma.disciplina}: ${SgeDashboard.nomes[i]} não verificado (${m.detalhe.substringAfter(':', m.detalhe).trim().take(90)})."
-            else if (m != null && !m.coberturaCompleta) "${turmaCurta(r.turma.nome)} ${r.turma.disciplina}: ${SgeDashboard.nomes[i]} com cobertura parcial (${(m.detalhe.substringAfter("não contados:", m.detalhe.substringAfter("Cobertura não verificada:", "")).trim()).take(90)})."
+            else if (m != null && !m.coberturaCompleta && !m.naoConfigurado) "${turmaCurta(r.turma.nome)} ${r.turma.disciplina}: ${SgeDashboard.nomes[i]} com cobertura parcial (${(m.detalhe.substringAfter("não contados:", m.detalhe.substringAfter("Cobertura não verificada:", "")).trim()).take(90)})."
             else null
         }
         return Linha(turmaCurta(r.turma.nome), turno(r.turma.nome), r.turma.disciplina, cont, freq, docs, nivel, qs.sumOf { it ?: 0 }, notas)
@@ -201,7 +202,7 @@ object SgeRelatorioTabela {
                     estilo(9.5f)
                     topo.forEachIndexed { i, p ->
                         garantir(14f)
-                        val idade = if (p.dias >= 7) "  (há ${p.dias} dias)" else ""
+                        val idade = if (p.dias >= 5) "  (há ${p.dias} dias úteis)" else ""
                         canvas.drawText(cortar("${i + 1}. ${p.texto}$idade", W), L + 4f, y + 2f, tinta); y += 13f
                     }
                 }
@@ -256,6 +257,15 @@ object SgeRelatorioTabela {
                     estilo(8.8f, cor = CINZA)
                     notas.take(6).forEach { n -> quebrar(n, W - 6f).forEach { garantir(12f); canvas.drawText(it, L + 3f, y + 2f, tinta); y += 11f } }
                     if (notas.size > 6) { garantir(12f); canvas.drawText("… e mais ${notas.size - 6} observação(ões); veja o diagnóstico no app.", L + 3f, y + 2f, tinta); y += 11f }
+                    y += 4f
+                }
+                val config = SgeConfiguracao.pendencias(grupo.resultados)
+                if (config.isNotEmpty()) {
+                    secao("Configuração pendente")
+                    estilo(9f)
+                    config.forEach { c -> quebrar(c, W - 6f).forEach { garantir(12f); canvas.drawText(it, L + 3f, y + 2f, tinta); y += 11.5f } }
+                    estilo(8.2f, cor = CINZA)
+                    for (t in quebrar("n/c = não configurado: sem a periodicidade definida no SGE não é possível saber quantos documentos deveriam existir.", W)) { garantir(11f); canvas.drawText(t, L + 3f, y + 2f, tinta); y += 10f }
                     y += 4f
                 }
                 estilo(8.5f, cor = CINZA)

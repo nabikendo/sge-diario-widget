@@ -22,7 +22,8 @@ data class ResumoModulo(
     val verificadas: Int,
     val completa: Boolean,
     val aguardando: Int,
-    val aprovados: Int
+    val aprovados: Int,
+    val naoConfigurados: Int = 0
 ) {
     val aConferir get() = consultas - verificadas
     val parcial get() = quantidade != null && !completa
@@ -71,9 +72,9 @@ object SgeDashboard {
             val dados = unicos.map { it.modulos.getOrNull(i) ?: ResultadoModulo() }
             val conhecidos = dados.mapNotNull { it.quantidade }
             ResumoModulo(i, conhecidos.takeIf { it.isNotEmpty() }?.sum(), dados.size,
-                dados.count { it.quantidade != null && it.coberturaCompleta },
-                dados.isNotEmpty() && dados.all { it.quantidade != null && it.coberturaCompleta },
-                dados.sumOf { it.aguardando }, dados.sumOf { it.aprovados })
+                dados.count { it.quantidade != null && (it.coberturaCompleta || it.naoConfigurado) },
+                dados.isNotEmpty() && dados.all { it.quantidade != null && (it.coberturaCompleta || it.naoConfigurado) },
+                dados.sumOf { it.aguardando }, dados.sumOf { it.aprovados }, dados.count { it.naoConfigurado })
         }
     }
 

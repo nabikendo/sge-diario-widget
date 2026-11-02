@@ -11,7 +11,9 @@ data class ResultadoModulo(
     val aprovados: Int = 0,
     val coberturaCompleta: Boolean = false
 ) {
-    fun resumo(): String = quantidade?.let { "$it${if (coberturaCompleta) "" else "*"}" } ?: "—"
+    /** O professor ainda não definiu a periodicidade no SGE: não há como saber quantos documentos deveriam existir. */
+    val naoConfigurado get() = quantidade == 0 && !coberturaCompleta && detalhe.contains("periodicidade precisa ser definida", ignoreCase = true)
+    fun resumo(): String = if (naoConfigurado) "n/c" else quantidade?.let { "$it${if (coberturaCompleta) "" else "*"}" } ?: "—"
     fun json() = JSONObject().put("quantidade", quantidade ?: JSONObject.NULL)
         .put("detalhe", detalhe).put("aguardando", aguardando).put("aprovados", aprovados)
         .put("completa", coberturaCompleta)
