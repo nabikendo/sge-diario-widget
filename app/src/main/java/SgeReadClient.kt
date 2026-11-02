@@ -316,13 +316,21 @@ class SgeReadClient(cookies: String, private val userAgent: String, private val 
         if (semDatas.isNotEmpty()) historico.add("Períodos sem datas (${t.disciplina}): " + semDatas.joinToString(" | "))
         return ausentes to semDatas
     }
+    private var bimestreZero: Boolean? = null
+    private fun janelaDoBimestre(param: String, turmaId: String): Pair<LocalDate, LocalDate>? = runCatching {
+        val j = JSONObject(request("/NotasFaltas/ObtenhaInicioFimParametros", mapOf("turmaId" to turmaId, "bimestre" to param, "mes" to "")))
+        val f = DateTimeFormatter.ofPattern("dd/MM/uuuu")
+        val a = LocalDate.parse(j.getString("dataInicio"), f); val b = LocalDate.parse(j.getString("dataFim"), f)
+        if (!b.isBefore(a) && java.time.temporal.ChronoUnit.DAYS.between(a, b) in 30..140) a to b else null
+    }.getOrNull()
+    /** "Primeiro Bimestre" ou "1º bimestre": pede ao próprio SGE as datas do bimestre (numeração detectada uma vez). */
     private fun janelaBimestre(descricao: String, turmaId: String): Pair<LocalDate, LocalDate>? {
-        val n = Regex("(\\d)\\s*[º°ªo]?\\s*bimestre", RegexOption.IGNORE_CASE).find(descricao)?.groupValues?.get(1) ?: return null
-        return runCatching {
-            val j = JSONObject(request("/NotasFaltas/ObtenhaInicioFimParametros", mapOf("turmaId" to turmaId, "bimestre" to n, "mes" to "")))
-            val f = DateTimeFormatter.ofPattern("dd/MM/uuuu")
-            LocalDate.parse(j.getString("dataInicio"), f) to LocalDate.parse(j.getString("dataFim"), f)
-        }.getOrNull()
+        val achado = Regex("(?:(\\d)\\s*[º°ªo]?|(primeiro|segundo|terceiro|quarto))\\s*bimestre", RegexOption.IGNORE_CASE).find(descricao) ?: return null
+        val n = achado.groupValues[1].toIntOrNull()
+            ?: (listOf("primeiro", "segundo", "terceiro", "quarto").indexOf(achado.groupValues[2].lowercase()) + 1)
+        if (n !in 1..4) return null
+        val zero = bimestreZero ?: (janelaDoBimestre("0", turmaId) != null).also { bimestreZero = it }
+        return janelaDoBimestre((if (zero) n - 1 else n).toString(), turmaId)
     }
 }
 
