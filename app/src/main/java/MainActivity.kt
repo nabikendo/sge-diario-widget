@@ -97,6 +97,7 @@ class MainActivity : FragmentActivity() {
         val versao = runCatching { packageManager.getPackageInfo(packageName, 0).versionName }.getOrNull() ?: "Prévia"
         setContent {
             var filtros by remember { mutableStateOf(SgeFiltrosStore.ler(this)) }
+            var filtrosSalvos by remember { mutableStateOf(SgeFiltrosSalvosStore.ler(this)) }
             var organizacao by remember { mutableStateOf(SgeOrganizacao.ler(this)) }
             var economia by remember { mutableStateOf(SgeEconomia.ler(this)) }
             var historico by remember { mutableStateOf(SgeHistoricoStore.ler(this)) }
@@ -108,6 +109,7 @@ class MainActivity : FragmentActivity() {
             var cor by remember { mutableStateOf(prefs.getInt("estilo", 0)) }
             var painel by remember { mutableStateOf(SgePainelStore.ler(this)) }
             var coord by remember { mutableStateOf(SgeCoordStore.ler(this)) }
+            var filaCoord by remember { mutableStateOf(SgeFila.ler(this)) }
             var docentes by remember { mutableStateOf(SgeDocentesStore.ler(this)) }
             var conhecidas by remember { mutableStateOf(SgeWidgetStore.conhecidas(this)) }
             var webVisivel by remember { mutableStateOf(false) }
@@ -125,11 +127,13 @@ class MainActivity : FragmentActivity() {
                 val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, chave -> runOnUiThread {
                     if (chave == null || chave == "historico_semanal_v1") historico = SgeHistoricoStore.ler(this@MainActivity)
                     filtros = SgeFiltrosStore.ler(this@MainActivity)
+                    filtrosSalvos = SgeFiltrosSalvosStore.ler(this@MainActivity)
                     organizacao = SgeOrganizacao.ler(this@MainActivity); economia = SgeEconomia.ler(this@MainActivity)
                     perfil = SgeSessaoStore.perfil(this@MainActivity); bloqueio = SgeSessaoStore.protegida(this@MainActivity)
                     noturna = prefs.getBoolean("coord_noturna", false); statusNoturno = prefs.getString("coord_noturna_status", "").orEmpty()
                     painel = SgePainelStore.ler(this@MainActivity)
                     coord = SgeCoordStore.ler(this@MainActivity)
+                    filaCoord = SgeFila.ler(this@MainActivity)
                     docentes = SgeDocentesStore.ler(this@MainActivity)
                     conhecidas = SgeWidgetStore.conhecidas(this@MainActivity)
                     tema = prefs.getInt("tema", 0); cor = prefs.getInt("estilo", 0)
@@ -165,17 +169,28 @@ class MainActivity : FragmentActivity() {
                     { resultado, ps -> SgeDocentesStore.vincularLocal(this@MainActivity, resultado, ps); scope.launch { SgeWidgets.atualizar(this@MainActivity) } },
                     { tipo -> if (!SgeWidgets.fixar(this@MainActivity, tipo)) Toast.makeText(this@MainActivity,
                         "Abra o seletor de widgets da tela inicial e procure SGE Diário.", Toast.LENGTH_LONG).show() },
-                    { compartilhar(it) }, { webVisivel = it },
+                    { g, recorte -> compartilhar(g, recorte) }, { webVisivel = it },
                     papel, lembrete, { definirPapel(it) }, { alternarLembrete(it) }, { sairDoSge() }, { comProtecao { limparDadosLocais() } }, { abrirUrl(it) },
                     historico, perfil, bloqueio, coordDesbloqueada.value, { comProtecao {} }, { alterarBloqueio(it) },
-                    noturna, { ativarNoturna(it) }, statusNoturno, { g, fonte -> exportarPdf(g, fonte) },
+                    noturna, { ativarNoturna(it) }, statusNoturno, { g, fonte, recorte -> exportarPdf(g, fonte, recorte) },
                     RecursosSge(organizacao, economia,
                         { SgeOrganizacao.salvar(this@MainActivity,it) }, { SgeEconomia.salvar(this@MainActivity,it); reagendar(); aviso("Preferências de sincronização salvas") },
                         { comProtecao { criarBackup.launch("SGE-Diario-backup-${java.time.LocalDate.now()}.json") } },
                         { comProtecao { abrirBackup.launch(arrayOf("application/json", "text/plain", "application/octet-stream")) } },
                         { atualizador.aberto = true; scope.launch { atualizador.verificar(true) } },
                         { gs,escola,responsavel,recorte -> gerarLote(gs,escola,responsavel,recorte) },
-                        filtros, { fonte, f -> SgeFiltrosStore.salvar(this@MainActivity,fonte,f) }))
+                        filtros, { fonte, f -> SgeFiltrosStore.salvar(this@MainActivity,fonte,f) }, filtrosSalvos,
+                        { fonte, salvo ->
+                            val atualizados = filtrosSalvos.toMutableMap().apply { put(fonte, (get(fonte).orEmpty() + salvo).takeLast(20)) }
+                            filtrosSalvos = atualizados; SgeFiltrosSalvosStore.salvar(this@MainActivity, atualizados)
+                        },
+                        { fonte, id ->
+                            val atualizados = filtrosSalvos.toMutableMap().apply { put(fonte, get(fonte).orEmpty().filterNot { it.id == id }) }
+                            filtrosSalvos = atualizados; SgeFiltrosSalvosStore.salvar(this@MainActivity, atualizados)
+                        }, filaCoord,
+                        { SgeSyncWorker.pausar(this@MainActivity) },
+                        { SgeSyncWorker.retomar(this@MainActivity) },
+                        { SgeSyncWorker.tentarFalhas(this@MainActivity) }))
                 AtualizacoesDialog(atualizador) { lifecycleScope.launch {
                     try { val arquivo = atualizador.prepararInstalacao(); lifecycle.withResumed { if(atualizador.aberto) atualizador.instalar(arquivo) } }
                     catch (e: CancellationException) { throw e }
@@ -281,11 +296,11 @@ class MainActivity : FragmentActivity() {
         getSharedPreferences(SgePainelStore.PREFS_NAME, MODE_PRIVATE).edit().putBoolean("coord_noturna", ativa).apply()
         SgeNoturnoWorker.agendar(this, ativa, recriar = true)
     }
-    private fun exportarPdf(g: GrupoPendencias, fonte: FontePainel) {
+    private fun exportarPdf(g: GrupoPendencias, fonte: FontePainel, recorte: String = "") {
         val iniciar = {
             lifecycleScope.launch {
                 try {
-                    val arquivo = withContext(Dispatchers.IO) { SgeRelatorioPdf.criar(File(cacheDir, "relatorios"), g, fonte) }
+                    val arquivo = withContext(Dispatchers.IO) { SgeRelatorioPdf.criar(File(cacheDir, "relatorios"), g, fonte, recorte) }
                     if (!lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED) || (fonte == FontePainel.COORDENACAO && SgeSessaoStore.protegida(this@MainActivity) && !coordDesbloqueada.value)) return@launch
                     val uri = FileProvider.getUriForFile(this@MainActivity, "$packageName.arquivos", arquivo)
                     val enviar = Intent(Intent.ACTION_SEND).setType("application/pdf").putExtra(Intent.EXTRA_STREAM, uri)
@@ -368,8 +383,8 @@ class MainActivity : FragmentActivity() {
         cm.setPrimaryClip(android.content.ClipData.newPlainText("SGE Diário", texto))
         Toast.makeText(this, mensagem, Toast.LENGTH_SHORT).show()
     }
-    private fun compartilhar(g: GrupoPendencias) {
-        val texto = SgeRelatorioTexto.gerar(g)
+    private fun compartilhar(g: GrupoPendencias, recorte: String = "") {
+        val texto = SgeRelatorioTexto.gerar(g, recorte)
         startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, texto), "Compartilhar resumo"))
     }
     private fun registrarAtalhos() {

@@ -9,19 +9,21 @@ data class ResultadoModulo(
     val detalhe: String = "Não verificado",
     val aguardando: Int = 0,
     val aprovados: Int = 0,
-    val coberturaCompleta: Boolean = false
+    val coberturaCompleta: Boolean = false,
+    /** Instante da consulta deste módulo; 0 em registros legados sem timestamp individual. */
+    val atualizadoMs: Long = 0L
 ) {
     /** O professor ainda não definiu a periodicidade no SGE: não há como saber quantos documentos deveriam existir. */
     val naoConfigurado get() = quantidade == 0 && !coberturaCompleta && detalhe.contains("periodicidade precisa ser definida", ignoreCase = true)
     fun resumo(): String = if (naoConfigurado) "n/c" else quantidade?.let { "$it${if (coberturaCompleta) "" else "*"}" } ?: "—"
     fun json() = JSONObject().put("quantidade", quantidade ?: JSONObject.NULL)
-        .put("detalhe", detalhe).put("aguardando", aguardando).put("aprovados", aprovados)
+        .put("detalhe", detalhe).put("aguardando", aguardando).put("aprovados", aprovados).put("consultadoMs", atualizadoMs)
         .put("completa", coberturaCompleta)
     companion object {
         fun ler(json: JSONObject) = ResultadoModulo(
             if (json.isNull("quantidade")) null else json.getInt("quantidade"),
             json.optString("detalhe", "Não verificado"), json.optInt("aguardando"),
-            json.optInt("aprovados"), json.optBoolean("completa")
+            json.optInt("aprovados"), json.optBoolean("completa"), json.optLong("consultadoMs")
         )
     }
 }
@@ -43,7 +45,7 @@ data class ResultadoTurma(val turma: TurmaMonitorada, val modulos: List<Resultad
 data class PainelSge(val turmas: List<ResultadoTurma> = emptyList(),
     val mensagem: String = "Entre no SGE para consultar o horário e as turmas.",
     val sincronizando: Boolean = false, val sessaoAtiva: Boolean = false,
-    val inicioConsulta: Long = 0L)
+    val inicioConsulta: Long = 0L, val mudancas: List<MudancaModulo> = emptyList())
 
 object SgePainelStore {
     const val PREFS_NAME = "sge_diario_prefs"
@@ -51,7 +53,7 @@ object SgePainelStore {
     fun salvar(context: Context, painel: PainelSge) {
         val j = JSONObject().put("mensagem", painel.mensagem).put("sincronizando", painel.sincronizando)
             .put("inicioConsulta", painel.inicioConsulta)
-            .put("sessaoAtiva", painel.sessaoAtiva).put("turmas", JSONArray().also { a ->
+            .put("sessaoAtiva", painel.sessaoAtiva).put("mudancas", SgeComparacao.json(painel.mudancas)).put("turmas", JSONArray().also { a ->
                 painel.turmas.forEach { a.put(it.json()) }
             })
         // The widget is refreshed immediately after this call. Use commit so
@@ -66,7 +68,7 @@ object SgePainelStore {
         val a = j.getJSONArray("turmas")
         val carregado = PainelSge((0 until a.length()).map { ResultadoTurma.ler(a.getJSONObject(it)) },
             j.optString("mensagem"), j.optBoolean("sincronizando"), j.optBoolean("sessaoAtiva"),
-            j.optLong("inicioConsulta"))
+            j.optLong("inicioConsulta"), j.optJSONArray("mudancas")?.let { SgeComparacao.ler(it) }.orEmpty())
         val expirou = carregado.sincronizando && (carregado.inicioConsulta <= 0L ||
             System.currentTimeMillis() - carregado.inicioConsulta > 5 * 60 * 1000L)
         if (expirou) {

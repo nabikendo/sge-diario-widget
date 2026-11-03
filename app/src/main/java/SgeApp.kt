@@ -42,14 +42,14 @@ fun AppDiario(
     aoSincronizarPessoal: () -> Unit, aoVerificarTurmas: (List<String>) -> Unit, aoCarregarTurmas: () -> Unit,
     aoAtualizarDocentes: () -> Unit, aoCopiarDiagnostico: (Boolean) -> Unit, aoCopiarPagina: () -> Unit,
     aoSalvarVinculo: (ResultadoTurma, List<DocenteRef>?) -> Unit,
-    aoAdicionarWidget: (TipoWidget) -> Unit, aoCompartilhar: (GrupoPendencias) -> Unit,
+    aoAdicionarWidget: (TipoWidget) -> Unit, aoCompartilhar: (GrupoPendencias,String) -> Unit,
     aoWebVisivel: (Boolean) -> Unit,
     papel: Int = 0, lembrete: Boolean = false, aoPapel: (Int) -> Unit = {}, aoLembrete: (Boolean) -> Unit = {},
     aoSair: () -> Unit = {}, aoLimpar: () -> Unit = {}, aoUrl: (String) -> Unit = {},
     historico: List<DiaHistorico> = emptyList(), perfil: PerfilSge = PerfilSge.DESCONHECIDO,
     bloqueioCoord: Boolean = false, coordDesbloqueada: Boolean = false, aoDesbloquear: () -> Unit = {},
     aoBloqueio: (Boolean) -> Unit = {}, noturna: Boolean = false, aoNoturna: (Boolean) -> Unit = {}, statusNoturno: String = "",
-    aoPdf: (GrupoPendencias, FontePainel) -> Unit = { _, _ -> }, recursos: RecursosSge = RecursosSge()
+    aoPdf: (GrupoPendencias, FontePainel, String) -> Unit = { _, _, _ -> }, recursos: RecursosSge = RecursosSge()
 ) {
     val visiveis = remember(papel) { when (papel) { 1 -> setOf(0, 2); 2 -> setOf(1, 2); else -> setOf(0, 1, 2) } }
     var aba by rememberSaveable { mutableStateOf(if (papel == 2) 1 else 0) }
@@ -180,13 +180,22 @@ fun AppDiario(
                                         aoCarregarTurmas, aoAtualizarDocentes, { aba = 2 }, { pagina = "ajuda" },
                                         selecionada = if (largo) rota.grupo?.chave else null,
                                         filtroAvancado = if (rota.aba == 1) filtroCoord else filtroPessoal, organizacao = recursos.organizacao,
-                                        aoFiltros = { filtrosAbertos = true }, aoMapa = { pagina = "mapa" }, aoLote = { pagina = "lote" })
+                                        aoFiltros = { filtrosAbertos = true }, aoMapa = { pagina = "mapa" }, aoLote = { pagina = "lote" },
+                                        filtrosSalvos = recursos.filtrosSalvos[fonte].orEmpty(),
+                                        aoAplicarFiltro = { f -> if (rota.aba == 1) filtroCoord = f else filtroPessoal = f; recursos.aoFiltro(fonte, f) },
+                                        aoSalvarFiltro = { recursos.aoSalvarFiltro(fonte, it) },
+                                        aoExcluirFiltro = { recursos.aoExcluirFiltro(fonte, it) },
+                                        filaCoord = recursos.filaCoord, aoPausarFila = recursos.aoPausarFila,
+                                        aoRetomarFila = recursos.aoRetomarFila, aoTentarFalhas = recursos.aoTentarFalhas)
                                 }
                             }
                             @Composable fun detalhes(g: GrupoPendencias) {
+                                val filtroAtual = if (rota.fonte == FontePainel.COORDENACAO) filtroCoord else filtroPessoal
+                                val recorte = if (filtroAtual.ativo) descreverFiltro(filtroAtual, docentes) else ""
                                 TelaDetalhes(g, rota.fonte, docentes,
                                     { if (rota.fonte == FontePainel.COORDENACAO) aoVerificarTurmas(g.turmaIds.toList()) else aoSincronizarPessoal() },
-                                    { detalhe = null; pagina = null; aba = 2 }, { vincular = it }, { aoCompartilhar(g) }, { aoPdf(g, rota.fonte) }, moduloDetalhe)
+                                    { detalhe = null; pagina = null; aba = 2 }, { vincular = it }, { aoCompartilhar(g, recorte) }, { aoPdf(g, rota.fonte, recorte) }, moduloDetalhe,
+                                    mudancas = if (rota.fonte == FontePainel.COORDENACAO) coord.mudancas else painel.mudancas)
                             }
                             if (largo) Row(Modifier.fillMaxSize()) {
                                 Box(Modifier.weight(.43f).fillMaxHeight()) { lista() }

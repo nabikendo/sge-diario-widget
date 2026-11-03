@@ -8,7 +8,11 @@ import java.time.ZoneId
 import kotlin.math.ceil
 
 /** Fila persistida da verificação da coordenação: permite estimar o tempo e pausar/retomar. */
-data class FilaCoord(val ids: List<String>, val total: Int, val pausada: Boolean, val puladas: Int, val mediaMs: Long)
+data class FilaCoord(val ids: List<String>, val total: Int, val pausada: Boolean, val puladas: Int, val mediaMs: Long,
+    val concluidas: List<String> = emptyList(), val falhas: List<String> = emptyList()) {
+    val resolvidas get() = (puladas + concluidas.size + falhas.size).coerceAtMost(total)
+    val progresso get() = if (total <= 0) 0f else (resolvidas.toFloat() / total).coerceIn(0f, 1f)
+}
 
 data class PlanoFila(val ordem: List<String>, val puladas: Int)
 
@@ -48,24 +52,32 @@ object SgeFila {
     fun ler(ctx: Context): FilaCoord? = runCatching {
         val j = JSONObject(prefs(ctx).getString(KEY, null) ?: return null)
         val a = j.getJSONArray("ids")
-        FilaCoord((0 until a.length()).map { a.getString(it) }, j.optInt("total"), j.optBoolean("pausada"), j.optInt("puladas"), media(ctx))
+        val c = j.optJSONArray("concluidas") ?: JSONArray(); val f = j.optJSONArray("falhas") ?: JSONArray()
+        FilaCoord((0 until a.length()).map { a.getString(it) }, j.optInt("total"), j.optBoolean("pausada"), j.optInt("puladas"), media(ctx),
+            (0 until c.length()).map { c.getString(it) }, (0 until f.length()).map { f.getString(it) })
     }.getOrNull()
     fun salvar(ctx: Context, f: FilaCoord?) {
         val e = prefs(ctx).edit()
-        if (f == null || f.ids.isEmpty()) e.remove(KEY) else e.putString(KEY, JSONObject().put("ids", JSONArray(f.ids)).put("total", f.total)
-            .put("pausada", f.pausada).put("puladas", f.puladas).toString())
+        if (f == null || (f.ids.isEmpty() && f.falhas.isEmpty())) e.remove(KEY) else e.putString(KEY, JSONObject().put("ids", JSONArray(f.ids)).put("total", f.total)
+            .put("pausada", f.pausada).put("puladas", f.puladas).put("concluidas", JSONArray(f.concluidas)).put("falhas", JSONArray(f.falhas)).toString())
         e.apply()
     }
     fun pausar(ctx: Context) { ler(ctx)?.let { salvar(ctx, it.copy(pausada = true)) } }
     fun concluir(ctx: Context, id: String, duracaoMs: Long = 0L): FilaCoord? {
         if (duracaoMs > 0) prefs(ctx).edit().putLong(KEY_MEDIA, novaMedia(media(ctx), duracaoMs)).apply()
         val f = ler(ctx) ?: return null
-        val novo = f.copy(ids = f.ids - id)
+        val novo = f.copy(ids = f.ids - id, concluidas = (f.concluidas + id).distinct(), falhas = f.falhas - id)
         salvar(ctx, novo)
-        return novo.takeIf { it.ids.isNotEmpty() }
+        return novo.takeIf { it.ids.isNotEmpty() || it.falhas.isNotEmpty() }
     }
-    fun textoPausada(f: FilaCoord) = "Verificação pausada: restam ${f.ids.size} turma(s), ${textoEstimativa(f.ids.size, f.mediaMs)}. Toque em verificar para retomar."
-    fun textoAndamento(f: FilaCoord, atual: String) = "$atual · restam ${f.ids.size} de ${f.total}, ${textoEstimativa(f.ids.size, f.mediaMs)}. Toque em verificar para pausar."
+    fun falhar(ctx: Context, id: String): FilaCoord? {
+        val f = ler(ctx) ?: return null
+        val novo = f.copy(ids = f.ids - id, falhas = (f.falhas + id).distinct(), concluidas = f.concluidas - id)
+        salvar(ctx, novo)
+        return novo.takeIf { it.ids.isNotEmpty() || it.falhas.isNotEmpty() }
+    }
+    fun textoPausada(f: FilaCoord) = "Verificação pausada: ${f.resolvidas}/${f.total} resolvidas, ${f.ids.size} turma(s) por fazer e ${f.falhas.size} falha(s). Toque em Retomar para continuar."
+    fun textoAndamento(f: FilaCoord, atual: String) = "$atual · ${f.resolvidas}/${f.total} resolvidas · falhas: ${f.falhas.size} · restam ${f.ids.size}, ${textoEstimativa(f.ids.size, f.mediaMs)}."
 }
 
 /** Planos de aula, de curso e PEI mudam pouco: reconsulta semanal. Só resultados completos e sem pendência são reaproveitados. */

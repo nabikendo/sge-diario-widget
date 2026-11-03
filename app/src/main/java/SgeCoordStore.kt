@@ -20,14 +20,15 @@ data class CoordPainel(
     val turmas: List<CoordTurma> = emptyList(),
     val mensagem: String = "Entre com o perfil Unidade escolar, abra Escola → Conteúdo Aplicado na aba SGE Web e toque em Carregar turmas.",
     val sincronizando: Boolean = false,
-    val inicioConsulta: Long = 0L
+    val inicioConsulta: Long = 0L,
+    val mudancas: List<MudancaModulo> = emptyList()
 )
 
 object SgeCoordStore {
     private const val KEY = "painel_coord_v2"
     fun salvar(context: Context, p: CoordPainel) {
         val j = JSONObject().put("mensagem", p.mensagem).put("sincronizando", p.sincronizando)
-            .put("inicio", p.inicioConsulta).put("turmas", JSONArray().also { a ->
+            .put("inicio", p.inicioConsulta).put("mudancas", SgeComparacao.json(p.mudancas)).put("turmas", JSONArray().also { a ->
                 p.turmas.forEach { t ->
                     a.put(JSONObject().put("id", t.id).put("nome", t.nome).put("erro", t.erro ?: JSONObject.NULL)
                         .put("atualizado", t.atualizado).put("ms", t.atualizadoMs)
@@ -46,7 +47,8 @@ object SgeCoordStore {
             CoordTurma(o.getString("id"), o.getString("nome"),
                 (0 until da.length()).map { k -> ResultadoTurma.ler(da.getJSONObject(k)) },
                 if (o.isNull("erro")) null else o.getString("erro"), o.optString("atualizado"), o.optLong("ms"))
-        }, j.optString("mensagem"), j.optBoolean("sincronizando"), j.optLong("inicio"))
+        }, j.optString("mensagem"), j.optBoolean("sincronizando"), j.optLong("inicio"),
+            j.optJSONArray("mudancas")?.let { SgeComparacao.ler(it) }.orEmpty())
         if (painel.sincronizando && (painel.inicioConsulta <= 0L || System.currentTimeMillis() - painel.inicioConsulta > 15 * 60 * 1000L))
             painel.copy(sincronizando = false, mensagem = "A consulta da coordenação foi interrompida. Verifique as turmas novamente.") else painel
     }.getOrElse { CoordPainel() }

@@ -15,7 +15,11 @@ class SgeDocentesParsingTest {
     }
     @Test fun nomesDeTurmaAmbiguosNaoGeramVinculo() {
         val html = "<table><tr><td>07:00 às 07:50</td><td>Química</td><td>13.01</td></tr></table>"
-        assertTrue(SgeDocentesParsing.vinculos(html, DocenteRef("a", "Ana"), listOf("t1" to "13.01/EM", "t2" to "13.01/EJA")).isEmpty())
+        val turmas = listOf("t1" to "13.01/EM", "t2" to "13.01/EJA")
+        assertTrue(SgeDocentesParsing.vinculos(html, DocenteRef("a", "Ana"), turmas).isEmpty())
+        val analise = SgeDocentesParsing.analisarVinculos(html, DocenteRef("a", "Ana"), turmas)
+        assertEquals("ambiguo", analise.diagnosticos.single().tipo)
+        assertEquals(setOf("t1", "t2"), analise.diagnosticos.single().candidatos.map { it.first }.toSet())
     }
     @Test(expected = IllegalStateException::class) fun paginaSemHorarioNaoApagaVinculosComoSeFosseVazia() {
         SgeDocentesParsing.vinculos("<div>Sessão indisponível</div>", DocenteRef("a", "Ana"), listOf("t1" to "13.01"))

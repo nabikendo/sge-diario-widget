@@ -19,7 +19,10 @@ data class RecursosSge(
     val aoOrganizacao: (Map<String,DadosTurma>) -> Unit = {}, val aoEconomia: (EconomiaSge) -> Unit = {},
     val aoBackup: () -> Unit = {}, val aoRestaurar: () -> Unit = {}, val aoAtualizacoes: () -> Unit = {},
     val aoLote: (List<GrupoPendencias>,String,String,String) -> Unit = { _,_,_,_-> },
-    val filtros: Map<FontePainel,FiltroAvancado> = emptyMap(), val aoFiltro: (FontePainel,FiltroAvancado)->Unit = {_,_->}
+    val filtros: Map<FontePainel,FiltroAvancado> = emptyMap(), val aoFiltro: (FontePainel,FiltroAvancado)->Unit = {_,_->},
+    val filtrosSalvos: Map<FontePainel,List<FiltroSalvo>> = emptyMap(),
+    val aoSalvarFiltro: (FontePainel,FiltroSalvo)->Unit = {_,_->}, val aoExcluirFiltro: (FontePainel,String)->Unit = {_,_->},
+    val filaCoord: FilaCoord? = null, val aoPausarFila: ()->Unit = {}, val aoRetomarFila: ()->Unit = {}, val aoTentarFalhas: ()->Unit = {}
 )
 
 @Composable fun EscolhaFiltro(titulo: String, atual: String, opcoes: List<Pair<String,String>>, escolher: (String)->Unit) {
@@ -57,7 +60,12 @@ data class RecursosSge(
         OutlinedButton(onClick=filtrar) { Text("Filtros avançados") }
     }
 }
-fun descreverFiltro(f: FiltroAvancado, docentes: PainelDocentes): String = listOfNotNull(f.escola.takeIf { it.isNotBlank() },f.serie.takeIf { it.isNotBlank() },f.turno.takeIf { it.isNotBlank() },f.componente.takeIf { it.isNotBlank() },docentes.opcoesDocentes().firstOrNull { it.id==f.professor }?.nome,SgeDashboard.nomes.getOrNull(f.modulo),listOf("", "Com pendências", "A conferir", "Em dia").getOrElse(f.estado) { "" }.takeIf { it.isNotBlank() }).joinToString(" · ").ifBlank { "Todos os resultados consultados" }
+fun descreverFiltro(f: FiltroAvancado, docentes: PainelDocentes): String = listOfNotNull(
+    f.escola.takeIf { it.isNotBlank() }, f.serie.takeIf { it.isNotBlank() }, f.turno.takeIf { it.isNotBlank() },
+    f.componente.takeIf { it.isNotBlank() }, docentes.opcoesDocentes().firstOrNull { it.id == f.professor }?.nome,
+    SgeDashboard.nomes.getOrNull(f.modulo), listOf("", "Com pendências", "A conferir", "Em dia").getOrElse(f.estado) { "" }.takeIf { it.isNotBlank() },
+    when (f.qualificador) { "conferir" -> "A conferir"; "sem_vinculo" -> "Sem vínculo docente"; "dados_antigos" -> "Dados com mais de 24 h"; else -> null }
+).joinToString(" · ").ifBlank { "Todos os resultados consultados" }
 
 @Composable fun TelaMapa(rs: List<ResultadoTurma>, conhecidas: List<Pair<String,String>>, docentes: PainelDocentes, filtro: FiltroAvancado, org: Map<String,DadosTurma>, filtrar: ()->Unit, organizar: ()->Unit, abrir: (GrupoPendencias,Int)->Unit) {
     var professores by remember { mutableStateOf(false) }

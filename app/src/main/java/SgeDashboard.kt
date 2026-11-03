@@ -1,6 +1,8 @@
 package br.to.seduc.sgediariowidget.data
 
 import java.text.Normalizer
+import org.json.JSONArray
+import org.json.JSONObject
 
 /** Os resultados continuam sendo da turma/componente, mesmo quando agrupados pelo horário docente. */
 data class DocenteRef(val id: String, val nome: String)
@@ -52,6 +54,45 @@ data class GrupoPendencias(
         modulos.any { !it.completa } -> EstadoGrupo.CONFERIR
         else -> EstadoGrupo.EM_DIA
     }
+}
+
+/** Diferença de uma contagem do mesmo módulo, para a mesma turma e o mesmo conjunto de componentes. */
+data class MudancaModulo(val turmaId: String, val turma: String, val indice: Int, val anterior: Int, val atual: Int) {
+    val delta get() = atual - anterior
+}
+
+/** Comparação conservadora: resultado ausente, parcial ou sem periodicidade nunca é tratado como zero. */
+object SgeComparacao {
+    fun calcular(anteriores: List<ResultadoTurma>, atuais: List<ResultadoTurma>): List<MudancaModulo> {
+        val a = anteriores.distinctBy(::chaveResultado).groupBy { it.turma.id }
+        val b = atuais.distinctBy(::chaveResultado).groupBy { it.turma.id }
+        return (a.keys intersect b.keys).sorted().flatMap { id ->
+            val antes = a[id].orEmpty()
+            val depois = b[id].orEmpty()
+            val chavesAntes = antes.map(::chaveResultado).toSet()
+            val chavesDepois = depois.map(::chaveResultado).toSet()
+            if (chavesAntes.isEmpty() || chavesAntes != chavesDepois) return@flatMap emptyList()
+            (0..4).mapNotNull { indice ->
+                fun valor(rs: List<ResultadoTurma>): Int? {
+                    val modulos = rs.map { it.modulos.getOrNull(indice) ?: ResultadoModulo() }
+                    if (modulos.any { it.quantidade == null || !it.coberturaCompleta || it.naoConfigurado }) return null
+                    return modulos.sumOf { it.quantidade!! }
+                }
+                val de = valor(antes) ?: return@mapNotNull null
+                val para = valor(depois) ?: return@mapNotNull null
+                MudancaModulo(id, depois.first().turma.nome.substringBefore('/'), indice, de, para)
+            }
+        }
+    }
+
+    fun json(mudancas: List<MudancaModulo>) = JSONArray().also { a -> mudancas.forEach { m ->
+        a.put(JSONObject().put("turmaId", m.turmaId).put("turma", m.turma).put("modulo", m.indice)
+            .put("anterior", m.anterior).put("atual", m.atual))
+    } }
+
+    fun ler(json: JSONArray) = (0 until json.length()).mapNotNull { i -> runCatching {
+        json.getJSONObject(i).let { MudancaModulo(it.getString("turmaId"), it.getString("turma"), it.getInt("modulo"), it.getInt("anterior"), it.getInt("atual")) }
+    }.getOrNull() }.filter { it.indice in 0..4 && it.anterior >= 0 && it.atual >= 0 }
 }
 
 object SgeDashboard {

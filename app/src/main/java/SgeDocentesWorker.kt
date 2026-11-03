@@ -46,11 +46,13 @@ class SgeDocentesWorker(private val ctx: Context, params: WorkerParameters) : Co
                 val turmas = (0 until a.length()).map { a.getJSONObject(it).let { o -> o.getString("v") to o.getString("t") } }
                 check(turmas.isNotEmpty()) { "Carregue as turmas da escola antes de atualizar os vínculos." }
                 val professor = DocenteRef(id, inputData.getString("professor_nome").orEmpty())
-                val vinculos = withContext(Dispatchers.IO) { withTimeout(90_000L) { client.vinculosDocente(professor, turmas) } }
+                val leitura = withContext(Dispatchers.IO) { withTimeout(90_000L) { client.analisarVinculosDocente(professor, turmas) } }
+                val vinculos = leitura.vinculos
                 val p = SgeDocentesStore.ler(ctx); val escopo = turmas.map { it.first }.toSet()
                 val falhas = prefs.getInt("docentes_falhas", 0)
                 SgeDocentesStore.salvar(ctx, p.copy(
                     vinculos = p.vinculos.filter { it.docente.id != id || it.turmaId !in escopo } + vinculos,
+                    diagnosticos = p.diagnosticos.filterNot { it.professorId == id } + leitura.diagnosticos,
                     sincronizando = !ultimo, inicio = if (ultimo) 0L else System.currentTimeMillis(), mensagem = if (ultimo) mensagemFinal(falhas)
                         else "Horários consultados: ${inputData.getInt("posicao", 0)}/${inputData.getInt("total", 0)}"))
             }

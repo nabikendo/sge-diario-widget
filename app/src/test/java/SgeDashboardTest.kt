@@ -69,4 +69,21 @@ class SgeDashboardTest {
         val resultado = r("1", primeiro = ResultadoModulo(2, coberturaCompleta = true))
         assertEquals(2, SgeDashboard.resumir(listOf(resultado, resultado))[0].quantidade)
     }
+    @Test fun comparaSomenteVinculosIdenticosEContagensCompletas() {
+        val antes = r("1", primeiro = ResultadoModulo(4, coberturaCompleta = true))
+        val depois = r("1", primeiro = ResultadoModulo(2, coberturaCompleta = true))
+        val mudanca = SgeComparacao.calcular(listOf(antes), listOf(depois)).single { it.indice == 0 }
+        assertEquals(-2, mudanca.delta)
+        assertEquals(emptyList<MudancaModulo>(), SgeComparacao.calcular(listOf(antes), listOf(r("1", "Física"))))
+        assertFalse(SgeComparacao.calcular(listOf(antes), listOf(r("1", primeiro = ResultadoModulo(0)))).any { it.indice == 0 })
+        assertFalse(SgeComparacao.calcular(listOf(antes.copy(modulos = listOf(ResultadoModulo(0, detalhe = "periodicidade precisa ser definida")) + antes.modulos.drop(1))), listOf(depois)).any { it.indice == 0 })
+    }
+    @Test fun comparaModulosSeparadamenteEIncluiIgualdadeSomenteNoResumo() {
+        val antes = r("1", primeiro = ResultadoModulo(3, coberturaCompleta = true))
+        val depois = r("1", primeiro = ResultadoModulo(1, coberturaCompleta = true))
+        val mudancas = SgeComparacao.calcular(listOf(antes), listOf(depois))
+        assertEquals(-2, mudancas.single { it.indice == 0 }.delta)
+        assertEquals(0, mudancas.single { it.indice == 1 }.delta)
+        assertTrue(mudancas.filter { it.indice >= 2 }.all { it.anterior == it.atual })
+    }
 }

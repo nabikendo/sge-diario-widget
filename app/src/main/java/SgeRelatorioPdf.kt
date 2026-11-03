@@ -13,11 +13,11 @@ import java.time.format.DateTimeFormatter
 
 /** PDF A4 paginado, sem nomes de alunos nem credenciais e sem dependências de rede. */
 object SgeRelatorioPdf {
-    fun criar(diretorio: File, grupo: GrupoPendencias, fonte: FontePainel): File {
+    fun criar(diretorio: File, grupo: GrupoPendencias, fonte: FontePainel, recorte: String = ""): File {
         diretorio.mkdirs()
         diretorio.listFiles()?.filter { it.name.startsWith("SGE-") && it.lastModified() < System.currentTimeMillis() - 86_400_000L }?.forEach { it.delete() }
         val arquivo = File.createTempFile("SGE-relatorio-", ".pdf", diretorio)
-        try { arquivo.outputStream().use { escrever(it, grupo, fonte) }; return arquivo }
+        try { arquivo.outputStream().use { escreverGrupos(it, listOf(grupo), fonte, recorte = recorte) }; return arquivo }
         catch (e: Exception) { arquivo.delete(); throw e }
     }
     fun escrever(saida: OutputStream, grupo: GrupoPendencias, fonte: FontePainel, agora: LocalDateTime = LocalDateTime.now()) {

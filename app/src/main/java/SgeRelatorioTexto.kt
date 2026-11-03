@@ -1,8 +1,9 @@
 package br.to.seduc.sgediariowidget.data
 
 object SgeRelatorioTexto {
-    fun gerar(g: GrupoPendencias): String = buildString {
+    fun gerar(g: GrupoPendencias, recorte: String = ""): String = buildString {
         appendLine("SGE Diário · ${g.titulo}"); appendLine(g.subtitulo)
+        if (recorte.isNotBlank()) appendLine("Filtro aplicado: $recorte")
         if (g.compartilhado) appendLine("Docência compartilhada: os registros aparecem uma vez, sem atribuição de autoria individual.")
         if (g.vinculoLocal) appendLine("Agrupamento com vínculos informados no aparelho.")
         appendLine()

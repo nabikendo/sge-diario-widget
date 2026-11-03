@@ -12,6 +12,9 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.*
 import androidx.compose.ui.graphics.graphicsLayer
@@ -31,6 +34,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import br.to.seduc.sgediariowidget.data.*
 import java.time.LocalDateTime
+import java.util.UUID
 
 @Composable fun corEstado(estado: EstadoGrupo): Color = when (estado) {
     EstadoGrupo.PENDENTE -> MaterialTheme.colorScheme.error
@@ -59,8 +63,9 @@ fun EmblemaEstado(estado: EstadoGrupo) {
 }
 
 @Composable
-fun CartaoGrupo(grupo: GrupoPendencias, por: Agrupamento, selecionado: Boolean = false, abrir: () -> Unit) {
-    val horasDado = remember(grupo) { SgeIdade.maisAntiga(grupo.resultados, LocalDateTime.now()) }
+fun CartaoGrupo(grupo: GrupoPendencias, por: Agrupamento, selecionado: Boolean = false,
+    mudancas: List<MudancaModulo> = emptyList(), abrir: () -> Unit) {
+    val horasDado = remember(grupo) { SgeIdade.maisAntigaPorModulo(grupo.resultados, LocalDateTime.now()) }
     val tituloV = tituloVisivel(grupo)
     val descricao = buildString {
         append(tituloV).append(". ").append(nomeEstado(grupo.estado))
@@ -85,27 +90,38 @@ fun CartaoGrupo(grupo: GrupoPendencias, por: Agrupamento, selecionado: Boolean =
                     maxLines = 2, overflow = TextOverflow.Ellipsis)
             }
             if (horasDado != null) {
-                val corIdade = when (SgeIdade.faixa(horasDado)) {
-                    SgeIdade.Faixa.RECENTE -> MaterialTheme.colorScheme.tertiary
-                    SgeIdade.Faixa.MEDIA -> corAlerta()
-                    SgeIdade.Faixa.ANTIGA -> MaterialTheme.colorScheme.error
-                }
+                val parcial = grupo.modulos.any { !it.completa && !it.naoConfigurado }
+                val corIdade = when { horasDado >= 24 -> MaterialTheme.colorScheme.onSurfaceVariant; parcial -> corAlerta();
+                    SgeIdade.faixa(horasDado) == SgeIdade.Faixa.RECENTE -> MaterialTheme.colorScheme.tertiary; else -> corAlerta() }
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                     Icon(SgeIcons.Clock, null, Modifier.size(13.dp), tint = corIdade)
-                    Text("Dados ${SgeIdade.texto(horasDado)}", style = MaterialTheme.typography.labelSmall, color = corIdade)
+                    Text(when { horasDado >= 24 -> "Desatualizado · ${SgeIdade.texto(horasDado)}"; parcial -> "Cobertura parcial · ${SgeIdade.texto(horasDado)}"; else -> "Dados ${SgeIdade.texto(horasDado)}" },
+                        style = MaterialTheme.typography.labelSmall, color = corIdade)
                 }
             }
-            val pendentes = grupo.modulos.filter { (it.quantidade ?: 0) > 0 }
-            if (pendentes.isNotEmpty()) {
+            val mudancasVisiveis = if (por == Agrupamento.TURMA) mudancas.filter { it.turmaId in grupo.turmaIds && it.delta != 0 } else emptyList()
+            val modulosVisiveis = (grupo.modulos.filter { (it.quantidade ?: 0) > 0 } +
+                mudancasVisiveis.mapNotNull { mudanca -> grupo.modulos.firstOrNull { it.indice == mudanca.indice } })
+                .distinctBy { it.indice }
+            if (modulosVisiveis.isNotEmpty()) {
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    pendentes.take(2).forEach { m ->
+                    modulosVisiveis.take(2).forEach { m ->
+                        val variacao = mudancasVisiveis.firstOrNull { it.indice == m.indice }
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                            Icon(iconeModulo(m.indice), null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.error)
+                            Icon(iconeModulo(m.indice), null, Modifier.size(16.dp), tint = if ((m.quantidade ?: 0) > 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.tertiary)
                             Text("${SgeDashboard.nomes[m.indice]} · ${m.valor()} ${m.unidade()}",
-                                style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            variacao?.let {
+                                val melhorou = it.delta < 0
+                                val corVariacao = if (melhorou) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.error
+                                Surface(color = corVariacao.copy(alpha = .09f), shape = MaterialTheme.shapes.small) {
+                                    Text("${if (melhorou) "↓" else "↑"}${kotlin.math.abs(it.delta)}${if (it.indice < 2) " d" else " doc"}",
+                                        Modifier.padding(horizontal = 7.dp, vertical = 3.dp), style = MaterialTheme.typography.labelSmall, color = corVariacao)
+                                }
+                            }
                         }
                     }
-                    if (pendentes.size > 2) Text("+ ${contarSge(pendentes.size - 2, "módulo", "módulos")} com pendências", style = MaterialTheme.typography.labelSmall,
+                    if (modulosVisiveis.size > 2) Text("+ ${contarSge(modulosVisiveis.size - 2, "módulo", "módulos")} com pendência ou mudança", style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             } else Text(when(grupo.estado) {
@@ -150,13 +166,19 @@ fun TelaCartoes(
     fonte: FontePainel, painel: PainelSge, coord: CoordPainel, docentes: PainelDocentes,
     conhecidas: List<Pair<String, String>>, por: Agrupamento, aoAgrupar: (Agrupamento) -> Unit,
     aoAbrir: (GrupoPendencias) -> Unit, aoSincronizar: () -> Unit, aoCarregarTurmas: () -> Unit,
-    aoAtualizarDocentes: () -> Unit, aoAbrirSge: () -> Unit, aoAjuda: () -> Unit, selecionada: String? = null, filtroAvancado: FiltroAvancado = FiltroAvancado(), organizacao: Map<String,DadosTurma> = emptyMap(), aoFiltros: ()->Unit = {}, aoMapa: ()->Unit = {}, aoLote: ()->Unit = {}
+    aoAtualizarDocentes: () -> Unit, aoAbrirSge: () -> Unit, aoAjuda: () -> Unit, selecionada: String? = null, filtroAvancado: FiltroAvancado = FiltroAvancado(), organizacao: Map<String,DadosTurma> = emptyMap(), aoFiltros: ()->Unit = {}, aoMapa: ()->Unit = {}, aoLote: ()->Unit = {},
+    filtrosSalvos: List<FiltroSalvo> = emptyList(), aoAplicarFiltro: (FiltroAvancado)->Unit = {}, aoSalvarFiltro: (FiltroSalvo)->Unit = {}, aoExcluirFiltro: (String)->Unit = {},
+    filaCoord: FilaCoord? = null, aoPausarFila: ()->Unit = {}, aoRetomarFila: ()->Unit = {}, aoTentarFalhas: ()->Unit = {}
 ) {
     var busca by rememberSaveable(fonte.name) { mutableStateOf("") }
-    var filtro by rememberSaveable(fonte.name) { mutableStateOf(0) }
+    val filtro = filtroAvancado.estado
     var mostrarBusca by rememberSaveable(fonte.name) { mutableStateOf(false) }
     var menuFiltro by remember { mutableStateOf(false) }
     var mostrarMensagem by remember { mutableStateOf(false) }
+    var mostrarComparacao by rememberSaveable(fonte.name) { mutableStateOf(false) }
+    var mostrarSalvarFiltro by remember { mutableStateOf(false) }
+    var nomeFiltro by remember { mutableStateOf("") }
+    var filaExpandida by rememberSaveable(fonte.name) { mutableStateOf(true) }
     val alphaCartoes = remember { Animatable(1f) }
     var agrupamentoAnterior by remember { mutableStateOf(por) }
     LaunchedEffect(por) {
@@ -174,6 +196,7 @@ fun TelaCartoes(
     LaunchedEffect(SgeUi.buscaPedida) { if (SgeUi.buscaPedida > 0) mostrarBusca = true }
     LaunchedEffect(mostrarBusca) { if (mostrarBusca) runCatching { focoBusca.requestFocus() } }
     val escola = fonte == FontePainel.COORDENACAO
+    val mudancas = if (escola) coord.mudancas else painel.mudancas
     val resultados = remember(escola, coord.turmas, painel.turmas, filtroAvancado, organizacao, docentes) { SgeOrganizacao.filtrar(if (escola) coord.turmas.flatMap { it.disciplinas } else painel.turmas, filtroAvancado, organizacao, docentes) }
     val grupos = remember(resultados, docentes, conhecidas, por, escola, filtroAvancado) {
         val list = SgeDashboard.agrupar(resultados, por, docentes.vinculos, docentes.locais)
@@ -186,12 +209,19 @@ fun TelaCartoes(
     val conferir = porTurma.count { it.exigeConferencia } + if (escola) conhecidas.count { (id, _) -> porTurma.none { id in it.turmaIds } } else 0
     val nomesProf = remember(docentes) { SgeBusca.indiceProfessores(docentes.vinculos, docentes.locais) }
     val sgeMudou = remember(resultados) { SgeSaude.sgeMudou(resultados) }
+    val semVinculo = remember(coord.turmas, docentes) { coord.turmas.flatMap { it.disciplinas }.filter { SgeOrganizacao.professores(it, docentes).isEmpty() } }
+    val diagnosticosRevisao = remember(docentes.diagnosticos) { docentes.diagnosticos }
     val visiveis = grupos.filter { g ->
         (busca.isBlank() || SgeBusca.combina(busca, g.titulo + " " + g.subtitulo + " " + g.resultados.joinToString { it.turma.nome + " " + it.turma.disciplina + " " + nomesProf(it) })) &&
             when(filtro) { 1 -> g.estado == EstadoGrupo.PENDENTE; 2 -> g.exigeConferencia
                 3 -> g.estado == EstadoGrupo.EM_DIA; else -> true }
     }
     val carregando = if (escola) coord.sincronizando else painel.sincronizando
+    val mensagemStatus = if (escola) coord.mensagem else painel.mensagem
+    val falhaRecente = listOf("Não foi possível", "Sessão expirada", "O perfil ativo", "A consulta demorou", "Turma não encontrada")
+        .any { mensagemStatus.startsWith(it, ignoreCase = true) } || mensagemStatus.startsWith("Fila concluída:") ||
+        mensagemStatus.contains("não verificada", ignoreCase = true) || mensagemStatus.contains("cobertura parcial", ignoreCase = true)
+    val mostrarResumo = mudancas.isNotEmpty() && !falhaRecente
     LazyVerticalGrid(columns = GridCells.Adaptive(285.dp), contentPadding = PaddingValues(20.dp, 10.dp, 20.dp, 26.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
         item(span = { GridItemSpan(maxLineSpan) }) {
@@ -214,14 +244,46 @@ fun TelaCartoes(
                     LinearProgressIndicator(Modifier.fillMaxWidth())
                 }
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    AnimatedContent(targetState = if (escola) coord.mensagem else painel.mensagem,
-                        modifier = Modifier.weight(1f).clickable { mostrarMensagem = true }.padding(vertical = 4.dp),
+                    AnimatedContent(targetState = if (mostrarResumo) {
+                        val melhoras = mudancas.count { it.delta < 0 }; val aumentos = mudancas.count { it.delta > 0 }
+                        val comparados = mudancas.map { it.turmaId }.distinct().size
+                        if (melhoras == 0 && aumentos == 0) "$comparados turma(s) comparada(s) · sem mudanças"
+                        else "$comparados turma(s) comparada(s) · ↓ $melhoras módulo(s) melhoraram · ↑ $aumentos módulo(s) aumentaram"
+                    } else if (escola) coord.mensagem else painel.mensagem,
+                        modifier = Modifier.weight(1f).clickable { if (mostrarResumo) mostrarComparacao = true else mostrarMensagem = true }.padding(vertical = 4.dp),
                         transitionSpec = { fadeIn(tween(SgeMotion.duration(140))) togetherWith fadeOut(tween(SgeMotion.duration(100))) },
                         label = "mensagemAtualizacao") { mensagem ->
                         Text(mensagem, modifier = Modifier.fillMaxWidth(), style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
                     }
                     if (escola) TextButton(onClick = aoCarregarTurmas) { Text(if (conhecidas.isEmpty()) "Carregar turmas" else "Reler turmas") }
+                }
+            }
+        }
+        if (escola && filaCoord != null) item(span = { GridItemSpan(maxLineSpan) }) {
+            val fila = filaCoord!!
+            val nomesFalhas = fila.falhas.mapNotNull { id -> coord.turmas.firstOrNull { it.id == id }?.nome }.distinct()
+            Surface(shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.primaryContainer) {
+                Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(Modifier.fillMaxWidth().clickable { filaExpandida = !filaExpandida }, verticalAlignment = Alignment.CenterVertically) {
+                        Text(if (fila.pausada) "Verificação pausada" else if (fila.ids.isNotEmpty()) "Verificação da escola em andamento" else "Verificação da escola concluída",
+                            Modifier.weight(1f), style = MaterialTheme.typography.titleSmall)
+                        Icon(if (filaExpandida) SgeIcons.Close else SgeIcons.Chevron, if (filaExpandida) "Recolher progresso" else "Expandir progresso", Modifier.size(18.dp))
+                    }
+                    LinearProgressIndicator(progress = fila.progresso, modifier = Modifier.fillMaxWidth())
+                    Text("Consultadas: ${fila.concluidas.size} · Ignoradas (recentes): ${fila.puladas} · Falhas: ${fila.falhas.size} · Restantes: ${fila.ids.size}",
+                        style = MaterialTheme.typography.bodySmall)
+                    AnimatedVisibility(visible = filaExpandida) {
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            if (nomesFalhas.isNotEmpty()) Text("Falharam: ${nomesFalhas.joinToString(" · ")}",
+                                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                if (fila.ids.isNotEmpty() && fila.pausada) Button(onClick = aoRetomarFila) { Text("Retomar") }
+                                if (fila.ids.isNotEmpty() && !fila.pausada) OutlinedButton(onClick = aoPausarFila) { Text("Pausar") }
+                                if (fila.falhas.isNotEmpty() && fila.ids.isEmpty()) Button(onClick = aoTentarFalhas) { Text("Tentar falhas (${fila.falhas.size})") }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -237,12 +299,51 @@ fun TelaCartoes(
                     OutlinedButton(onClick = aoMapa, modifier = Modifier.weight(1f)) { Text("Mapa da escola") }
                     OutlinedButton(onClick = aoLote, modifier = Modifier.weight(1f)) { Text("Relatórios em lote") }
                 }
-                BarraRecorte(filtroAvancado, aoFiltros, if (escola) "Toda a escola" else "Todas as suas turmas")
             }
+        }
+        item(span = { GridItemSpan(maxLineSpan) }) {
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(7.dp), verticalAlignment = Alignment.CenterVertically) {
+                FilterChip(selected = filtroAvancado.qualificador.isBlank(), onClick = { aoAplicarFiltro(filtroAvancado.copy(qualificador = "", estado = 0)) }, label = { Text("Tudo") })
+                FilterChip(selected = filtroAvancado.qualificador == "conferir", onClick = { aoAplicarFiltro(filtroAvancado.copy(qualificador = "conferir", estado = 0)) }, label = { Text("A conferir") })
+                FilterChip(selected = filtroAvancado.qualificador == "sem_vinculo", onClick = { aoAplicarFiltro(filtroAvancado.copy(qualificador = "sem_vinculo", estado = 0)) }, label = { Text("Sem vínculo docente") })
+                FilterChip(selected = filtroAvancado.qualificador == "dados_antigos", onClick = { aoAplicarFiltro(filtroAvancado.copy(qualificador = "dados_antigos", estado = 0)) }, label = { Text("Dados antigos") })
+                filtrosSalvos.forEach { salvo ->
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(1.dp)) {
+                        FilterChip(selected = salvo.filtro == filtroAvancado, onClick = { aoAplicarFiltro(salvo.filtro) }, label = { Text(salvo.nome) })
+                        IconButton(onClick = { aoExcluirFiltro(salvo.id) }, modifier = Modifier.size(36.dp)) {
+                            Icon(SgeIcons.Close, "Remover filtro ${salvo.nome}", Modifier.size(15.dp))
+                        }
+                    }
+                }
+                AssistChip(onClick = { nomeFiltro = ""; mostrarSalvarFiltro = true }, enabled = filtroAvancado.ativo, label = { Text("+ Salvar atual") })
+            }
+        }
+        item(span = { GridItemSpan(maxLineSpan) }) {
+            Text("Critérios ativos · ${descreverFiltro(filtroAvancado, docentes)}",
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         item(span = { GridItemSpan(maxLineSpan) }) {
             val opcoes = if (escola) Agrupamento.values().toList() else listOf(Agrupamento.TURMA, Agrupamento.COMPONENTE)
             Segmentado(opcoes.map { it.titulo }, opcoes.indexOf(por).coerceAtLeast(0)) { aoAgrupar(opcoes[it]) }
+        }
+        if (escola && (semVinculo.isNotEmpty() || diagnosticosRevisao.isNotEmpty())) item(span = { GridItemSpan(maxLineSpan) }) {
+            val ambiguos = diagnosticosRevisao.count { it.tipo == "ambiguo" }
+            val semCorrespondencia = diagnosticosRevisao.count { it.tipo == "sem_correspondencia" }
+            val componenteAusente = diagnosticosRevisao.count { it.tipo == "componente_ausente" }
+            Surface(shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.tertiaryContainer) {
+                Row(Modifier.fillMaxWidth().padding(start = 14.dp, end = 6.dp, top = 8.dp, bottom = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                        Text("${semVinculo.size} turma(s)/componente(s) sem vínculo · ${diagnosticosRevisao.size} linha(s) de horário para revisar", style = MaterialTheme.typography.titleSmall)
+                        Text(if (diagnosticosRevisao.isNotEmpty()) "$ambiguos ambígua(s), $semCorrespondencia sem correspondência e $componenteAusente sem componente. Nada foi atribuído automaticamente." else "Os vínculos podem ser ajustados neste aparelho, sem alterar o SGE.",
+                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onTertiaryContainer)
+                    }
+                    TextButton(onClick = {
+                        aoAgrupar(Agrupamento.TURMA)
+                        aoAplicarFiltro(filtroAvancado.copy(qualificador = "sem_vinculo", estado = 0))
+                    }) { Text("Revisar") }
+                }
+            }
         }
         if (escola && por == Agrupamento.PROFESSOR) item(span = { GridItemSpan(maxLineSpan) }) {
             Surface(shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.primaryContainer) {
@@ -272,9 +373,11 @@ fun TelaCartoes(
                     }
                     DropdownMenu(expanded = menuFiltro, onDismissRequest = { menuFiltro = false }) {
                         listOf("Todas as situações", "Pendências", "A conferir", "Em dia").forEachIndexed { i, label ->
-                            DropdownMenuItem(text = { Text(label) }, onClick = { filtro = i; menuFiltro = false },
+                            DropdownMenuItem(text = { Text(label) }, onClick = { aoAplicarFiltro(filtroAvancado.copy(estado = i, qualificador = "")); menuFiltro = false },
                                 trailingIcon = if (filtro == i) ({ Icon(SgeIcons.Check, null, Modifier.size(17.dp)) }) else null)
                         }
+                        HorizontalDivider()
+                        DropdownMenuItem(text = { Text("Filtros detalhados…") }, onClick = { menuFiltro = false; aoFiltros() })
                     }
                 }
             }
@@ -298,7 +401,7 @@ fun TelaCartoes(
         }
         items(visiveis, key = { it.chave }) { grupo ->
             Box(Modifier.animateItemPlacement(tween(SgeMotion.duration(190))).graphicsLayer { alpha = alphaCartoes.value }) {
-                CartaoGrupo(grupo, por, selecionado = grupo.chave == selecionada) { aoAbrir(grupo) }
+                CartaoGrupo(grupo, por, selecionado = grupo.chave == selecionada, mudancas = mudancas) { aoAbrir(grupo) }
             }
         }
         item(span = { GridItemSpan(maxLineSpan) }) {
@@ -309,4 +412,32 @@ fun TelaCartoes(
     if (mostrarMensagem) AlertDialog(onDismissRequest = { mostrarMensagem = false }, title = { Text("Última atualização") },
         text = { Text(if (escola) coord.mensagem else painel.mensagem) },
         confirmButton = { TextButton(onClick = { mostrarMensagem = false }) { Text("Entendi") } })
+    if (mostrarComparacao) ModalBottomSheet(onDismissRequest = { mostrarComparacao = false }) {
+        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 22.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text("Mudanças desde a consulta anterior", style = MaterialTheme.typography.headlineSmall)
+            Text("Só comparamos a mesma turma, os mesmos componentes e módulos com cobertura completa nos dois momentos. Dados ausentes, parciais ou não configurados ficam fora.",
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            mudancas.groupBy { it.turmaId }.toSortedMap().forEach { (_, lista) ->
+                Text(lista.first().turma, style = MaterialTheme.typography.titleMedium)
+                lista.sortedBy { it.indice }.forEach { m ->
+                    val corMudanca = when { m.delta < 0 -> MaterialTheme.colorScheme.tertiary; m.delta > 0 -> MaterialTheme.colorScheme.error; else -> MaterialTheme.colorScheme.onSurfaceVariant }
+                    Text("${SgeDashboard.nomes[m.indice]} · ${m.anterior} → ${m.atual}" + when {
+                        m.delta < 0 -> " · melhorou ${kotlin.math.abs(m.delta)}"
+                        m.delta > 0 -> " · aumentou ${m.delta}"
+                        else -> " · sem alteração"
+                    }, style = MaterialTheme.typography.bodyMedium, color = corMudanca)
+                }
+                HorizontalDivider()
+            }
+            Spacer(Modifier.height(18.dp))
+        }
+    }
+    if (mostrarSalvarFiltro) AlertDialog(onDismissRequest = { mostrarSalvarFiltro = false }, title = { Text("Salvar filtro atual") },
+        text = { OutlinedTextField(value = nomeFiltro, onValueChange = { nomeFiltro = it.take(40) }, singleLine = true, label = { Text("Nome do filtro") }) },
+        confirmButton = { Button(onClick = {
+            nomeFiltro.trim().takeIf { it.isNotBlank() }?.let { aoSalvarFiltro(FiltroSalvo(UUID.randomUUID().toString(), it, filtroAvancado)) }
+            mostrarSalvarFiltro = false
+        }, enabled = nomeFiltro.isNotBlank()) { Text("Salvar") } },
+        dismissButton = { TextButton(onClick = { mostrarSalvarFiltro = false }) { Text("Cancelar") } })
 }

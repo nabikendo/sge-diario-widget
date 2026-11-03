@@ -86,7 +86,10 @@ class SgeReadClient(cookies: String, private val userAgent: String, private val 
         check(it.isNotEmpty()) { "O SGE não retornou a lista de professores do perfil Unidade escolar." }
     }
 
-    fun vinculosDocente(professor: DocenteRef, turmas: List<Pair<String, String>>): List<VinculoDocente> {
+    fun vinculosDocente(professor: DocenteRef, turmas: List<Pair<String, String>>): List<VinculoDocente> =
+        analisarVinculosDocente(professor, turmas).vinculos
+
+    fun analisarVinculosDocente(professor: DocenteRef, turmas: List<Pair<String, String>>): ResultadoVinculosDocente {
         val form = horarioHtml()
         val doc = Jsoup.parse(form)
         val escola = doc.selectFirst("#EscolaId")?.let { el ->
@@ -96,7 +99,7 @@ class SgeReadClient(cookies: String, private val userAgent: String, private val 
             "dataReferencia" to LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM/uuuu")),
             "tipo" to SgeDocentesParsing.tipoHorario(form), "colaboradorId" to professor.id,
             "escolaId" to escola, "turno" to "", "somenteConflitos" to "false")))
-        return SgeDocentesParsing.vinculos(json.getString("html"), professor, turmas)
+        return SgeDocentesParsing.analisarVinculos(json.getString("html"), professor, turmas)
     }
 
     fun turmas(): List<TurmaMonitorada> {

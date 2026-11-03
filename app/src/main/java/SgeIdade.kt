@@ -1,7 +1,10 @@
 package br.to.seduc.sgediariowidget.data
 
 import java.time.Duration
+import java.time.Instant
 import java.time.LocalDateTime
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
 /** Idade do dado de cada turma: o SGE Diário guarda "dd/MM HH:mm" da última consulta. */
 object SgeIdade {
@@ -17,12 +20,20 @@ object SgeIdade {
         }.getOrNull()
     }
     fun horas(s: String, agora: LocalDateTime): Long? = parse(s, agora)?.let { Duration.between(it, agora).toHours().coerceAtLeast(0) }
+    fun horas(timestampMs: Long, agoraMs: Long = System.currentTimeMillis()): Long? =
+        timestampMs.takeIf { it > 0L }?.let { Duration.between(Instant.ofEpochMilli(it), Instant.ofEpochMilli(agoraMs)).toHours().coerceAtLeast(0) }
+    fun dataHora(timestampMs: Long): String = Instant.ofEpochMilli(timestampMs).atZone(ZoneId.systemDefault())
+        .format(DateTimeFormatter.ofPattern("dd/MM HH:mm"))
     /** Verde até 6 h, âmbar até 24 h, vermelho acima disso. */
     fun faixa(horas: Long) = if (horas < 6) Faixa.RECENTE else if (horas < 24) Faixa.MEDIA else Faixa.ANTIGA
     fun texto(horas: Long) = if (horas < 1) "há menos de 1 h" else if (horas < 48) "há $horas h" else "há ${horas / 24} dias"
     /** Num cartão com várias consultas vale a mais antiga: é a que limita a confiança no resumo. */
     fun maisAntiga(rs: List<ResultadoTurma>, agora: LocalDateTime): Long? = rs.mapNotNull { horas(it.atualizado, agora) }.maxOrNull()
     fun maisRecente(rs: List<ResultadoTurma>, agora: LocalDateTime): Long? = rs.mapNotNull { horas(it.atualizado, agora) }.minOrNull()
+    fun maisAntigaPorModulo(rs: List<ResultadoTurma>, agora: LocalDateTime): Long? = rs.flatMap { r ->
+        (0..4).mapNotNull { i -> r.modulos.getOrNull(i)?.atualizadoMs?.takeIf { it > 0L }?.let { horas(it) }
+            ?: horas(r.atualizado, agora) }
+    }.maxOrNull()
 }
 
 /** Busca global: todos os termos precisam aparecer em turma, componente ou professor. */

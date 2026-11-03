@@ -33,14 +33,14 @@ object SgeHistorico {
     }
     fun json(dias: List<DiaHistorico>): String = JSONArray().also { a -> dias.forEach { d -> a.put(JSONObject()
         .put("dia", d.data.toString()).put("fonte", d.fonte.name).put("medicoes", JSONArray().also { ms -> d.medicoes.forEach { m ->
-            ms.put(JSONObject().put("chave", m.chave).put("turma", m.turmaId).put("modulos", JSONArray().also { mm -> m.modulos.forEach { mm.put(JSONArray().put(it.quantidade ?: JSONObject.NULL).put(it.aguardando).put(it.aprovados).put(it.coberturaCompleta)) } }))
+            ms.put(JSONObject().put("chave", m.chave).put("turma", m.turmaId).put("modulos", JSONArray().also { mm -> m.modulos.forEach { mm.put(JSONArray().put(it.quantidade ?: JSONObject.NULL).put(it.aguardando).put(it.aprovados).put(it.coberturaCompleta).put(it.atualizadoMs)) } }))
         } })) } }.toString()
     fun ler(raw: String): List<DiaHistorico> {
         val a = JSONArray(raw)
         return (0 until a.length()).map { i -> val d = a.getJSONObject(i); val ms = d.getJSONArray("medicoes")
             DiaHistorico(LocalDate.parse(d.getString("dia")), FontePainel.valueOf(d.getString("fonte")), (0 until ms.length()).map { j ->
                 val m = ms.getJSONObject(j); val mm = m.getJSONArray("modulos")
-                MedicaoHistorica(m.getString("chave"), m.getString("turma"), (0 until mm.length()).map { k -> mm.getJSONArray(k).let { v -> ResultadoModulo(if (v.isNull(0)) null else v.getInt(0), "", v.getInt(1), v.getInt(2), v.getBoolean(3)) } })
+                MedicaoHistorica(m.getString("chave"), m.getString("turma"), (0 until mm.length()).map { k -> mm.getJSONArray(k).let { v -> ResultadoModulo(if (v.isNull(0)) null else v.getInt(0), "", v.getInt(1), v.getInt(2), v.getBoolean(3), if (v.length() > 4) v.getLong(4) else 0L) } })
             }) }
     }
 }
