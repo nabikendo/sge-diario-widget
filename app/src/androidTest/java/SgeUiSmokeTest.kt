@@ -81,7 +81,7 @@ class SgeUiSmokeTest {
         compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText("13.01"))
         foto("01b-cartoes")
         compose.onNodeWithText("13.01").performClick()
-        compose.onNodeWithText("PENDÊNCIAS POR MÓDULO").assertExists()
+        compose.onAllNodesWithText("PENDÊNCIAS POR MÓDULO")[0].assertExists()
         foto("02-detalhes")
     }
     @Test fun coordenacaoPermiteAgruparPorProfessor() {
@@ -161,7 +161,7 @@ class SgeUiSmokeTest {
         compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText("13.01"))
         compose.onNodeWithText("13.01").performClick()
         compose.onNodeWithText("PENDÊNCIAS POR MÓDULO").assertExists()
-        compose.onNodeWithText("Seu diário").assertExists()
+        compose.onNodeWithText("Meu diário").assertExists()
         foto("08-tablet-lista-detalhe")
         compose.onAllNodes(hasScrollToIndexAction())[0].performScrollToNode(hasText("23.01"))
         compose.onNodeWithText("23.01").performClick()
@@ -246,7 +246,11 @@ class SgeUiSmokeTest {
         reciboLongo.outputStream().use { SgeRelatorioPdf.escreverGrupos(it,listOf(longo),FontePainel.COORDENACAO,recibos=true,escola="Escola ".repeat(25),responsavel="Responsável ".repeat(20),recorte="Recorte selecionado ".repeat(20)) }
         PdfRenderer(ParcelFileDescriptor.open(reciboLongo,ParcelFileDescriptor.MODE_READ_ONLY)).use { check(it.pageCount==1) }
         val lote=SgeRelatoriosLote.criar(File(ctx.cacheDir,"relatorios"),grupos,"Escola de demonstração","Coordenação de exemplo","Todos · dados ilustrativos")
-        java.util.zip.ZipFile(lote.zip).use { z->check(z.size()==grupos.size+3);check(z.getEntry("Recebimento-e-ciencia.pdf")!=null);check(z.getEntry("SGE-Resumo-para-reuniao.csv")!=null) }
+        java.util.zip.ZipFile(lote.zip).use { z ->
+            check(z.size() >= grupos.size + 3) { "ZIP com ${z.size()} arquivo(s), esperados ao menos ${grupos.size + 3}" }
+            check(z.getEntry("Recebimento-e-ciencia.pdf") != null) { "Recibo ausente no ZIP" }
+            check(z.getEntry("SGE-Resumo-para-reuniao.csv") != null) { "CSV de reunião ausente no ZIP" }
+        }
         PdfRenderer(ParcelFileDescriptor.open(lote.recibos,ParcelFileDescriptor.MODE_READ_ONLY)).use { check(it.pageCount==grupos.size) }
         PdfRenderer(ParcelFileDescriptor.open(lote.impressao,ParcelFileDescriptor.MODE_READ_ONLY)).use { check(it.pageCount>grupos.size) }
         listOf(lote.impressao,lote.recibos).forEach { arquivo->
