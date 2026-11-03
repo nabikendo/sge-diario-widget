@@ -1,6 +1,8 @@
 package br.to.seduc.sgediariowidget
 
 import android.os.Build
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
@@ -96,12 +98,15 @@ fun Segmentado(opcoes: List<String>, selecionado: Int, aoSelecionar: (Int) -> Un
         .background(MaterialTheme.colorScheme.surfaceVariant).padding(4.dp)) {
         opcoes.forEachIndexed { i, texto ->
             val ativo = i == selecionado
+            val fundo by animateColorAsState(if (ativo) MaterialTheme.colorScheme.surface else Color.Transparent,
+                animationSpec = tween(SgeMotion.duration(150)), label = "fundoSegmento$i")
+            val corTexto by animateColorAsState(if (ativo) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+                animationSpec = tween(SgeMotion.duration(150)), label = "textoSegmento$i")
             Box(Modifier.weight(1f).clip(RoundedCornerShape(11.dp))
-                .background(if (ativo) MaterialTheme.colorScheme.surface else Color.Transparent)
+                .background(fundo)
                 .selectable(selected = ativo, role = Role.Tab, onClick = { aoSelecionar(i) })
                 .padding(vertical = 11.dp, horizontal = 3.dp), contentAlignment = Alignment.Center) {
-                Text(texto, style = MaterialTheme.typography.labelLarge,
-                    color = if (ativo) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(texto, style = MaterialTheme.typography.labelLarge, color = corTexto)
             }
         }
     }

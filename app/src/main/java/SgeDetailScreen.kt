@@ -1,6 +1,10 @@
 package br.to.seduc.sgediariowidget
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.rememberScrollState
@@ -96,7 +100,8 @@ fun TelaDetalhes(grupo: GrupoPendencias, fonte: FontePainel, docentes: PainelDoc
     val estado = when { (resumo.quantidade ?: 0) > 0 -> EstadoGrupo.PENDENTE
         !resumo.completa -> EstadoGrupo.CONFERIR; else -> EstadoGrupo.EM_DIA }
     val cor = corEstado(estado)
-    Surface(color = MaterialTheme.colorScheme.surface, shape = MaterialTheme.shapes.large,
+    Surface(modifier = Modifier.animateContentSize(tween(SgeMotion.duration(180))),
+        color = MaterialTheme.colorScheme.surface, shape = MaterialTheme.shapes.large,
         border = BorderStroke(.6.dp, MaterialTheme.colorScheme.outlineVariant)) {
         Column {
             Column(Modifier.fillMaxWidth().clickable { aberto = !aberto }.padding(19.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -126,7 +131,8 @@ fun TelaDetalhes(grupo: GrupoPendencias, fonte: FontePainel, docentes: PainelDoc
                 if (resumo.aprovados > 0) Text("${resumo.aprovados} documento(s) aprovado(s)", style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.tertiary)
             }
-            AnimatedVisibility(aberto) {
+            AnimatedVisibility(visible = aberto, enter = fadeIn(tween(SgeMotion.duration(130))),
+                exit = fadeOut(tween(SgeMotion.duration(100)))) {
                 Column(Modifier.padding(start = 19.dp, end = 19.dp, bottom = 19.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     grupo.resultados.forEach { r ->

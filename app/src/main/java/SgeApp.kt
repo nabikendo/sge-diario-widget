@@ -151,7 +151,7 @@ fun AppDiario(
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) { Box(Modifier.widthIn(max = if (pagina != null || (detalhe != null && !largo)) 820.dp else 1440.dp).fillMaxSize()) {
                 if (protegida) TelaCoordenacaoProtegida(aoDesbloquear) else AnimatedContent(targetState = RotaSge(aba, pagina, detalhe, fonteDetalhe),
                     contentKey = { it.pagina ?: if (largo && it.aba != 2) "aba:${it.aba}" else it.grupo?.let { g -> "detalhe:${g.chave}" } ?: "aba:${it.aba}" },
-                    transitionSpec = { (fadeIn(tween(170)) + slideInHorizontally(tween(200)) { it / 14 }) togetherWith fadeOut(tween(100)) },
+                    transitionSpec = { (fadeIn(tween(SgeMotion.duration(170))) + slideInHorizontally(tween(SgeMotion.duration(200))) { it / 14 }) togetherWith fadeOut(tween(SgeMotion.duration(100))) },
                     label = "navegacao") { rota ->
                     when {
                         rota.pagina == "ajustes" -> TelaAjustes(tema, cor, versao, aoTema, aoCor, { pagina = "widgets" }, { pagina = "ajuda" },
@@ -192,10 +192,16 @@ fun AppDiario(
                                 Box(Modifier.weight(.43f).fillMaxHeight()) { lista() }
                                 VerticalDivider(Modifier.fillMaxHeight())
                                 Box(Modifier.weight(.57f).fillMaxHeight()) {
-                                    if (rota.grupo != null) detalhes(rota.grupo) else Column(Modifier.fillMaxSize().padding(30.dp), verticalArrangement = Arrangement.Center) {
-                                        Icon(SgeIcons.Cards, null, Modifier.size(38.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                                        Spacer(Modifier.height(16.dp)); Text("Escolha um cartão", style = MaterialTheme.typography.headlineSmall)
-                                        Text("Os detalhes aparecem aqui. A lista permanece ao lado para você trocar de turma, componente ou professor.", style = MaterialTheme.typography.bodyMedium)
+                                    AnimatedContent(targetState = rota.grupo, contentKey = { it?.chave },
+                                        transitionSpec = {
+                                            (fadeIn(tween(SgeMotion.duration(150))) + slideInHorizontally(tween(SgeMotion.duration(180))) { it / 20 }) togetherWith
+                                                (fadeOut(tween(SgeMotion.duration(110))) + slideOutHorizontally(tween(SgeMotion.duration(150))) { -it / 24 })
+                                        }, label = "detalheLargo") { grupo ->
+                                        if (grupo != null) detalhes(grupo) else Column(Modifier.fillMaxSize().padding(30.dp), verticalArrangement = Arrangement.Center) {
+                                            Icon(SgeIcons.Cards, null, Modifier.size(38.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                            Spacer(Modifier.height(16.dp)); Text("Escolha um cartão", style = MaterialTheme.typography.headlineSmall)
+                                            Text("Os detalhes aparecem aqui. A lista permanece ao lado para você trocar de turma, componente ou professor.", style = MaterialTheme.typography.bodyMedium)
+                                        }
                                     }
                                 }
                             } else if (rota.grupo != null) detalhes(rota.grupo) else lista()
@@ -258,13 +264,16 @@ fun AppDiario(
         Row(Modifier.padding(6.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             listOf("Meu diário", "Coordenação", "SGE Web").forEachIndexed { i, label ->
             if (i !in visiveis) return@forEachIndexed
-                Surface(Modifier.weight(1f), shape = RoundedCornerShape(24.dp),
-                    color = if (i == aba) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface) {
+                val ativa = i == aba
+                val fundo by animateColorAsState(if (ativa) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
+                    tween(SgeMotion.duration(160)), label = "fundoAba$i")
+                val corConteudo by animateColorAsState(if (ativa) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    tween(SgeMotion.duration(160)), label = "conteudoAba$i")
+                Surface(Modifier.weight(1f), shape = RoundedCornerShape(24.dp), color = fundo) {
                     Column(Modifier.selectable(i == aba, role = Role.Tab, onClick = { escolher(i) }).padding(vertical = 10.dp),
                         horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        val cor = if (i == aba) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                        Icon(listOf(SgeIcons.Cards, SgeIcons.People, SgeIcons.Globe)[i], null, Modifier.size(21.dp), tint = cor)
-                        Text(label, style = MaterialTheme.typography.labelSmall, color = cor, maxLines = 1)
+                        Icon(listOf(SgeIcons.Cards, SgeIcons.People, SgeIcons.Globe)[i], null, Modifier.size(21.dp), tint = corConteudo)
+                        Text(label, style = MaterialTheme.typography.labelSmall, color = corConteudo, maxLines = 1)
                     }
                 }
             }

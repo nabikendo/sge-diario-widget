@@ -1,10 +1,20 @@
-@file:OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@file:OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
 package br.to.seduc.sgediariowidget
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.*
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -147,6 +157,19 @@ fun TelaCartoes(
     var mostrarBusca by rememberSaveable(fonte.name) { mutableStateOf(false) }
     var menuFiltro by remember { mutableStateOf(false) }
     var mostrarMensagem by remember { mutableStateOf(false) }
+    val alphaCartoes = remember { Animatable(1f) }
+    var agrupamentoAnterior by remember { mutableStateOf(por) }
+    LaunchedEffect(por) {
+        if (agrupamentoAnterior != por) {
+            agrupamentoAnterior = por
+            val duracao = SgeMotion.duration(160)
+            if (duracao == 0) alphaCartoes.snapTo(1f)
+            else {
+                alphaCartoes.snapTo(.9f)
+                alphaCartoes.animateTo(1f, tween(duracao))
+            }
+        }
+    }
     val focoBusca = remember { FocusRequester() }
     LaunchedEffect(SgeUi.buscaPedida) { if (SgeUi.buscaPedida > 0) mostrarBusca = true }
     LaunchedEffect(mostrarBusca) { if (mostrarBusca) runCatching { focoBusca.requestFocus() } }
@@ -186,12 +209,18 @@ fun TelaCartoes(
         }
         item(span = { GridItemSpan(maxLineSpan) }) {
             Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                if (carregando) LinearProgressIndicator(Modifier.fillMaxWidth())
+                AnimatedVisibility(visible = carregando, enter = fadeIn(tween(SgeMotion.duration(130))),
+                    exit = fadeOut(tween(SgeMotion.duration(110)))) {
+                    LinearProgressIndicator(Modifier.fillMaxWidth())
+                }
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Text(if (escola) coord.mensagem else painel.mensagem,
+                    AnimatedContent(targetState = if (escola) coord.mensagem else painel.mensagem,
                         modifier = Modifier.weight(1f).clickable { mostrarMensagem = true }.padding(vertical = 4.dp),
-                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 2, overflow = TextOverflow.Ellipsis)
+                        transitionSpec = { fadeIn(tween(SgeMotion.duration(140))) togetherWith fadeOut(tween(SgeMotion.duration(100))) },
+                        label = "mensagemAtualizacao") { mensagem ->
+                        Text(mensagem, modifier = Modifier.fillMaxWidth(), style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    }
                     if (escola) TextButton(onClick = aoCarregarTurmas) { Text(if (conhecidas.isEmpty()) "Carregar turmas" else "Reler turmas") }
                 }
             }
@@ -250,11 +279,15 @@ fun TelaCartoes(
                 }
             }
         }
-        if (mostrarBusca || busca.isNotBlank()) item(span = { GridItemSpan(maxLineSpan) }) {
-            OutlinedTextField(value = busca, onValueChange = { busca = it }, modifier = Modifier.fillMaxWidth().focusRequester(focoBusca), singleLine = true,
-                placeholder = { Text("Buscar turma, disciplina ou professor") }, leadingIcon = { Icon(SgeIcons.Search, null, Modifier.size(19.dp)) },
-                trailingIcon = ({ IconButton(onClick = { busca = ""; mostrarBusca = false }) { Icon(SgeIcons.Close, "Fechar busca", Modifier.size(17.dp)) } }),
-                shape = MaterialTheme.shapes.medium)
+        item(span = { GridItemSpan(maxLineSpan) }, key = "busca:${fonte.name}") {
+            AnimatedVisibility(visible = mostrarBusca || busca.isNotBlank(),
+                enter = expandVertically(tween(SgeMotion.duration(180))) + fadeIn(tween(SgeMotion.duration(130))),
+                exit = shrinkVertically(tween(SgeMotion.duration(150))) + fadeOut(tween(SgeMotion.duration(100)))) {
+                OutlinedTextField(value = busca, onValueChange = { busca = it }, modifier = Modifier.fillMaxWidth().focusRequester(focoBusca), singleLine = true,
+                    placeholder = { Text("Buscar turma, disciplina ou professor") }, leadingIcon = { Icon(SgeIcons.Search, null, Modifier.size(19.dp)) },
+                    trailingIcon = ({ IconButton(onClick = { busca = ""; mostrarBusca = false }) { Icon(SgeIcons.Close, "Fechar busca", Modifier.size(17.dp)) } }),
+                    shape = MaterialTheme.shapes.medium)
+            }
         }
         if (grupos.isEmpty()) item(span = { GridItemSpan(maxLineSpan) }) {
             MensagemVazia(if (escola) "Conecte sua escola" else "Seu diário começa aqui",
@@ -263,7 +296,11 @@ fun TelaCartoes(
         } else if (visiveis.isEmpty()) item(span = { GridItemSpan(maxLineSpan) }) {
             MensagemVazia("Nenhum cartão neste filtro", "Mude a busca ou o estado selecionado para visualizar outros resultados.")
         }
-        items(visiveis, key = { it.chave }) { grupo -> CartaoGrupo(grupo, por, selecionado = grupo.chave == selecionada) { aoAbrir(grupo) } }
+        items(visiveis, key = { it.chave }) { grupo ->
+            Box(Modifier.animateItemPlacement(tween(SgeMotion.duration(190))).graphicsLayer { alpha = alphaCartoes.value }) {
+                CartaoGrupo(grupo, por, selecionado = grupo.chave == selecionada) { aoAbrir(grupo) }
+            }
+        }
         item(span = { GridItemSpan(maxLineSpan) }) {
             Text("As contagens se referem à última consulta. Aguardando avaliação aparece nos detalhes e não conta como pendência do professor.",
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)

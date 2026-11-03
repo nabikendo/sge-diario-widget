@@ -1,5 +1,6 @@
 package br.to.seduc.sgediariowidget
 
+import android.animation.ValueAnimator
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
@@ -10,6 +11,11 @@ import androidx.compose.runtime.setValue
 import br.to.seduc.sgediariowidget.data.GrupoPendencias
 import br.to.seduc.sgediariowidget.data.SgePainelStore
 import br.to.seduc.sgediariowidget.data.SgePrivacidade
+
+/** Duração comum de movimento, respeitando a escala de animações configurada no Android. */
+object SgeMotion {
+    fun duration(requestedMillis: Int): Int = if (ValueAnimator.areAnimatorsEnabled()) requestedMillis else 0
+}
 
 /** Preferências de interface lidas pelas telas: privacidade, fonte maior, alto contraste e pedido de busca pelo teclado. */
 object SgeUi {
