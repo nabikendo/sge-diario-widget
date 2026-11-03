@@ -16,9 +16,12 @@ object SgeConfiguracao {
 
 /** Diagnóstico enxuto: consultas com o mesmo módulo e o mesmo motivo viram uma única linha com contagem. */
 object SgeDiagnosticoAgrupado {
+    /** Mantém os nomes e códigos dos períodos não reconhecidos (sem mascarar números), para que o diagnóstico permita corrigir a leitura. */
+    private fun semDatas(d: String): String? = d.substringAfter("não contados: ", "").substringBefore(". Valor parcial", "")
+        .replace(Regex("\\s+"), " ").trim().takeIf { it.isNotEmpty() }?.let { "períodos sem datas: ${it.take(160)}" }
     private fun motivo(m: ResultadoModulo): String = when {
         m.naoConfigurado -> "periodicidade não definida"
-        else -> m.detalhe.replace(Regex("\\s+"), " ").replace(Regex("\\d+"), "#").trim().take(110)
+        else -> semDatas(m.detalhe) ?: m.detalhe.replace(Regex("\\s+"), " ").replace(Regex("\\d+"), "#").trim().take(110)
     }
     fun linhas(resultados: List<ResultadoTurma>): List<String> {
         data class Chave(val modulo: Int, val motivo: String, val resumo: String)

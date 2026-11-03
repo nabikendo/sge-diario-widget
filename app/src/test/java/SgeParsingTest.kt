@@ -88,4 +88,9 @@ class SgeParsingTest {
         assertEquals(LocalDate.of(2026, 7, 1), SgeParsing.janelaOuNull("2º semestre", "2", 2026)!!.first)
         assertEquals(null, SgeParsing.janelaOuNull("Período especial", "19", 2026))
     }
+    @Test fun numeroDoBimestreAceitaFormasComuns() {
+        listOf("1º Bimestre" to 1, "2ª bimestre" to 2, "Bimestre 3" to 3, "IV Bimestre" to 4, "Quarto Bimestre" to 4, "3o bim." to 3, "Bimestre - 2" to 2, "Bimestre I" to 1)
+            .forEach { (d, n) -> assertEquals(d, n, SgeParsing.numeroBimestre(d)) }
+        assertEquals(null, SgeParsing.numeroBimestre("Período especial")); assertEquals(null, SgeParsing.numeroBimestre("5º Bimestre"))
+    }
 }

@@ -328,9 +328,7 @@ class SgeReadClient(cookies: String, private val userAgent: String, private val 
     }.getOrNull()
     /** "Primeiro Bimestre" ou "1º bimestre": pede ao próprio SGE as datas do bimestre (numeração detectada uma vez). */
     private fun janelaBimestre(descricao: String, turmaId: String): Pair<LocalDate, LocalDate>? {
-        val achado = Regex("(?:(\\d)\\s*[º°ªo]?|(primeiro|segundo|terceiro|quarto))\\s*bimestre", RegexOption.IGNORE_CASE).find(descricao) ?: return null
-        val n = achado.groupValues[1].toIntOrNull()
-            ?: (listOf("primeiro", "segundo", "terceiro", "quarto").indexOf(achado.groupValues[2].lowercase()) + 1)
+        val n = SgeParsing.numeroBimestre(descricao) ?: return null
         if (n !in 1..4) return null
         val zero = bimestreZero ?: (janelaDoBimestre("0", turmaId) != null).also { bimestreZero = it }
         return janelaDoBimestre((if (zero) n - 1 else n).toString(), turmaId)
@@ -352,6 +350,15 @@ object SgeParsing {
                 .find(month.select(".mes-subtitulo").text())?.groupValues?.get(2)?.toIntOrNull()
             if (numero in 1..12 && total != null && total > 0) YearMonth.of(ano, numero) else null
         }.toSet()
+    }
+    private val ordinais = mapOf("primeiro" to 1, "segundo" to 2, "terceiro" to 3, "quarto" to 4, "i" to 1, "ii" to 2, "iii" to 3, "iv" to 4)
+    private val bimNumeroAntes = Regex("(?<![\\p{L}\\d])(\\d|primeiro|segundo|terceiro|quarto|iv|iii|ii|i)\\s*[º°ªo]?\\s*[-.]?\\s*(?:bimestre|bim)(?![\\p{L}])", RegexOption.IGNORE_CASE)
+    private val bimNumeroDepois = Regex("(?<![\\p{L}])(?:bimestre|bim)\\.?\\s*[-:nº°.]*\\s*(\\d|primeiro|segundo|terceiro|quarto|iv|iii|ii|i)(?![\\p{L}\\d])", RegexOption.IGNORE_CASE)
+    /** Número (1 a 4) de um período descrito como "1º Bimestre", "Bimestre 1", "II Bim." etc.; null se não reconhecido. */
+    fun numeroBimestre(descricao: String): Int? {
+        val bruto = (bimNumeroAntes.find(descricao) ?: bimNumeroDepois.find(descricao))?.groupValues?.get(1)?.lowercase() ?: return null
+        val n = bruto.toIntOrNull() ?: ordinais[bruto] ?: return null
+        return n.takeIf { it in 1..4 }
     }
     private val abreviacoes = listOf("jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez")
     /** Identifica a janela de datas de um período do SGE; devolve null quando o formato não é reconhecido (nunca estima). */
