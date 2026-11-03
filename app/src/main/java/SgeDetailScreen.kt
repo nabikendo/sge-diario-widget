@@ -22,11 +22,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.sp
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -148,25 +151,35 @@ private fun rotuloDia(d: LocalDate) = d.dayOfWeek.getDisplayName(java.time.forma
             }
             horas?.let { h ->
                 Text("Dados mais antigos: ${SgeIdade.texto(h)}${if (h >= 24) " · confira no SGE antes de agir" else ""}",
-                    style = MaterialTheme.typography.labelMedium, color = if (h >= 24) Color(0xFF9F1239) else TintaMentaSuave)
+                    style = MaterialTheme.typography.labelMedium, color = if (h >= 24) StatusPendenteMenta else TintaMentaSuave)
             }
             if (dias.isNotEmpty()) Surface(color = Color.White.copy(alpha = .62f), shape = RoundedCornerShape(20.dp)) {
                 Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
                     Text("MAPA DO SGE · ${rotuloDia(dias.first().data)} a ${rotuloDia(dias.last().data)}", style = MaterialTheme.typography.labelSmall,
                         color = TintaMentaSuave, letterSpacing = 1.sp)
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        dias.forEach { d ->
-                            val (fundo, tinta, rotulo) = when (d.situacao) {
-                                SgeMapaDias.Situacao.PENDENTE -> Triple(Color(0xFFE11D48), Color.White, "Pendente")
-                                SgeMapaDias.Situacao.PARCIAL -> Triple(Color(0xFFF59E0B).copy(alpha = .35f), Color(0xFF78350F), "Parcial")
-                                SgeMapaDias.Situacao.REGULAR -> Triple(Color(0xFF047857).copy(alpha = .18f), TintaMenta, "Regular")
-                            }
-                            Surface(Modifier.weight(1f).semantics { contentDescription = "${rotuloDia(d.data)}: ${rotulo.lowercase()}" }, color = fundo, shape = RoundedCornerShape(14.dp)) {
-                                Column(Modifier.padding(vertical = 9.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                                    Text(d.data.dayOfWeek.getDisplayName(java.time.format.TextStyle.SHORT, Locale("pt", "BR")).replace(".", "").replaceFirstChar { it.uppercase() },
-                                        style = MaterialTheme.typography.labelSmall, color = tinta)
-                                    Text(d.data.format(diaCurto), style = MaterialTheme.typography.labelMedium, color = tinta)
-                                    Text(rotulo, style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp), color = tinta, maxLines = 1)
+                    BoxWithConstraints(Modifier.fillMaxWidth()) {
+                        val colunas = if (maxWidth < 420.dp) 3 else dias.size
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            dias.chunked(colunas).forEach { linha ->
+                                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    linha.forEach { d ->
+                                        val (fundo, tinta, rotulo) = when (d.situacao) {
+                                            SgeMapaDias.Situacao.PENDENTE -> Triple(MaterialTheme.colorScheme.errorContainer, MaterialTheme.colorScheme.onErrorContainer, "Pendente")
+                                            SgeMapaDias.Situacao.PARCIAL -> Triple(MaterialTheme.colorScheme.surfaceVariant, corAlerta(), "Parcial")
+                                            SgeMapaDias.Situacao.REGULAR -> Triple(MaterialTheme.colorScheme.tertiaryContainer, MaterialTheme.colorScheme.onTertiaryContainer, "Regular")
+                                        }
+                                        Surface(Modifier.weight(1f).semantics(mergeDescendants = true) {
+                                            contentDescription = "${rotuloDia(d.data)}: ${rotulo.lowercase()}"
+                                        }, color = fundo, shape = RoundedCornerShape(14.dp)) {
+                                            Column(Modifier.fillMaxWidth().padding(horizontal = 3.dp, vertical = 9.dp),
+                                                horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                                Text(d.data.dayOfWeek.getDisplayName(java.time.format.TextStyle.SHORT, Locale("pt", "BR")).replace(".", "").replaceFirstChar { it.uppercase() },
+                                                    style = MaterialTheme.typography.labelSmall, color = tinta)
+                                                Text(d.data.format(diaCurto), style = MaterialTheme.typography.labelMedium, color = tinta)
+                                                Text(rotulo, style = MaterialTheme.typography.bodySmall, color = tinta)
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -199,35 +212,42 @@ private fun rotuloDia(d: LocalDate) = d.dayOfWeek.getDisplayName(java.time.forma
         color = MaterialTheme.colorScheme.surface, shape = MaterialTheme.shapes.large,
         border = BorderStroke(.6.dp, MaterialTheme.colorScheme.outlineVariant)) {
         Column {
-            Column(Modifier.fillMaxWidth().clickable { aberto = !aberto }.padding(19.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Surface(color = cor.copy(alpha = .15f), shape = RoundedCornerShape(16.dp)) {
-                        Icon(iconeModulo(resumo.indice), null, Modifier.padding(11.dp).size(23.dp), tint = cor)
+            Column(Modifier.fillMaxWidth().padding(19.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Column(Modifier.fillMaxWidth().clickable(
+                    onClickLabel = "${if (aberto) "Recolher" else "Expandir"} detalhes de ${SgeDashboard.nomes[resumo.indice]}",
+                    role = Role.Button,
+                ) { aberto = !aberto }.semantics {
+                    stateDescription = if (aberto) "Expandido" else "Recolhido"
+                }, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Surface(color = cor.copy(alpha = .15f), shape = RoundedCornerShape(16.dp)) {
+                            Icon(iconeModulo(resumo.indice), null, Modifier.padding(11.dp).size(23.dp), tint = cor)
+                        }
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text(SgeDashboard.nomes[resumo.indice], style = MaterialTheme.typography.titleMedium)
+                            Text(if (resumo.naoConfigurado) "Não configurado" else if (resumo.quantidade == null) "Não verificado" else "${resumo.valor()} ${resumo.unidade()} ${if (resumo.quantidade == 1) "pendente" else "pendentes"}",
+                                style = MaterialTheme.typography.bodyMedium, color = if (resumo.naoConfigurado) MaterialTheme.colorScheme.onSurfaceVariant else cor)
+                        }
+                        etiquetaDatas?.let { Surface(color = cor.copy(alpha = .15f), shape = CircleShape) {
+                            Text(it, Modifier.padding(horizontal = 9.dp, vertical = 4.dp), style = MaterialTheme.typography.labelSmall, color = cor)
+                        } }
+                        Icon(SgeIcons.Chevron, null,
+                            Modifier.size(17.dp).rotate(if (aberto) 270f else 90f), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        Text(SgeDashboard.nomes[resumo.indice], style = MaterialTheme.typography.titleMedium)
-                        Text(if (resumo.naoConfigurado) "Não configurado" else if (resumo.quantidade == null) "Não verificado" else "${resumo.valor()} ${resumo.unidade()} ${if (resumo.quantidade == 1) "pendente" else "pendentes"}",
-                            style = MaterialTheme.typography.bodyMedium, color = if (resumo.naoConfigurado) MaterialTheme.colorScheme.onSurfaceVariant else cor)
+                    Text(SgeDashboard.descricoes[resumo.indice], style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    if (resumo.naoConfigurado) Text("O professor ainda não definiu a periodicidade no SGE; não há como saber quantos documentos deveriam existir.",
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    else if (!resumo.completa) Text(if (resumo.quantidade == null) "A consulta não confirma uma contagem para este módulo."
+                        else "* Parte dos dados não está conferida. O valor conhecido pode aumentar.",
+                        style = MaterialTheme.typography.bodySmall, color = corAlerta())
+                    if (resumo.aguardando > 0) Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = MaterialTheme.shapes.small) {
+                        Text("${resumo.aguardando} aguardando avaliação · fora das pendências", Modifier.padding(9.dp),
+                            style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
                     }
-                    etiquetaDatas?.let { Surface(color = cor.copy(alpha = .15f), shape = CircleShape) {
-                        Text(it, Modifier.padding(horizontal = 9.dp, vertical = 4.dp), style = MaterialTheme.typography.labelSmall, color = cor)
-                    } }
-                    Icon(if (aberto) SgeIcons.Close else SgeIcons.Chevron, if (aberto) "Recolher" else "Ver detalhes",
-                        Modifier.size(17.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    if (resumo.aprovados > 0) Text("${resumo.aprovados} documento(s) aprovado(s)", style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.tertiary)
                 }
-                Text(SgeDashboard.descricoes[resumo.indice], style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-                if (resumo.naoConfigurado) Text("O professor ainda não definiu a periodicidade no SGE; não há como saber quantos documentos deveriam existir.",
-                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                else if (!resumo.completa) Text(if (resumo.quantidade == null) "A consulta não confirma uma contagem para este módulo."
-                    else "* Parte dos dados não está conferida. O valor conhecido pode aumentar.",
-                    style = MaterialTheme.typography.bodySmall, color = corAlerta())
-                if (resumo.aguardando > 0) Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = MaterialTheme.shapes.small) {
-                    Text("${resumo.aguardando} aguardando avaliação · fora das pendências", Modifier.padding(9.dp),
-                        style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
-                }
-                if (resumo.aprovados > 0) Text("${resumo.aprovados} documento(s) aprovado(s)", style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.tertiary)
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 val referencia = remember(grupo) { grupo.resultados.mapNotNull { r -> r.modulos.getOrNull(resumo.indice)?.let { SgeMapaDias.diasPendentes(it.detalhe).first } }.maxOrNull() }
                 val ultimaConsulta = grupo.resultados.map { it.atualizado }.filter { it.isNotBlank() }.lastOrNull()
@@ -238,8 +258,10 @@ private fun rotuloDia(d: LocalDate) = d.dayOfWeek.getDisplayName(java.time.forma
                         ultimaConsulta != null -> "Consulta $ultimaConsulta · horário aproximado"
                         else -> "Sem horário de consulta"
                     }, Modifier.weight(1f), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text(if ((resumo.quantidade ?: 0) > 0) when (resumo.indice) { 0 -> "Registrar aula →"; 1 -> "Concluir chamada →"; else -> "Abrir no SGE →" } else "Abrir no SGE →",
-                        Modifier.clickable(onClick = aoAbrirSge).padding(vertical = 4.dp), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                    TextButton(onClick = aoAbrirSge, contentPadding = PaddingValues(horizontal = 4.dp)) {
+                        Text(if ((resumo.quantidade ?: 0) > 0) when (resumo.indice) { 0 -> "Registrar aula →"; 1 -> "Concluir chamada →"; else -> "Abrir no SGE →" } else "Abrir no SGE →",
+                            style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                    }
                 }
             }
             AnimatedVisibility(visible = aberto, enter = fadeIn(tween(SgeMotion.duration(130))),

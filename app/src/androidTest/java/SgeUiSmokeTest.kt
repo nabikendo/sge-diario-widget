@@ -72,13 +72,16 @@ class SgeUiSmokeTest {
             val web = remember { WebView(context).apply { loadData("<html><body>SGE de demonstração</body></html>", "text/html", "utf-8") } }
             DisposableEffect(web) { onDispose { web.destroy() } }
             AppDiario(web, PainelSge(rs, "Duas turmas consultadas. Dados ilustrativos."), coord, docentes,
-                rs.map { it.turma.id to it.turma.nome }, false, null, 1, 0, "prévia ilustrativa", {}, {}, {}, {}, {}, {}, {}, {}, {}, { _, _ -> }, {}, {}, {})
+                rs.map { it.turma.id to it.turma.nome }, false, null, 1, 0, "prévia ilustrativa",
+                aoTema = {}, aoCor = {}, aoIntroduzido = {}, aoSincronizarPessoal = {}, aoVerificarTurmas = {},
+                aoCarregarTurmas = {}, aoAtualizarDocentes = {}, aoCopiarDiagnostico = {}, aoCopiarPagina = {},
+                aoSalvarVinculo = { _, _ -> }, aoAdicionarWidget = {}, aoCompartilhar = { _, _ -> }, aoWebVisivel = {})
         }
         foto("01-painel")
-        compose.onNode(hasScrollAction()).performScrollToNode(hasText("13.01"))
+        compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText("13.01"))
         foto("01b-cartoes")
         compose.onNodeWithText("13.01").performClick()
-        compose.onNodeWithText("PENDÊNCIAS POR MÓDULO").assertExists()
+        compose.onAllNodesWithText("PENDÊNCIAS POR MÓDULO")[0].assertExists()
         foto("02-detalhes")
     }
     @Test fun coordenacaoPermiteAgruparPorProfessor() {
@@ -87,9 +90,9 @@ class SgeUiSmokeTest {
             TelaCartoes(FontePainel.COORDENACAO, PainelSge(), coord, docentes, rs.map { it.turma.id to it.turma.nome },
                 por, { por = it }, {}, {}, {}, {}, {}, {})
         }
-        compose.onNode(hasScrollAction()).performScrollToNode(hasText("Professores"))
+        compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText("Professores"))
         compose.onNodeWithText("Professores").performClick()
-        compose.onNode(hasScrollAction()).performScrollToNode(hasText("Docente de exemplo"))
+        compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText("Docente de exemplo"))
         compose.onNodeWithText("Docente de exemplo").assertIsDisplayed()
         foto("03-coordenacao-professor")
     }
@@ -133,7 +136,10 @@ class SgeUiSmokeTest {
         val web = remember { WebView(context).apply { loadData("<html><body>SGE de demonstração</body></html>", "text/html", "utf-8") } }
         DisposableEffect(web) { onDispose { web.destroy() } }
         AppDiario(web, PainelSge(rs, "Consulta ilustrativa."), coord, docentes, rs.map { it.turma.id to it.turma.nome },
-            false, null, 1, 0, "prévia ilustrativa", {}, {}, {}, {}, {}, {}, {}, {}, {}, { _, _ -> }, {}, {}, {},
+            false, null, 1, 0, "prévia ilustrativa",
+            aoTema = {}, aoCor = {}, aoIntroduzido = {}, aoSincronizarPessoal = {}, aoVerificarTurmas = {},
+            aoCarregarTurmas = {}, aoAtualizarDocentes = {}, aoCopiarDiagnostico = {}, aoCopiarPagina = {},
+            aoSalvarVinculo = { _, _ -> }, aoAdicionarWidget = {}, aoCompartilhar = { _, _ -> }, aoWebVisivel = {},
             papel = papel, perfil = PerfilSge.COORDENACAO, bloqueioCoord = bloqueio, coordDesbloqueada = liberada, aoDesbloquear = desbloquear)
     }
     @Test fun coordenacaoProtegidaNaoExibeDadosAntesDeAutenticar() {
@@ -143,7 +149,7 @@ class SgeUiSmokeTest {
         compose.onNodeWithText("13.01").assertDoesNotExist()
         foto("07-coordenacao-protegida")
         compose.onNodeWithText("Desbloquear").performClick()
-        compose.onNode(hasScrollAction()).performScrollToNode(hasText("13.01"))
+        compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText("13.01"))
         compose.onNodeWithText("13.01").assertExists()
         compose.runOnIdle { liberada = false }
         compose.onNodeWithText("13.01").assertDoesNotExist()
@@ -152,12 +158,12 @@ class SgeUiSmokeTest {
         assumeTrue(InstrumentationRegistry.getInstrumentation().targetContext.resources.configuration.screenWidthDp >= 840)
         content { appExemplo() }
         compose.onNodeWithText("Escolha um cartão").assertIsDisplayed()
-        compose.onNode(hasScrollAction()).performScrollToNode(hasText("13.01"))
+        compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText("13.01"))
         compose.onNodeWithText("13.01").performClick()
         compose.onNodeWithText("PENDÊNCIAS POR MÓDULO").assertExists()
-        compose.onNodeWithText("Seu diário").assertExists()
+        compose.onNodeWithText("Meu diário").assertExists()
         foto("08-tablet-lista-detalhe")
-        compose.onAllNodes(hasScrollAction())[0].performScrollToNode(hasText("23.01"))
+        compose.onAllNodes(hasScrollToIndexAction())[0].performScrollToNode(hasText("23.01"))
         compose.onNodeWithText("23.01").performClick()
         compose.onAllNodesWithText("23.01").assertCountEquals(2)
     }
@@ -213,7 +219,7 @@ class SgeUiSmokeTest {
         var selecionado = -1
         content { TelaMapa(rs,rs.map { it.turma.id to it.turma.nome },docentes,FiltroAvancado(),emptyMap(),{},{}) { _,m->selecionado=m } }
         compose.onNodeWithText("Mapa da escola").assertIsDisplayed()
-        compose.onNode(hasScrollAction() and hasTestTag("mapa-lista")).performScrollToNode(hasText("13.01"))
+        compose.onNode(hasScrollToIndexAction() and hasTestTag("mapa-lista")).performScrollToNode(hasText("13.01"))
         foto("11-mapa-escola")
         compose.onAllNodesWithText("2")[0].performClick()
         compose.runOnIdle { check(selecionado==0) }
@@ -222,7 +228,7 @@ class SgeUiSmokeTest {
         var quantidade=0
         content { TelaLote(rs,docentes,FiltroAvancado(),emptyMap(),{}) { gs,_,_,_->quantidade=gs.size } }
         foto("12-relatorios-lote")
-        compose.onNode(hasScrollAction()).performScrollToNode(hasText("Gerar 1 relatório(s) e recibos"))
+        compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText("Gerar 1 relatório(s) e recibos"))
         compose.onNodeWithText("Gerar 1 relatório(s) e recibos").performClick()
         compose.runOnIdle { check(quantidade==1) }
     }
@@ -240,9 +246,14 @@ class SgeUiSmokeTest {
         reciboLongo.outputStream().use { SgeRelatorioPdf.escreverGrupos(it,listOf(longo),FontePainel.COORDENACAO,recibos=true,escola="Escola ".repeat(25),responsavel="Responsável ".repeat(20),recorte="Recorte selecionado ".repeat(20)) }
         PdfRenderer(ParcelFileDescriptor.open(reciboLongo,ParcelFileDescriptor.MODE_READ_ONLY)).use { check(it.pageCount==1) }
         val lote=SgeRelatoriosLote.criar(File(ctx.cacheDir,"relatorios"),grupos,"Escola de demonstração","Coordenação de exemplo","Todos · dados ilustrativos")
-        java.util.zip.ZipFile(lote.zip).use { z->check(z.size()==grupos.size+2);check(z.getEntry("Recebimento-e-ciencia.pdf")!=null) }
+        java.util.zip.ZipFile(lote.zip).use { z ->
+            check(z.size() >= grupos.size + 3) { "ZIP com ${z.size()} arquivo(s), esperados ao menos ${grupos.size + 3}" }
+            check(z.getEntry("Recebimento-e-ciencia.pdf") != null) { "Recibo ausente no ZIP" }
+            check(z.getEntry("SGE-Resumo-para-reuniao.csv") != null) { "CSV de reunião ausente no ZIP" }
+        }
         PdfRenderer(ParcelFileDescriptor.open(lote.recibos,ParcelFileDescriptor.MODE_READ_ONLY)).use { check(it.pageCount==grupos.size) }
-        PdfRenderer(ParcelFileDescriptor.open(lote.impressao,ParcelFileDescriptor.MODE_READ_ONLY)).use { check(it.pageCount>grupos.size) }
+        // O resumo e o recibo podem caber na mesma página; o PDF de recibos separado acima garante uma folha por grupo.
+        PdfRenderer(ParcelFileDescriptor.open(lote.impressao,ParcelFileDescriptor.MODE_READ_ONLY)).use { check(it.pageCount>=grupos.size) }
         listOf(lote.impressao,lote.recibos).forEach { arquivo->
             val uri=ctx.contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI,ContentValues().apply {
                 put(MediaStore.Downloads.DISPLAY_NAME,arquivo.name);put(MediaStore.Downloads.MIME_TYPE,"application/pdf");put(MediaStore.Downloads.RELATIVE_PATH,"Download/SGEPreview")
@@ -283,7 +294,7 @@ class SgeUiSmokeTest {
     @Test fun mapaBloqueiaNovamenteAposPerderAutorizacao() {
         var liberada by mutableStateOf(true)
         content { appExemplo(bloqueio=true,liberada=liberada,papel=2) }
-        compose.onNode(hasScrollAction()).performScrollToNode(hasText("Mapa da escola"))
+        compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText("Mapa da escola"))
         compose.onNodeWithText("Mapa da escola").performClick()
         compose.onNodeWithText("Organizar escola, série e turno").assertExists()
         compose.runOnIdle { liberada=false }

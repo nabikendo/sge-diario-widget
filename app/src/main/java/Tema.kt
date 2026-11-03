@@ -36,10 +36,21 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+// Tokens compartilhados do design: identidades menta e estados legíveis também em fundos fixos.
+internal val MentaClaro = Color(0xFFD8F8C8)
+internal val MentaMedio = Color(0xFFB7EB9E)
+internal val TintaMenta = Color(0xFF0F1711)
+internal val TintaMentaSuave = Color(0xFF243828)
+internal val StatusAlertaMenta = Color(0xFF78350F)
+internal val StatusRegularMenta = Color(0xFF047857)
+internal val StatusPendenteMenta = Color(0xFF9F1239)
+private val AlertaClaro = Color(0xFF92651E)
+private val AlertaEscuro = Color(0xFFFBBF24)
+
 // Design "Dark + verde-menta": fundo quase preto, cartões #161917 e destaque #B7EB9E.
 private val NeutroClaro = lightColorScheme(
     primary = Color(0xFF2F7A4B), onPrimary = Color.White,
-    primaryContainer = Color(0xFFD8F8C8), onPrimaryContainer = Color(0xFF0F1711),
+    primaryContainer = MentaClaro, onPrimaryContainer = TintaMenta,
     secondary = Color(0xFF59635C), onSecondary = Color.White,
     secondaryContainer = Color(0xFFEAF0EA), onSecondaryContainer = Color(0xFF243828),
     background = Color(0xFFF5F8F5), onBackground = Color(0xFF0F1210),
@@ -48,14 +59,14 @@ private val NeutroClaro = lightColorScheme(
     outline = Color(0xFFD0D9D2), outlineVariant = Color(0xFFE4EAE5),
     error = Color(0xFFE11D48), onError = Color.White,
     errorContainer = Color(0xFFFFE4E8), onErrorContainer = Color(0xFF9F1239),
-    tertiary = Color(0xFF2F7A4B), tertiaryContainer = Color(0xFFD8F8C8),
-    onTertiaryContainer = Color(0xFF0F1711), surfaceTint = Color.Transparent,
+    tertiary = Color(0xFF2F7A4B), tertiaryContainer = MentaClaro,
+    onTertiaryContainer = TintaMenta, surfaceTint = Color.Transparent,
     surfaceContainerLowest = Color.White, surfaceContainerLow = Color(0xFFF7FAF7), surfaceContainer = Color(0xFFF2F6F2),
     surfaceContainerHigh = Color(0xFFEDF2ED), surfaceContainerHighest = Color(0xFFE7EDE7)
 )
 private val NeutroEscuro = darkColorScheme(
-    primary = Color(0xFFB7EB9E), onPrimary = Color(0xFF0F1210),
-    primaryContainer = Color(0xFF263226), onPrimaryContainer = Color(0xFFD8F8C8),
+    primary = MentaMedio, onPrimary = Color(0xFF0F1210),
+    primaryContainer = Color(0xFF263226), onPrimaryContainer = MentaClaro,
     secondary = Color(0xFF9CA3AF), onSecondary = Color(0xFF0F1210),
     secondaryContainer = Color(0xFF1E2320), onSecondaryContainer = Color(0xFFF4F6F5),
     background = Color(0xFF0B0D0C), onBackground = Color(0xFFF4F6F5),
@@ -64,8 +75,8 @@ private val NeutroEscuro = darkColorScheme(
     outline = Color(0xFF333836), outlineVariant = Color(0xFF262927),
     error = Color(0xFFF43F5E), onError = Color.White,
     errorContainer = Color(0xFF371F24), onErrorContainer = Color(0xFFFDA4AF),
-    tertiary = Color(0xFFB7EB9E), tertiaryContainer = Color(0xFF263226),
-    onTertiaryContainer = Color(0xFFD8F8C8), surfaceTint = Color.Transparent,
+    tertiary = MentaMedio, tertiaryContainer = Color(0xFF263226),
+    onTertiaryContainer = MentaClaro, surfaceTint = Color.Transparent,
     surfaceContainerLowest = Color(0xFF0B0D0C), surfaceContainerLow = Color(0xFF121513), surfaceContainer = Color(0xFF161917),
     surfaceContainerHigh = Color(0xFF1C201E), surfaceContainerHighest = Color(0xFF222624)
 )
@@ -109,7 +120,7 @@ fun SgeTema(tema: Int, estilo: Int = 0, content: @Composable () -> Unit) {
 }
 @Composable fun corErro() = MaterialTheme.colorScheme.error
 @Composable fun corOk() = MaterialTheme.colorScheme.tertiary
-@Composable fun corAlerta() = if (MaterialTheme.colorScheme.background.luminance() > .5f) Color(0xFF92651E) else Color(0xFFFBBF24)
+@Composable fun corAlerta() = if (MaterialTheme.colorScheme.background.luminance() > .5f) AlertaClaro else AlertaEscuro
 
 @Composable
 fun Segmentado(opcoes: List<String>, selecionado: Int, aoSelecionar: (Int) -> Unit) {
