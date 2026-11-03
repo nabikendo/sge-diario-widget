@@ -252,7 +252,8 @@ class SgeUiSmokeTest {
             check(z.getEntry("SGE-Resumo-para-reuniao.csv") != null) { "CSV de reunião ausente no ZIP" }
         }
         PdfRenderer(ParcelFileDescriptor.open(lote.recibos,ParcelFileDescriptor.MODE_READ_ONLY)).use { check(it.pageCount==grupos.size) }
-        PdfRenderer(ParcelFileDescriptor.open(lote.impressao,ParcelFileDescriptor.MODE_READ_ONLY)).use { check(it.pageCount>grupos.size) }
+        // O resumo e o recibo podem caber na mesma página; o PDF de recibos separado acima garante uma folha por grupo.
+        PdfRenderer(ParcelFileDescriptor.open(lote.impressao,ParcelFileDescriptor.MODE_READ_ONLY)).use { check(it.pageCount>=grupos.size) }
         listOf(lote.impressao,lote.recibos).forEach { arquivo->
             val uri=ctx.contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI,ContentValues().apply {
                 put(MediaStore.Downloads.DISPLAY_NAME,arquivo.name);put(MediaStore.Downloads.MIME_TYPE,"application/pdf");put(MediaStore.Downloads.RELATIVE_PATH,"Download/SGEPreview")
