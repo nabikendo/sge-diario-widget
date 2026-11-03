@@ -72,7 +72,10 @@ class SgeUiSmokeTest {
             val web = remember { WebView(context).apply { loadData("<html><body>SGE de demonstração</body></html>", "text/html", "utf-8") } }
             DisposableEffect(web) { onDispose { web.destroy() } }
             AppDiario(web, PainelSge(rs, "Duas turmas consultadas. Dados ilustrativos."), coord, docentes,
-                rs.map { it.turma.id to it.turma.nome }, false, null, 1, 0, "prévia ilustrativa", {}, {}, {}, {}, {}, {}, {}, {}, {}, { _, _ -> }, {}, {}, {})
+                rs.map { it.turma.id to it.turma.nome }, false, null, 1, 0, "prévia ilustrativa",
+                aoTema = {}, aoCor = {}, aoIntroduzido = {}, aoSincronizarPessoal = {}, aoVerificarTurmas = {},
+                aoCarregarTurmas = {}, aoAtualizarDocentes = {}, aoCopiarDiagnostico = {}, aoCopiarPagina = {},
+                aoSalvarVinculo = { _, _ -> }, aoAdicionarWidget = {}, aoCompartilhar = { _, _ -> }, aoWebVisivel = {})
         }
         foto("01-painel")
         compose.onNode(hasScrollAction()).performScrollToNode(hasText("13.01"))
@@ -133,7 +136,10 @@ class SgeUiSmokeTest {
         val web = remember { WebView(context).apply { loadData("<html><body>SGE de demonstração</body></html>", "text/html", "utf-8") } }
         DisposableEffect(web) { onDispose { web.destroy() } }
         AppDiario(web, PainelSge(rs, "Consulta ilustrativa."), coord, docentes, rs.map { it.turma.id to it.turma.nome },
-            false, null, 1, 0, "prévia ilustrativa", {}, {}, {}, {}, {}, {}, {}, {}, {}, { _, _ -> }, {}, {}, {},
+            false, null, 1, 0, "prévia ilustrativa",
+            aoTema = {}, aoCor = {}, aoIntroduzido = {}, aoSincronizarPessoal = {}, aoVerificarTurmas = {},
+            aoCarregarTurmas = {}, aoAtualizarDocentes = {}, aoCopiarDiagnostico = {}, aoCopiarPagina = {},
+            aoSalvarVinculo = { _, _ -> }, aoAdicionarWidget = {}, aoCompartilhar = { _, _ -> }, aoWebVisivel = {},
             papel = papel, perfil = PerfilSge.COORDENACAO, bloqueioCoord = bloqueio, coordDesbloqueada = liberada, aoDesbloquear = desbloquear)
     }
     @Test fun coordenacaoProtegidaNaoExibeDadosAntesDeAutenticar() {
