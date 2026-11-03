@@ -32,7 +32,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -168,11 +170,6 @@ fun MensagemVazia(titulo: String, texto: String, acao: String? = null, aoAgir: (
     }
 }
 
-internal val MentaClaro = Color(0xFFD8F8C8)
-internal val MentaMedio = Color(0xFFB7EB9E)
-internal val TintaMenta = Color(0xFF0F1711)
-internal val TintaMentaSuave = Color(0xFF243828)
-
 /** Cartão de destaque em verde-menta, no estilo do novo design. */
 @Composable
 fun HeroResumo(pendentes: Int, conferir: Int, consultadas: Int, coberturaParcial: Boolean) {
@@ -188,9 +185,9 @@ fun HeroResumo(pendentes: Int, conferir: Int, consultadas: Int, coberturaParcial
             }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 CelulaHero(pendentes, if (pendentes == 1) "Turma com pendências" else "Turmas com pendências",
-                    if (pendentes > 0) "Atenção" else "Em dia", if (pendentes > 0) Color(0xFFB45309) else Color(0xFF047857), Color.White.copy(alpha = .75f), Modifier.weight(1f))
+                    if (pendentes > 0) "Atenção" else "Em dia", if (pendentes > 0) StatusAlertaMenta else StatusRegularMenta, Color.White.copy(alpha = .75f), Modifier.weight(1f))
                 CelulaHero(conferir, if (conferir == 1) "Turma a conferir" else "Turmas a conferir",
-                    if (conferir > 0) "Conferir" else "Em dia", if (conferir > 0) Color(0xFFB45309) else Color(0xFF047857), Color.White.copy(alpha = .55f), Modifier.weight(1f))
+                    if (conferir > 0) "Conferir" else "Em dia", if (conferir > 0) StatusAlertaMenta else StatusRegularMenta, Color.White.copy(alpha = .55f), Modifier.weight(1f))
             }
             Text(if (coberturaParcial) "* Há consultas com cobertura parcial: um zero parcial não confirma ausência de pendências."
                 else "Todas as consultas desta lista têm cobertura completa.", style = MaterialTheme.typography.bodySmall, color = TintaMentaSuave)
@@ -305,12 +302,16 @@ fun TelaCartoes(
                         if (melhoras == 0 && aumentos == 0) "$comparados turma(s) comparada(s) · sem mudanças"
                         else "$comparados turma(s) comparada(s) · ↓ $melhoras módulo(s) melhoraram · ↑ $aumentos módulo(s) aumentaram"
                     } else if (escola) coord.mensagem else painel.mensagem,
-                        modifier = Modifier.weight(1f).clickable { if (mostrarResumo) mostrarComparacao = true else mostrarMensagem = true }.padding(vertical = 4.dp),
+                        modifier = Modifier.weight(1f).heightIn(min = 48.dp).clickable(
+                            onClickLabel = if (mostrarResumo) "Abrir comparação com a consulta anterior" else "Ver detalhes da última atualização",
+                            role = Role.Button
+                        ) { if (mostrarResumo) mostrarComparacao = true else mostrarMensagem = true }.padding(vertical = 6.dp),
                         transitionSpec = { fadeIn(tween(SgeMotion.duration(140))) togetherWith fadeOut(tween(SgeMotion.duration(100))) },
                         label = "mensagemAtualizacao") { mensagem ->
                         Text(mensagem, modifier = Modifier.fillMaxWidth(), style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
                     }
+                    Icon(SgeIcons.Chevron, null, Modifier.size(17.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     if (escola) TextButton(onClick = aoCarregarTurmas) { Text(if (conhecidas.isEmpty()) "Carregar turmas" else "Reler turmas") }
                 }
             }
@@ -320,10 +321,17 @@ fun TelaCartoes(
             val nomesFalhas = fila.falhas.mapNotNull { id -> coord.turmas.firstOrNull { it.id == id }?.nome }.distinct()
             Surface(shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.primaryContainer) {
                 Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Row(Modifier.fillMaxWidth().clickable { filaExpandida = !filaExpandida }, verticalAlignment = Alignment.CenterVertically) {
+                    Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).clickable(
+                        onClickLabel = if (filaExpandida) "Recolher detalhes da verificação" else "Expandir detalhes da verificação",
+                        role = Role.Button
+                    ) { filaExpandida = !filaExpandida }.semantics {
+                        stateDescription = if (filaExpandida) "Expandida" else "Recolhida"
+                    }, verticalAlignment = Alignment.CenterVertically) {
                         Text(if (fila.pausada) "Verificação pausada" else if (fila.ids.isNotEmpty()) "Verificação da escola em andamento" else "Verificação da escola concluída",
                             Modifier.weight(1f), style = MaterialTheme.typography.titleSmall)
-                        Icon(if (filaExpandida) SgeIcons.Close else SgeIcons.Chevron, if (filaExpandida) "Recolher progresso" else "Expandir progresso", Modifier.size(18.dp))
+                        Icon(SgeIcons.Chevron, null, Modifier.size(18.dp).graphicsLayer {
+                            rotationZ = if (filaExpandida) 270f else 90f
+                        })
                     }
                     LinearProgressIndicator(progress = fila.progresso, modifier = Modifier.fillMaxWidth())
                     Text("Consultadas: ${fila.concluidas.size} · Ignoradas (recentes): ${fila.puladas} · Falhas: ${fila.falhas.size} · Restantes: ${fila.ids.size}",
@@ -372,10 +380,6 @@ fun TelaCartoes(
                 }
                 AssistChip(onClick = { nomeFiltro = ""; mostrarSalvarFiltro = true }, enabled = filtroAvancado.ativo, label = { Text("+ Salvar atual") })
             }
-        }
-        item(span = { GridItemSpan(maxLineSpan) }) {
-            Text("Critérios ativos · ${descreverFiltro(filtroAvancado, docentes)}",
-                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         item(span = { GridItemSpan(maxLineSpan) }) {
             val opcoes = if (escola) Agrupamento.values().toList() else listOf(Agrupamento.TURMA, Agrupamento.COMPONENTE)
@@ -432,12 +436,6 @@ fun TelaCartoes(
                 }
             }
         }
-        item(span = { GridItemSpan(maxLineSpan) }) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text("${visiveis.size} ${if (visiveis.size == 1) "cartão" else "cartões"}" + (if (filtro != 0) " · ${listOf("", "pendências", "a conferir", "em dia")[filtro]}" else ""), style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
-            }
-        }
         item(span = { GridItemSpan(maxLineSpan) }, key = "busca:${fonte.name}") {
             AnimatedVisibility(visible = mostrarBusca || busca.isNotBlank(),
                 enter = expandVertically(tween(SgeMotion.duration(180))) + fadeIn(tween(SgeMotion.duration(130))),
@@ -446,6 +444,20 @@ fun TelaCartoes(
                     placeholder = { Text("Buscar turma, disciplina ou professor") }, leadingIcon = { Icon(SgeIcons.Search, null, Modifier.size(19.dp)) },
                     trailingIcon = ({ IconButton(onClick = { busca = ""; mostrarBusca = false }) { Icon(SgeIcons.Close, "Fechar busca", Modifier.size(17.dp)) } }),
                     shape = MaterialTheme.shapes.medium)
+            }
+        }
+        item(span = { GridItemSpan(maxLineSpan) }, key = "resumoResultados:${fonte.name}") {
+            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                if (filtroAvancado.ativo) Text("Critérios ativos · ${descreverFiltro(filtroAvancado, docentes)}",
+                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2, overflow = TextOverflow.Ellipsis)
+                if (busca.isNotBlank()) Text("Busca · $busca", style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Row(Modifier.fillMaxWidth().padding(top = 3.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text("Resultados", style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
+                    Text("${visiveis.size} ${if (visiveis.size == 1) "cartão" else "cartões"}",
+                        style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
             }
         }
         if (grupos.isEmpty()) item(span = { GridItemSpan(maxLineSpan) }) {
