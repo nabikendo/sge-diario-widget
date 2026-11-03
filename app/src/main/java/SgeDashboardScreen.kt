@@ -168,10 +168,10 @@ fun MensagemVazia(titulo: String, texto: String, acao: String? = null, aoAgir: (
     }
 }
 
-private val MentaClaro = Color(0xFFD8F8C8)
-private val MentaMedio = Color(0xFFB7EB9E)
-private val TintaMenta = Color(0xFF0F1711)
-private val TintaMentaSuave = Color(0xFF243828)
+internal val MentaClaro = Color(0xFFD8F8C8)
+internal val MentaMedio = Color(0xFFB7EB9E)
+internal val TintaMenta = Color(0xFF0F1711)
+internal val TintaMentaSuave = Color(0xFF243828)
 
 /** Cartão de destaque em verde-menta, no estilo do novo design. */
 @Composable

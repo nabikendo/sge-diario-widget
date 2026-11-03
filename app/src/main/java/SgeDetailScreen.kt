@@ -19,6 +19,18 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.sp
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 import androidx.compose.ui.unit.dp
 import br.to.seduc.sgediariowidget.data.*
 import java.time.LocalDateTime
@@ -29,39 +41,9 @@ fun TelaDetalhes(grupo: GrupoPendencias, fonte: FontePainel, docentes: PainelDoc
     aoAtualizar: () -> Unit, aoAbrirSge: () -> Unit, aoVincular: (ResultadoTurma) -> Unit, aoCompartilhar: () -> Unit, aoPdf: () -> Unit = {}, moduloInicial: Int = -1,
     mudancas: List<MudancaModulo> = emptyList()) {
     var menuCompartilhar by remember { mutableStateOf(false) }
-    LazyColumn(contentPadding = PaddingValues(20.dp, 12.dp, 20.dp, 30.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        item {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                EmblemaEstado(grupo.estado)
-                Text(tituloVisivel(grupo), style = MaterialTheme.typography.displaySmall)
-                Text(subtituloVisivel(grupo), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                grupo.resultados.map { it.atualizado }.filter { it.isNotBlank() }.lastOrNull()?.let {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                        Icon(SgeIcons.Clock, null, Modifier.size(15.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text("Consulta: $it", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                }
-                SgeIdade.maisAntigaPorModulo(grupo.resultados, LocalDateTime.now())?.let { horas ->
-                    val corIdade = corAtualidade(horas)
-                    Surface(color = corIdade.copy(alpha = .11f), shape = MaterialTheme.shapes.small) {
-                        Text("Dados mais antigos: ${SgeIdade.texto(horas)}${if (horas >= 24) " · confira no SGE antes de agir" else ""}",
-                            Modifier.padding(horizontal = 11.dp, vertical = 8.dp), style = MaterialTheme.typography.labelMedium, color = corIdade)
-                    }
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(onClick = aoAbrirSge) { Text("Abrir SGE") }
-                    Box {
-                        OutlinedButton(onClick = { menuCompartilhar = true }, enabled = grupo.resultados.isNotEmpty()) {
-                            Icon(SgeIcons.Export, null, Modifier.size(17.dp)); Spacer(Modifier.width(6.dp)); Text("Compartilhar")
-                        }
-                        DropdownMenu(expanded = menuCompartilhar, onDismissRequest = { menuCompartilhar = false }) {
-                            DropdownMenuItem(text = { Text("Texto / WhatsApp") }, onClick = { menuCompartilhar = false; aoCompartilhar() })
-                            DropdownMenuItem(text = { Text("Relatório em PDF") }, onClick = { menuCompartilhar = false; aoPdf() })
-                        }
-                    }
-                }
-            }
-        }
+    Column(Modifier.fillMaxSize()) {
+    LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(20.dp, 12.dp, 20.dp, 24.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        item { CabecalhoMenta(grupo) }
         if (grupo.compartilhado || grupo.vinculoLocal) item {
             Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = MaterialTheme.shapes.medium) {
                 Text(if (grupo.compartilhado) "Docência compartilhada: os mesmos registros da turma e do componente são exibidos uma vez. O app não identifica qual docente é responsável por cada documento."
@@ -73,7 +55,7 @@ fun TelaDetalhes(grupo: GrupoPendencias, fonte: FontePainel, docentes: PainelDoc
             MensagemVazia("Turma ainda sem consulta", "Verifique esta turma para mostrar conteúdos, frequência e planejamentos.", "Verificar turma", aoAtualizar)
         } else {
             item { Text("PENDÊNCIAS POR MÓDULO", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-            items(grupo.modulos.sortedBy { if (it.indice == moduloInicial) -1 else it.indice }, key = { it.indice }) { modulo -> CartaoModulo(grupo, modulo, moduloInicial, mudancas) }
+            items(grupo.modulos.sortedBy { if (it.indice == moduloInicial) -1 else it.indice }, key = { it.indice }) { modulo -> CartaoModulo(grupo, modulo, moduloInicial, mudancas, aoAbrirSge) }
         }
         if (fonte == FontePainel.COORDENACAO && grupo.resultados.isNotEmpty()) {
             item {
@@ -114,6 +96,86 @@ fun TelaDetalhes(grupo: GrupoPendencias, fonte: FontePainel, docentes: PainelDoc
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
+    Surface(color = MaterialTheme.colorScheme.surface, shadowElevation = 10.dp) {
+        Row(Modifier.fillMaxWidth().padding(16.dp, 12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+            Button(onClick = aoAbrirSge, Modifier.weight(1f).height(52.dp), shape = RoundedCornerShape(18.dp)) {
+                Icon(SgeIcons.Link, null, Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)); Text("Abrir SGE")
+            }
+            Box {
+                OutlinedButton(onClick = { menuCompartilhar = true }, enabled = grupo.resultados.isNotEmpty(), modifier = Modifier.height(52.dp), shape = RoundedCornerShape(18.dp)) {
+                    Icon(SgeIcons.Export, null, Modifier.size(17.dp)); Spacer(Modifier.width(6.dp)); Text("Compartilhar")
+                }
+                DropdownMenu(expanded = menuCompartilhar, onDismissRequest = { menuCompartilhar = false }) {
+                    DropdownMenuItem(text = { Text("Texto / WhatsApp") }, onClick = { menuCompartilhar = false; aoCompartilhar() })
+                    DropdownMenuItem(text = { Text("Relatório em PDF") }, onClick = { menuCompartilhar = false; aoPdf() })
+                }
+            }
+        }
+    }
+    }
+}
+
+private val diaCurto = DateTimeFormatter.ofPattern("dd/MM")
+private fun rotuloDia(d: LocalDate) = d.dayOfWeek.getDisplayName(java.time.format.TextStyle.SHORT, Locale("pt", "BR")).replace(".", "").replaceFirstChar { it.uppercase() } + " " + d.format(diaCurto)
+
+@Composable private fun PilulaMenta(texto: String) {
+    Surface(color = TintaMenta.copy(alpha = .1f), shape = CircleShape) {
+        Text(texto, Modifier.padding(horizontal = 11.dp, vertical = 5.dp), style = MaterialTheme.typography.labelSmall, color = TintaMenta)
+    }
+}
+
+/** Cabeçalho em verde-menta com os totais da turma e o mapa dos últimos cinco dias úteis. */
+@Composable private fun CabecalhoMenta(grupo: GrupoPendencias) {
+    val totalPend = grupo.modulos.sumOf { it.quantidade ?: 0 }
+    val modsPend = grupo.modulos.count { (it.quantidade ?: 0) > 0 }
+    val consulta = grupo.resultados.map { it.atualizado }.filter { it.isNotBlank() }.lastOrNull()
+    val horas = remember(grupo) { SgeIdade.maisAntigaPorModulo(grupo.resultados, LocalDateTime.now()) }
+    val dias = remember(grupo) { SgeMapaDias.montar(grupo.resultados, LocalDate.now()) }
+    Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp))
+        .background(Brush.linearGradient(listOf(MentaClaro, MentaMedio), start = Offset(0f, 0f), end = Offset(900f, 900f)))) {
+        Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(11.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                PilulaMenta(if (modsPend > 0) "${contarSge(modsPend, "módulo", "módulos")} com pendência" else nomeEstado(grupo.estado))
+                if (totalPend > 0) PilulaMenta("$totalPend no total")
+            }
+            Text(tituloVisivel(grupo), style = MaterialTheme.typography.displaySmall, color = TintaMenta)
+            Text(subtituloVisivel(grupo), style = MaterialTheme.typography.bodyMedium, color = TintaMentaSuave)
+            consulta?.let {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                    Icon(SgeIcons.Clock, null, Modifier.size(15.dp), tint = TintaMentaSuave)
+                    Text("Consulta da turma: $it", style = MaterialTheme.typography.bodySmall, color = TintaMentaSuave)
+                }
+            }
+            horas?.let { h ->
+                Text("Dados mais antigos: ${SgeIdade.texto(h)}${if (h >= 24) " · confira no SGE antes de agir" else ""}",
+                    style = MaterialTheme.typography.labelMedium, color = if (h >= 24) Color(0xFF9F1239) else TintaMentaSuave)
+            }
+            if (dias.isNotEmpty()) Surface(color = Color.White.copy(alpha = .62f), shape = RoundedCornerShape(20.dp)) {
+                Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                    Text("MAPA DO SGE · ${rotuloDia(dias.first().data)} a ${rotuloDia(dias.last().data)}", style = MaterialTheme.typography.labelSmall,
+                        color = TintaMentaSuave, letterSpacing = 1.sp)
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        dias.forEach { d ->
+                            val (fundo, tinta, rotulo) = when (d.situacao) {
+                                SgeMapaDias.Situacao.PENDENTE -> Triple(Color(0xFFE11D48), Color.White, "Pendente")
+                                SgeMapaDias.Situacao.PARCIAL -> Triple(Color(0xFFF59E0B).copy(alpha = .35f), Color(0xFF78350F), "Parcial")
+                                SgeMapaDias.Situacao.REGULAR -> Triple(Color(0xFF047857).copy(alpha = .18f), TintaMenta, "Regular")
+                            }
+                            Surface(Modifier.weight(1f).semantics { contentDescription = "${rotuloDia(d.data)}: ${rotulo.lowercase()}" }, color = fundo, shape = RoundedCornerShape(14.dp)) {
+                                Column(Modifier.padding(vertical = 9.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                    Text(d.data.dayOfWeek.getDisplayName(java.time.format.TextStyle.SHORT, Locale("pt", "BR")).replace(".", "").replaceFirstChar { it.uppercase() },
+                                        style = MaterialTheme.typography.labelSmall, color = tinta)
+                                    Text(d.data.format(diaCurto), style = MaterialTheme.typography.labelMedium, color = tinta)
+                                    Text(rotulo, style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp), color = tinta, maxLines = 1)
+                                }
+                            }
+                        }
+                    }
+                    Text("Verde: regular · Âmbar: parcial · Vermelho: dia pendente no mapa do SGE", style = MaterialTheme.typography.labelSmall, color = TintaMentaSuave)
+                }
+            }
+        }
+    }
 }
 
 @Composable private fun corAtualidade(horas: Long): Color = when (SgeIdade.faixa(horas)) {
@@ -122,18 +184,24 @@ fun TelaDetalhes(grupo: GrupoPendencias, fonte: FontePainel, docentes: PainelDoc
     SgeIdade.Faixa.ANTIGA -> MaterialTheme.colorScheme.error
 }
 
-@Composable private fun CartaoModulo(grupo: GrupoPendencias, resumo: ResumoModulo, moduloInicial: Int = -1, mudancas: List<MudancaModulo> = emptyList()) {
+@Composable private fun CartaoModulo(grupo: GrupoPendencias, resumo: ResumoModulo, moduloInicial: Int = -1, mudancas: List<MudancaModulo> = emptyList(), aoAbrirSge: () -> Unit = {}) {
     var aberto by rememberSaveable(grupo.chave, resumo.indice, moduloInicial) { mutableStateOf(resumo.indice == moduloInicial || (resumo.quantidade ?: 0) > 0) }
     val estado = when { (resumo.quantidade ?: 0) > 0 -> EstadoGrupo.PENDENTE
         !resumo.completa -> EstadoGrupo.CONFERIR; else -> EstadoGrupo.EM_DIA }
-    val cor = corEstado(estado)
+    // Pendência de frequência em rosa, de conteúdo e demais módulos em âmbar; sem pendência segue a cor da situação.
+    val cor = if ((resumo.quantidade ?: 0) > 0) (if (resumo.indice == 1) MaterialTheme.colorScheme.error else corAlerta()) else corEstado(estado)
+    val datas = remember(grupo) {
+        if (resumo.indice <= 1) grupo.resultados.flatMap { r -> r.modulos.getOrNull(resumo.indice)?.let { SgeMapaDias.diasPendentes(it.detalhe).second }.orEmpty() }.distinct().sorted() else emptyList()
+    }
+    val etiquetaDatas = when { datas.isEmpty() -> null; datas.size == 1 -> "Dia ${datas[0].format(diaCurto)}"
+        else -> datas.take(3).joinToString(", ") { it.format(diaCurto) } + if (datas.size > 3) "…" else "" }
     Surface(modifier = Modifier.animateContentSize(tween(SgeMotion.duration(180))),
         color = MaterialTheme.colorScheme.surface, shape = MaterialTheme.shapes.large,
         border = BorderStroke(.6.dp, MaterialTheme.colorScheme.outlineVariant)) {
         Column {
             Column(Modifier.fillMaxWidth().clickable { aberto = !aberto }.padding(19.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Surface(color = cor.copy(alpha = .09f), shape = MaterialTheme.shapes.small) {
+                    Surface(color = cor.copy(alpha = .15f), shape = RoundedCornerShape(16.dp)) {
                         Icon(iconeModulo(resumo.indice), null, Modifier.padding(11.dp).size(23.dp), tint = cor)
                     }
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -141,6 +209,9 @@ fun TelaDetalhes(grupo: GrupoPendencias, fonte: FontePainel, docentes: PainelDoc
                         Text(if (resumo.naoConfigurado) "Não configurado" else if (resumo.quantidade == null) "Não verificado" else "${resumo.valor()} ${resumo.unidade()} ${if (resumo.quantidade == 1) "pendente" else "pendentes"}",
                             style = MaterialTheme.typography.bodyMedium, color = if (resumo.naoConfigurado) MaterialTheme.colorScheme.onSurfaceVariant else cor)
                     }
+                    etiquetaDatas?.let { Surface(color = cor.copy(alpha = .15f), shape = CircleShape) {
+                        Text(it, Modifier.padding(horizontal = 9.dp, vertical = 4.dp), style = MaterialTheme.typography.labelSmall, color = cor)
+                    } }
                     Icon(if (aberto) SgeIcons.Close else SgeIcons.Chevron, if (aberto) "Recolher" else "Ver detalhes",
                         Modifier.size(17.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
@@ -157,6 +228,19 @@ fun TelaDetalhes(grupo: GrupoPendencias, fonte: FontePainel, docentes: PainelDoc
                 }
                 if (resumo.aprovados > 0) Text("${resumo.aprovados} documento(s) aprovado(s)", style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.tertiary)
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                val referencia = remember(grupo) { grupo.resultados.mapNotNull { r -> r.modulos.getOrNull(resumo.indice)?.let { SgeMapaDias.diasPendentes(it.detalhe).first } }.maxOrNull() }
+                val ultimaConsulta = grupo.resultados.map { it.atualizado }.filter { it.isNotBlank() }.lastOrNull()
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(when {
+                        resumo.indice == 0 && referencia != null -> "Mapa do SGE até ${referencia.format(diaCurto)}"
+                        resumo.indice == 0 -> "Mapa do SGE"
+                        ultimaConsulta != null -> "Consulta $ultimaConsulta · horário aproximado"
+                        else -> "Sem horário de consulta"
+                    }, Modifier.weight(1f), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(if ((resumo.quantidade ?: 0) > 0) when (resumo.indice) { 0 -> "Registrar aula →"; 1 -> "Concluir chamada →"; else -> "Abrir no SGE →" } else "Abrir no SGE →",
+                        Modifier.clickable(onClick = aoAbrirSge).padding(vertical = 4.dp), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                }
             }
             AnimatedVisibility(visible = aberto, enter = fadeIn(tween(SgeMotion.duration(130))),
                 exit = fadeOut(tween(SgeMotion.duration(100)))) {
@@ -178,7 +262,7 @@ fun TelaDetalhes(grupo: GrupoPendencias, fonte: FontePainel, docentes: PainelDoc
                                 !m.coberturaCompleta -> corAlerta()
                                 else -> MaterialTheme.colorScheme.tertiary
                             }
-                            Surface(color = corConsulta.copy(alpha = .10f), shape = MaterialTheme.shapes.small) {
+                            Surface(color = corConsulta.copy(alpha = .15f), shape = MaterialTheme.shapes.small) {
                                 Text(rotuloConsulta, Modifier.padding(horizontal = 8.dp, vertical = 4.dp), style = MaterialTheme.typography.labelSmall, color = corConsulta)
                             }
                             val idade = m.atualizadoMs.takeIf { it > 0L }?.let { SgeIdade.horas(it) }

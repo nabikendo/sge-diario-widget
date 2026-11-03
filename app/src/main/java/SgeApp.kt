@@ -26,6 +26,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.viewinterop.AndroidView
 import br.to.seduc.sgediariowidget.data.*
@@ -108,7 +109,7 @@ fun AppDiario(
     }
     val titulo = when {
         pagina == "mapa" -> "Mapa da escola"; pagina == "lote" -> "Relatórios"; pagina == "organizacao" -> "Organizar turmas"; pagina == "economia" -> "Sincronização"; pagina == "backup" -> "Backup"; pagina == "ajustes" -> "Ajustes"; pagina == "ajuda" -> "Como interpretar"
-        pagina == "historico" -> "Histórico"; pagina == "widgets" -> "Widgets"; pagina == "sobre" -> "Sobre"; detalhe != null && !largo -> "Detalhes"; aba == 2 -> "SGE Web"; else -> "Diário"
+        pagina == "historico" -> "Histórico"; pagina == "widgets" -> "Widgets"; pagina == "sobre" -> "Sobre"; detalhe != null && !largo -> "Pendências por módulo"; aba == 2 -> "SGE Web"; else -> "Diário"
     }
     val cabecalhoNaTela = pagina == null && detalhe == null && aba != 2
     Box(Modifier.fillMaxSize()) {
@@ -120,13 +121,28 @@ fun AppDiario(
                 if (pagina != null || detalhe != null) IconButton(onClick = { if (pagina != null) pagina = null else { detalhe = null; pagina = origemDetalhe; origemDetalhe = null } }) {
                     Icon(SgeIcons.Back, "Voltar", Modifier.size(21.dp))
                 } else if (!cabecalhoNaTela) Icon(SgeIcons.Book, null, Modifier.padding(12.dp).size(22.dp), tint = MaterialTheme.colorScheme.primary)
-                if (cabecalhoNaTela) Spacer(Modifier.weight(1f)) else Column(Modifier.weight(1f)) {
-                    Text(titulo, style = MaterialTheme.typography.titleMedium)
-                    SeloPerfil(perfil)
+                val emDetalhe = detalhe != null && pagina == null && !largo
+                if (cabecalhoNaTela) Spacer(Modifier.weight(1f)) else Column(Modifier.weight(1f), horizontalAlignment = if (emDetalhe) Alignment.CenterHorizontally else Alignment.Start) {
+                    Text(if (emDetalhe) titulo.uppercase() else titulo,
+                        style = if (emDetalhe) MaterialTheme.typography.labelLarge.copy(letterSpacing = 1.sp) else MaterialTheme.typography.titleMedium)
+                    if (!emDetalhe) SeloPerfil(perfil)
                 }
                 if (webVisivel) IconButton(onClick = aoCopiarPagina) { Icon(SgeIcons.Export, "Copiar estrutura da página", Modifier.size(20.dp)) }
+                if (emDetalhe) {
+                    var menuTopo by remember { mutableStateOf(false) }
+                    Box {
+                        IconButton(onClick = { menuTopo = true }, enabled = detalhe?.resultados?.isNotEmpty() == true) { Icon(SgeIcons.Export, "Compartilhar", Modifier.size(20.dp)) }
+                        DropdownMenu(expanded = menuTopo, onDismissRequest = { menuTopo = false }) {
+                            val filtroTopo = if (fonteDetalhe == FontePainel.COORDENACAO) filtroCoord else filtroPessoal
+                            val recorteTopo = if (filtroTopo.ativo) descreverFiltro(filtroTopo, docentes) else ""
+                            DropdownMenuItem(text = { Text("Texto / WhatsApp") }, onClick = { menuTopo = false; detalhe?.let { aoCompartilhar(it, recorteTopo) } })
+                            DropdownMenuItem(text = { Text("Relatório em PDF") }, onClick = { menuTopo = false; detalhe?.let { aoPdf(it, fonteDetalhe, recorteTopo) } })
+                        }
+                    }
+                } else {
                 IconButton(onClick = { focus.clearFocus(); pagina = "ajuda" }) { Icon(SgeIcons.Info, "Legendas e ajuda", Modifier.size(21.dp)) }
                 IconButton(onClick = { focus.clearFocus(); pagina = "ajustes" }) { Icon(SgeIcons.Settings, "Ajustes", Modifier.size(21.dp)) }
+                }
             }
             val avisoPerfil = when {
                 aba == 0 && perfil == PerfilSge.COORDENACAO -> "O SGE está no perfil Unidade escolar. Para atualizar o seu diário, troque para Servidor no SGE Web."
