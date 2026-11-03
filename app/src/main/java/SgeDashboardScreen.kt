@@ -25,6 +25,10 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.semantics.contentDescription
@@ -32,6 +36,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.draw.clip
 import br.to.seduc.sgediariowidget.data.*
 import java.time.LocalDateTime
 import java.util.UUID
@@ -52,7 +58,7 @@ fun nomeEstado(estado: EstadoGrupo) = when (estado) {
 @Composable
 fun EmblemaEstado(estado: EstadoGrupo) {
     val cor = corEstado(estado)
-    Surface(color = cor.copy(alpha = .09f), shape = RoundedCornerShape(40.dp)) {
+    Surface(color = cor.copy(alpha = .15f), shape = RoundedCornerShape(40.dp)) {
         Row(Modifier.padding(horizontal = 9.dp, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             Icon(if (estado == EstadoGrupo.EM_DIA) SgeIcons.Check else if (estado == EstadoGrupo.PENDENTE) SgeIcons.Clock else SgeIcons.Info,
@@ -76,18 +82,20 @@ fun CartaoGrupo(grupo: GrupoPendencias, por: Agrupamento, selecionado: Boolean =
         color = MaterialTheme.colorScheme.surface, shape = MaterialTheme.shapes.large,
         border = BorderStroke(if (selecionado) 1.5.dp else .6.dp, if (selecionado) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant), shadowElevation = .5.dp) {
         Column(Modifier.fillMaxWidth().padding(19.dp), verticalArrangement = Arrangement.spacedBy(13.dp)) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Surface(color = MaterialTheme.colorScheme.surfaceVariant, shape = MaterialTheme.shapes.small) {
-                    Icon(when(por) { Agrupamento.TURMA -> SgeIcons.Cards; Agrupamento.COMPONENTE -> SgeIcons.Book; else -> SgeIcons.User },
-                        null, Modifier.padding(11.dp).size(22.dp), tint = MaterialTheme.colorScheme.onSurface)
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(13.dp)) {
+                Surface(color = MaterialTheme.colorScheme.surfaceVariant, shape = RoundedCornerShape(18.dp)) {
+                    Box(Modifier.size(56.dp), contentAlignment = Alignment.Center) {
+                        if (por == Agrupamento.TURMA) Text(tituloV.substringBefore(' ').take(6), style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.ExtraBold),
+                            color = MaterialTheme.colorScheme.primary, maxLines = 1)
+                        else Icon(if (por == Agrupamento.COMPONENTE) SgeIcons.Book else SgeIcons.User, null, Modifier.size(24.dp), tint = MaterialTheme.colorScheme.primary)
+                    }
                 }
-                Spacer(Modifier.weight(1f))
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    Text(tituloV, style = MaterialTheme.typography.titleLarge, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    Text(subtituloVisivel(grupo), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 2, overflow = TextOverflow.Ellipsis)
+                }
                 EmblemaEstado(grupo.estado)
-            }
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(tituloV, style = MaterialTheme.typography.titleLarge, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                Text(subtituloVisivel(grupo), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 2, overflow = TextOverflow.Ellipsis)
             }
             if (horasDado != null) {
                 val parcial = grupo.modulos.any { !it.completa && !it.naoConfigurado }
@@ -104,22 +112,30 @@ fun CartaoGrupo(grupo: GrupoPendencias, por: Agrupamento, selecionado: Boolean =
                 mudancasVisiveis.mapNotNull { mudanca -> grupo.modulos.firstOrNull { it.indice == mudanca.indice } })
                 .distinctBy { it.indice }
             if (modulosVisiveis.isNotEmpty()) {
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    modulosVisiveis.take(2).forEach { m ->
-                        val variacao = mudancasVisiveis.firstOrNull { it.indice == m.indice }
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                            Icon(iconeModulo(m.indice), null, Modifier.size(16.dp), tint = if ((m.quantidade ?: 0) > 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.tertiary)
-                            Text("${SgeDashboard.nomes[m.indice]} · ${m.valor()} ${m.unidade()}",
-                                Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            variacao?.let {
-                                val melhorou = it.delta < 0
-                                val corVariacao = if (melhorou) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.error
-                                Surface(color = corVariacao.copy(alpha = .09f), shape = MaterialTheme.shapes.small) {
-                                    Text("${if (melhorou) "↓" else "↑"}${kotlin.math.abs(it.delta)}${if (it.indice < 2) " d" else " doc"}",
-                                        Modifier.padding(horizontal = 7.dp, vertical = 3.dp), style = MaterialTheme.typography.labelSmall, color = corVariacao)
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        modulosVisiveis.take(2).forEach { m ->
+                            val variacao = mudancasVisiveis.firstOrNull { it.indice == m.indice }
+                            val corModulo = if ((m.quantidade ?: 0) <= 0) MaterialTheme.colorScheme.tertiary else if (m.indice == 1) MaterialTheme.colorScheme.error else corAlerta()
+                            Surface(Modifier.weight(1f), color = MaterialTheme.colorScheme.surfaceVariant, shape = RoundedCornerShape(18.dp)) {
+                                Column(Modifier.padding(13.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                        Box(Modifier.size(8.dp).background(corModulo, CircleShape))
+                                        Text(SgeDashboard.nomes[m.indice], style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    }
+                                    Text("${m.valor()} ${m.unidade()}", style = MaterialTheme.typography.titleSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                                    variacao?.let {
+                                        val melhorou = it.delta < 0
+                                        val corVariacao = if (melhorou) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.error
+                                        Surface(color = corVariacao.copy(alpha = .15f), shape = CircleShape) {
+                                            Text("${if (melhorou) "↓" else "↑"}${kotlin.math.abs(it.delta)}${if (it.indice < 2) " d" else " doc"}",
+                                                Modifier.padding(horizontal = 7.dp, vertical = 2.dp), style = MaterialTheme.typography.labelSmall, color = corVariacao)
+                                        }
+                                    }
                                 }
                             }
                         }
+                        if (modulosVisiveis.size == 1) Spacer(Modifier.weight(1f))
                     }
                     if (modulosVisiveis.size > 2) Text("+ ${contarSge(modulosVisiveis.size - 2, "módulo", "módulos")} com pendência ou mudança", style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -132,7 +148,7 @@ fun CartaoGrupo(grupo: GrupoPendencias, por: Agrupamento, selecionado: Boolean =
             if (grupo.estado == EstadoGrupo.PENDENTE && grupo.exigeConferencia) Text("Inclui dados a conferir", style = MaterialTheme.typography.labelSmall, color = corAlerta())
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text("Ver detalhes", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary,
+                Text("Ver detalhes →", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.weight(1f))
                 Icon(SgeIcons.Chevron, null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
             }
@@ -152,11 +168,44 @@ fun MensagemVazia(titulo: String, texto: String, acao: String? = null, aoAgir: (
     }
 }
 
-@Composable private fun NumeroResumo(numero: Int, titulo: String, cor: Color, modifier: Modifier) {
-    Surface(modifier, color = cor.copy(alpha = .065f), shape = MaterialTheme.shapes.medium) {
-        Row(Modifier.padding(13.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(numero.toString(), style = MaterialTheme.typography.headlineMedium, color = cor)
-            Text(titulo, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+private val MentaClaro = Color(0xFFD8F8C8)
+private val MentaMedio = Color(0xFFB7EB9E)
+private val TintaMenta = Color(0xFF0F1711)
+private val TintaMentaSuave = Color(0xFF243828)
+
+/** Cartão de destaque em verde-menta, no estilo do novo design. */
+@Composable
+fun HeroResumo(pendentes: Int, conferir: Int, consultadas: Int, coberturaParcial: Boolean) {
+    Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp))
+        .background(Brush.linearGradient(listOf(MentaClaro, MentaMedio), start = Offset(0f, 0f), end = Offset(900f, 700f)))) {
+        Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text("RESUMO DE TURMAS", Modifier.weight(1f), style = MaterialTheme.typography.labelMedium, color = TintaMentaSuave, letterSpacing = 1.2.sp)
+                Surface(color = TintaMenta.copy(alpha = .1f), shape = CircleShape) {
+                    Text("$consultadas consultada${if (consultadas == 1) "" else "s"}${if (coberturaParcial) " (*)" else ""}",
+                        Modifier.padding(horizontal = 11.dp, vertical = 5.dp), style = MaterialTheme.typography.labelSmall, color = TintaMenta)
+                }
+            }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                CelulaHero(pendentes, if (pendentes == 1) "Turma com pendências" else "Turmas com pendências",
+                    if (pendentes > 0) "Atenção" else "Em dia", if (pendentes > 0) Color(0xFFB45309) else Color(0xFF047857), Color.White.copy(alpha = .75f), Modifier.weight(1f))
+                CelulaHero(conferir, if (conferir == 1) "Turma a conferir" else "Turmas a conferir",
+                    if (conferir > 0) "Conferir" else "Em dia", if (conferir > 0) Color(0xFFB45309) else Color(0xFF047857), Color.White.copy(alpha = .55f), Modifier.weight(1f))
+            }
+            Text(if (coberturaParcial) "* Há consultas com cobertura parcial: um zero parcial não confirma ausência de pendências."
+                else "Todas as consultas desta lista têm cobertura completa.", style = MaterialTheme.typography.bodySmall, color = TintaMentaSuave)
+        }
+    }
+}
+
+@Composable private fun CelulaHero(numero: Int, titulo: String, selo: String, corSelo: Color, fundo: Color, modifier: Modifier) {
+    Surface(modifier, color = fundo, shape = RoundedCornerShape(20.dp)) {
+        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(numero.toString(), style = MaterialTheme.typography.displaySmall.copy(fontWeight = FontWeight.ExtraBold), color = TintaMenta)
+            Text(titulo, style = MaterialTheme.typography.bodySmall, color = TintaMentaSuave)
+            Surface(color = corSelo.copy(alpha = .14f), shape = CircleShape) {
+                Text(selo, Modifier.padding(horizontal = 9.dp, vertical = 3.dp), style = MaterialTheme.typography.labelSmall, color = corSelo)
+            }
         }
     }
 }
@@ -168,7 +217,7 @@ fun TelaCartoes(
     aoAbrir: (GrupoPendencias) -> Unit, aoSincronizar: () -> Unit, aoCarregarTurmas: () -> Unit,
     aoAtualizarDocentes: () -> Unit, aoAbrirSge: () -> Unit, aoAjuda: () -> Unit, selecionada: String? = null, filtroAvancado: FiltroAvancado = FiltroAvancado(), organizacao: Map<String,DadosTurma> = emptyMap(), aoFiltros: ()->Unit = {}, aoMapa: ()->Unit = {}, aoLote: ()->Unit = {},
     filtrosSalvos: List<FiltroSalvo> = emptyList(), aoAplicarFiltro: (FiltroAvancado)->Unit = {}, aoSalvarFiltro: (FiltroSalvo)->Unit = {}, aoExcluirFiltro: (String)->Unit = {},
-    filaCoord: FilaCoord? = null, aoPausarFila: ()->Unit = {}, aoRetomarFila: ()->Unit = {}, aoTentarFalhas: ()->Unit = {}
+    filaCoord: FilaCoord? = null, aoPausarFila: ()->Unit = {}, aoRetomarFila: ()->Unit = {}, aoTentarFalhas: ()->Unit = {}, perfil: PerfilSge? = null
 ) {
     var busca by rememberSaveable(fonte.name) { mutableStateOf("") }
     val filtro = filtroAvancado.estado
@@ -206,6 +255,7 @@ fun TelaCartoes(
     }
     val porTurma = remember(resultados) { SgeDashboard.agrupar(resultados, Agrupamento.TURMA) }
     val pendentes = porTurma.count { it.estado == EstadoGrupo.PENDENTE }
+    val coberturaParcial = remember(resultados) { resultados.any { r -> r.modulos.any { !it.coberturaCompleta && !it.naoConfigurado } } }
     val conferir = porTurma.count { it.exigeConferencia } + if (escola) conhecidas.count { (id, _) -> porTurma.none { id in it.turmaIds } } else 0
     val nomesProf = remember(docentes) { SgeBusca.indiceProfessores(docentes.vinculos, docentes.locais) }
     val sgeMudou = remember(resultados) { SgeSaude.sgeMudou(resultados) }
@@ -225,17 +275,22 @@ fun TelaCartoes(
     LazyVerticalGrid(columns = GridCells.Adaptive(285.dp), contentPadding = PaddingValues(20.dp, 10.dp, 20.dp, 26.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
         item(span = { GridItemSpan(maxLineSpan) }) {
-            Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
-                Text(if (escola) "Coordenação" else "Seu diário", style = MaterialTheme.typography.displaySmall)
-                Text(if (escola) "Uma escola inteira, em recortes mais claros." else "O que precisa de atenção, em um só lugar.",
-                    style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    perfil?.let { SeloPerfil(it) }
+                    Text(if (escola) "Coordenação" else "Seu diário", style = MaterialTheme.typography.displaySmall)
+                    Text(if (escola) "Uma escola inteira, em recortes mais claros." else "O que precisa de atenção, em um só lugar",
+                        style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                BotaoQuadrado(if (escola) "Verificar turmas" else "Atualizar diário", aoSincronizar,
+                    enabled = if (escola) conhecidas.isNotEmpty() else !carregando) {
+                    if (carregando) CircularProgressIndicator(Modifier.size(20.dp).semantics { contentDescription = if (escola) "Verificação em andamento. Toque para pausar" else "Atualizando o diário" }, strokeWidth = 2.dp)
+                    else Icon(SgeIcons.Refresh, null, Modifier.size(22.dp), tint = MaterialTheme.colorScheme.primary)
+                }
             }
         }
         item(span = { GridItemSpan(maxLineSpan) }) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                NumeroResumo(pendentes, if (pendentes == 1) "turma com pendências" else "turmas com pendências", MaterialTheme.colorScheme.error, Modifier.weight(1f))
-                NumeroResumo(conferir, if (conferir == 1) "turma a conferir" else "turmas a conferir", corAlerta(), Modifier.weight(1f))
-            }
+            HeroResumo(pendentes, conferir, porTurma.size, coberturaParcial)
         }
         item(span = { GridItemSpan(maxLineSpan) }) {
             Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
@@ -303,13 +358,13 @@ fun TelaCartoes(
         }
         item(span = { GridItemSpan(maxLineSpan) }) {
             Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(7.dp), verticalAlignment = Alignment.CenterVertically) {
-                FilterChip(selected = filtroAvancado.qualificador.isBlank(), onClick = { aoAplicarFiltro(filtroAvancado.copy(qualificador = "", estado = 0)) }, label = { Text("Tudo") })
-                FilterChip(selected = filtroAvancado.qualificador == "conferir", onClick = { aoAplicarFiltro(filtroAvancado.copy(qualificador = "conferir", estado = 0)) }, label = { Text("A conferir") })
-                FilterChip(selected = filtroAvancado.qualificador == "sem_vinculo", onClick = { aoAplicarFiltro(filtroAvancado.copy(qualificador = "sem_vinculo", estado = 0)) }, label = { Text("Sem vínculo docente") })
-                FilterChip(selected = filtroAvancado.qualificador == "dados_antigos", onClick = { aoAplicarFiltro(filtroAvancado.copy(qualificador = "dados_antigos", estado = 0)) }, label = { Text("Dados antigos") })
+                PilulaFiltro(filtroAvancado.qualificador.isBlank(), { aoAplicarFiltro(filtroAvancado.copy(qualificador = "", estado = 0)) }) { Text("Tudo") }
+                PilulaFiltro(filtroAvancado.qualificador == "conferir", { aoAplicarFiltro(filtroAvancado.copy(qualificador = "conferir", estado = 0)) }) { Text("A conferir") }
+                PilulaFiltro(filtroAvancado.qualificador == "sem_vinculo", { aoAplicarFiltro(filtroAvancado.copy(qualificador = "sem_vinculo", estado = 0)) }) { Text("Sem vínculo docente") }
+                PilulaFiltro(filtroAvancado.qualificador == "dados_antigos", { aoAplicarFiltro(filtroAvancado.copy(qualificador = "dados_antigos", estado = 0)) }) { Text("Dados antigos") }
                 filtrosSalvos.forEach { salvo ->
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(1.dp)) {
-                        FilterChip(selected = salvo.filtro == filtroAvancado, onClick = { aoAplicarFiltro(salvo.filtro) }, label = { Text(salvo.nome) })
+                        PilulaFiltro(salvo.filtro == filtroAvancado, { aoAplicarFiltro(salvo.filtro) }) { Text(salvo.nome) }
                         IconButton(onClick = { aoExcluirFiltro(salvo.id) }, modifier = Modifier.size(36.dp)) {
                             Icon(SgeIcons.Close, "Remover filtro ${salvo.nome}", Modifier.size(15.dp))
                         }
@@ -324,7 +379,25 @@ fun TelaCartoes(
         }
         item(span = { GridItemSpan(maxLineSpan) }) {
             val opcoes = if (escola) Agrupamento.values().toList() else listOf(Agrupamento.TURMA, Agrupamento.COMPONENTE)
-            Segmentado(opcoes.map { it.titulo }, opcoes.indexOf(por).coerceAtLeast(0)) { aoAgrupar(opcoes[it]) }
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Box(Modifier.weight(1f)) { Segmentado(opcoes.map { it.titulo }, opcoes.indexOf(por).coerceAtLeast(0)) { aoAgrupar(opcoes[it]) } }
+                BotaoQuadrado("Buscar", { mostrarBusca = !mostrarBusca }, marcado = mostrarBusca || busca.isNotBlank()) {
+                    Icon(SgeIcons.Search, null, Modifier.size(20.dp))
+                }
+                Box {
+                    BotaoQuadrado("Filtrar: " + listOf("todas as situações", "pendências", "a conferir", "em dia")[filtro], { menuFiltro = true }, marcado = filtro != 0) {
+                        Icon(SgeIcons.Settings, null, Modifier.size(20.dp))
+                    }
+                    DropdownMenu(expanded = menuFiltro, onDismissRequest = { menuFiltro = false }) {
+                        listOf("Todas as situações", "Pendências", "A conferir", "Em dia").forEachIndexed { i, label ->
+                            DropdownMenuItem(text = { Text(label) }, onClick = { aoAplicarFiltro(filtroAvancado.copy(estado = i, qualificador = "")); menuFiltro = false },
+                                trailingIcon = if (filtro == i) ({ Icon(SgeIcons.Check, null, Modifier.size(17.dp)) }) else null)
+                        }
+                        HorizontalDivider()
+                        DropdownMenuItem(text = { Text("Filtros detalhados…") }, onClick = { menuFiltro = false; aoFiltros() })
+                    }
+                }
+            }
         }
         if (escola && (semVinculo.isNotEmpty() || diagnosticosRevisao.isNotEmpty())) item(span = { GridItemSpan(maxLineSpan) }) {
             val ambiguos = diagnosticosRevisao.count { it.tipo == "ambiguo" }
@@ -361,25 +434,8 @@ fun TelaCartoes(
         }
         item(span = { GridItemSpan(maxLineSpan) }) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text("${visiveis.size} ${if (visiveis.size == 1) "cartão" else "cartões"}", style = MaterialTheme.typography.labelLarge,
+                Text("${visiveis.size} ${if (visiveis.size == 1) "cartão" else "cartões"}" + (if (filtro != 0) " · ${listOf("", "pendências", "a conferir", "em dia")[filtro]}" else ""), style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
-                TextButton(onClick = { mostrarBusca = !mostrarBusca }) {
-                    Icon(SgeIcons.Search, null, Modifier.size(17.dp)); Spacer(Modifier.width(5.dp)); Text("Buscar")
-                }
-                Box {
-                    TextButton(onClick = { menuFiltro = true }) {
-                        Icon(SgeIcons.Settings, null, Modifier.size(17.dp)); Spacer(Modifier.width(5.dp))
-                        Text(listOf("Filtrar", "Pendências", "A conferir", "Em dia")[filtro])
-                    }
-                    DropdownMenu(expanded = menuFiltro, onDismissRequest = { menuFiltro = false }) {
-                        listOf("Todas as situações", "Pendências", "A conferir", "Em dia").forEachIndexed { i, label ->
-                            DropdownMenuItem(text = { Text(label) }, onClick = { aoAplicarFiltro(filtroAvancado.copy(estado = i, qualificador = "")); menuFiltro = false },
-                                trailingIcon = if (filtro == i) ({ Icon(SgeIcons.Check, null, Modifier.size(17.dp)) }) else null)
-                        }
-                        HorizontalDivider()
-                        DropdownMenuItem(text = { Text("Filtros detalhados…") }, onClick = { menuFiltro = false; aoFiltros() })
-                    }
-                }
             }
         }
         item(span = { GridItemSpan(maxLineSpan) }, key = "busca:${fonte.name}") {

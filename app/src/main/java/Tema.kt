@@ -3,7 +3,13 @@ package br.to.seduc.sgediariowidget
 import android.os.Build
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.selection.selectable
@@ -21,51 +27,63 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.ExperimentalTextApi
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontVariation
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+// Design "Dark + verde-menta": fundo quase preto, cartões #161917 e destaque #B7EB9E.
 private val NeutroClaro = lightColorScheme(
-    primary = Color(0xFF2767D9), onPrimary = Color.White,
-    primaryContainer = Color(0xFFE9F0FF), onPrimaryContainer = Color(0xFF2358AD),
-    secondary = Color(0xFF777984), onSecondary = Color.White,
-    secondaryContainer = Color(0xFFEEF0F4), onSecondaryContainer = Color(0xFF363942),
-    background = Color(0xFFF5F6F8), onBackground = Color(0xFF171A20),
-    surface = Color.White, onSurface = Color(0xFF171A20),
-    surfaceVariant = Color(0xFFEEF0F4), onSurfaceVariant = Color(0xFF686D78),
-    outline = Color(0xFFDFE2E8), outlineVariant = Color(0xFFECEEF2),
-    error = Color(0xFFBD4A42), onError = Color.White,
-    errorContainer = Color(0xFFFFECE9), onErrorContainer = Color(0xFF963F39),
-    tertiary = Color(0xFF327E61), tertiaryContainer = Color(0xFFE7F3ED),
-    onTertiaryContainer = Color(0xFF27654E), surfaceTint = Color.Transparent
+    primary = Color(0xFF2F7A4B), onPrimary = Color.White,
+    primaryContainer = Color(0xFFD8F8C8), onPrimaryContainer = Color(0xFF0F1711),
+    secondary = Color(0xFF59635C), onSecondary = Color.White,
+    secondaryContainer = Color(0xFFEAF0EA), onSecondaryContainer = Color(0xFF243828),
+    background = Color(0xFFF5F8F5), onBackground = Color(0xFF0F1210),
+    surface = Color.White, onSurface = Color(0xFF0F1210),
+    surfaceVariant = Color(0xFFEAF0EA), onSurfaceVariant = Color(0xFF59635C),
+    outline = Color(0xFFD0D9D2), outlineVariant = Color(0xFFE4EAE5),
+    error = Color(0xFFE11D48), onError = Color.White,
+    errorContainer = Color(0xFFFFE4E8), onErrorContainer = Color(0xFF9F1239),
+    tertiary = Color(0xFF2F7A4B), tertiaryContainer = Color(0xFFD8F8C8),
+    onTertiaryContainer = Color(0xFF0F1711), surfaceTint = Color.Transparent,
+    surfaceContainerLowest = Color.White, surfaceContainerLow = Color(0xFFF7FAF7), surfaceContainer = Color(0xFFF2F6F2),
+    surfaceContainerHigh = Color(0xFFEDF2ED), surfaceContainerHighest = Color(0xFFE7EDE7)
 )
 private val NeutroEscuro = darkColorScheme(
-    primary = Color(0xFF8AB5FF), onPrimary = Color(0xFF112139),
-    primaryContainer = Color(0xFF253449), onPrimaryContainer = Color(0xFFBAD2FA),
-    secondary = Color(0xFFA3A8B2), onSecondary = Color(0xFF151820),
-    secondaryContainer = Color(0xFF292E37), onSecondaryContainer = Color(0xFFD4D8E1),
-    background = Color(0xFF101216), onBackground = Color(0xFFF2F3F6),
-    surface = Color(0xFF1B1F26), onSurface = Color(0xFFF2F3F6),
-    surfaceVariant = Color(0xFF272C35), onSurfaceVariant = Color(0xFFA6ABB6),
-    outline = Color(0xFF373D48), outlineVariant = Color(0xFF282D36),
-    error = Color(0xFFF5A296), onError = Color(0xFF431612),
-    errorContainer = Color(0xFF422826), onErrorContainer = Color(0xFFF0B7AC),
-    tertiary = Color(0xFF94CCAF), tertiaryContainer = Color(0xFF233A30),
-    onTertiaryContainer = Color(0xFFA8D6BB), surfaceTint = Color.Transparent
+    primary = Color(0xFFB7EB9E), onPrimary = Color(0xFF0F1210),
+    primaryContainer = Color(0xFF263226), onPrimaryContainer = Color(0xFFD8F8C8),
+    secondary = Color(0xFF9CA3AF), onSecondary = Color(0xFF0F1210),
+    secondaryContainer = Color(0xFF1E2320), onSecondaryContainer = Color(0xFFF4F6F5),
+    background = Color(0xFF0B0D0C), onBackground = Color(0xFFF4F6F5),
+    surface = Color(0xFF161917), onSurface = Color(0xFFF4F6F5),
+    surfaceVariant = Color(0xFF1E2320), onSurfaceVariant = Color(0xFF9CA3AF),
+    outline = Color(0xFF333836), outlineVariant = Color(0xFF262927),
+    error = Color(0xFFF43F5E), onError = Color.White,
+    errorContainer = Color(0xFF371F24), onErrorContainer = Color(0xFFFDA4AF),
+    tertiary = Color(0xFFB7EB9E), tertiaryContainer = Color(0xFF263226),
+    onTertiaryContainer = Color(0xFFD8F8C8), surfaceTint = Color.Transparent,
+    surfaceContainerLowest = Color(0xFF0B0D0C), surfaceContainerLow = Color(0xFF121513), surfaceContainer = Color(0xFF161917),
+    surfaceContainerHigh = Color(0xFF1C201E), surfaceContainerHighest = Color(0xFF222624)
 )
+@OptIn(ExperimentalTextApi::class)
+private val Jakarta = FontFamily(listOf(400, 500, 600, 700, 800).map { w ->
+    Font(R.font.plus_jakarta_sans, FontWeight(w), variationSettings = FontVariation.Settings(FontVariation.weight(w)))
+})
 private fun tipo(size: Int, height: Int, weight: FontWeight = FontWeight.Normal) = TextStyle(
-    fontFamily = FontFamily.SansSerif, fontSize = size.sp, lineHeight = height.sp, fontWeight = weight,
+    fontFamily = Jakarta, fontSize = size.sp, lineHeight = height.sp, fontWeight = weight,
     letterSpacing = if (size >= 22) (-0.6).sp else 0.sp
 )
 private val TipografiaNeutra = Typography(
-    displaySmall = tipo(34, 40, FontWeight.Bold), headlineMedium = tipo(28, 34, FontWeight.Bold),
-    headlineSmall = tipo(24, 30, FontWeight.Bold), titleLarge = tipo(22, 28, FontWeight.SemiBold),
-    titleMedium = tipo(17, 23, FontWeight.SemiBold), titleSmall = tipo(15, 21, FontWeight.SemiBold),
-    bodyLarge = tipo(16, 24), bodyMedium = tipo(14, 21), bodySmall = tipo(12, 18),
-    labelLarge = tipo(13, 19, FontWeight.SemiBold), labelMedium = tipo(12, 17, FontWeight.Medium),
-    labelSmall = tipo(11, 16, FontWeight.Medium)
+    displaySmall = tipo(34, 40, FontWeight.ExtraBold), headlineMedium = tipo(30, 36, FontWeight.ExtraBold),
+    headlineSmall = tipo(24, 30, FontWeight.Bold), titleLarge = tipo(21, 27, FontWeight.Bold),
+    titleMedium = tipo(17, 23, FontWeight.Bold), titleSmall = tipo(15, 21, FontWeight.SemiBold),
+    bodyLarge = tipo(16, 24, FontWeight.Medium), bodyMedium = tipo(14, 21, FontWeight.Medium), bodySmall = tipo(12, 18, FontWeight.Medium),
+    labelLarge = tipo(13, 19, FontWeight.SemiBold), labelMedium = tipo(12, 17, FontWeight.SemiBold),
+    labelSmall = tipo(11, 16, FontWeight.SemiBold)
 )
 
 /** Tema e cor são preferências independentes; os valores antigos continuam compatíveis. */
@@ -84,14 +102,14 @@ fun SgeTema(tema: Int, estilo: Int = 0, content: @Composable () -> Unit) {
     CompositionLocalProvider(LocalDensity provides Density(dens.density, dens.fontScale * (if (SgeUi.fonteGrande) 1.3f else 1f))) {
         MaterialTheme(colorScheme = finalEsquema, typography = TipografiaNeutra,
             shapes = Shapes(extraSmall = RoundedCornerShape(8.dp), small = RoundedCornerShape(14.dp),
-                medium = RoundedCornerShape(20.dp), large = RoundedCornerShape(28.dp), extraLarge = RoundedCornerShape(34.dp))) {
+                medium = RoundedCornerShape(20.dp), large = RoundedCornerShape(26.dp), extraLarge = RoundedCornerShape(28.dp))) {
             Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background, content = content)
         }
     }
 }
 @Composable fun corErro() = MaterialTheme.colorScheme.error
 @Composable fun corOk() = MaterialTheme.colorScheme.tertiary
-@Composable fun corAlerta() = if (MaterialTheme.colorScheme.background.luminance() > .5f) Color(0xFF92651E) else Color(0xFFE0BB78)
+@Composable fun corAlerta() = if (MaterialTheme.colorScheme.background.luminance() > .5f) Color(0xFF92651E) else Color(0xFFFBBF24)
 
 @Composable
 fun Segmentado(opcoes: List<String>, selecionado: Int, aoSelecionar: (Int) -> Unit) {
@@ -99,9 +117,9 @@ fun Segmentado(opcoes: List<String>, selecionado: Int, aoSelecionar: (Int) -> Un
         .background(MaterialTheme.colorScheme.surfaceVariant).padding(4.dp)) {
         opcoes.forEachIndexed { i, texto ->
             val ativo = i == selecionado
-            val fundo by animateColorAsState(if (ativo) MaterialTheme.colorScheme.surface else Color.Transparent,
+            val fundo by animateColorAsState(if (ativo) MaterialTheme.colorScheme.primary else Color.Transparent,
                 animationSpec = tween(SgeMotion.duration(150)), label = "fundoSegmento$i")
-            val corTexto by animateColorAsState(if (ativo) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+            val corTexto by animateColorAsState(if (ativo) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
                 animationSpec = tween(SgeMotion.duration(150)), label = "textoSegmento$i")
             Box(Modifier.weight(1f).clip(RoundedCornerShape(11.dp))
                 .background(fundo)
@@ -110,5 +128,28 @@ fun Segmentado(opcoes: List<String>, selecionado: Int, aoSelecionar: (Int) -> Un
                 Text(texto, style = MaterialTheme.typography.labelLarge, color = corTexto)
             }
         }
+    }
+}
+
+/** Filtro rápido em pílula: ativo = verde-menta com texto escuro. */
+@Composable
+fun PilulaFiltro(selecionado: Boolean, aoClicar: () -> Unit, conteudo: @Composable () -> Unit) {
+    val fundo by animateColorAsState(if (selecionado) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
+        animationSpec = tween(SgeMotion.duration(150)), label = "pilulaFiltro")
+    Surface(onClick = aoClicar, shape = CircleShape, color = fundo,
+        contentColor = if (selecionado) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+        border = if (selecionado) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        modifier = Modifier.semantics { this.selected = selecionado }) {
+        Box(Modifier.padding(horizontal = 16.dp, vertical = 9.dp)) { ProvideTextStyle(MaterialTheme.typography.labelLarge) { conteudo() } }
+    }
+}
+
+/** Botão quadrado arredondado (atualizar, buscar, filtrar). */
+@Composable
+fun BotaoQuadrado(descricao: String, aoClicar: () -> Unit, enabled: Boolean = true, marcado: Boolean = false, icone: @Composable () -> Unit) {
+    Surface(onClick = aoClicar, enabled = enabled, shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.dp, if (marcado) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant),
+        modifier = Modifier.semantics { contentDescription = descricao }) {
+        Box(Modifier.size(46.dp), contentAlignment = Alignment.Center) { icone() }
     }
 }

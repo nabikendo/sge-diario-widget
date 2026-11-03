@@ -110,6 +110,7 @@ fun AppDiario(
         pagina == "mapa" -> "Mapa da escola"; pagina == "lote" -> "Relatórios"; pagina == "organizacao" -> "Organizar turmas"; pagina == "economia" -> "Sincronização"; pagina == "backup" -> "Backup"; pagina == "ajustes" -> "Ajustes"; pagina == "ajuda" -> "Como interpretar"
         pagina == "historico" -> "Histórico"; pagina == "widgets" -> "Widgets"; pagina == "sobre" -> "Sobre"; detalhe != null && !largo -> "Detalhes"; aba == 2 -> "SGE Web"; else -> "Diário"
     }
+    val cabecalhoNaTela = pagina == null && detalhe == null && aba != 2
     Box(Modifier.fillMaxSize()) {
         // Com a introdução aberta, o app por trás fica desfocado (Android 12+).
         Row(Modifier.fillMaxSize().then(if (intro && Build.VERSION.SDK_INT >= 31) Modifier.blur(22.dp) else Modifier)) {
@@ -118,16 +119,10 @@ fun AppDiario(
             Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 3.dp), verticalAlignment = Alignment.CenterVertically) {
                 if (pagina != null || detalhe != null) IconButton(onClick = { if (pagina != null) pagina = null else { detalhe = null; pagina = origemDetalhe; origemDetalhe = null } }) {
                     Icon(SgeIcons.Back, "Voltar", Modifier.size(21.dp))
-                } else Icon(SgeIcons.Book, null, Modifier.padding(12.dp).size(22.dp), tint = MaterialTheme.colorScheme.primary)
-                Column(Modifier.weight(1f)) {
+                } else if (!cabecalhoNaTela) Icon(SgeIcons.Book, null, Modifier.padding(12.dp).size(22.dp), tint = MaterialTheme.colorScheme.primary)
+                if (cabecalhoNaTela) Spacer(Modifier.weight(1f)) else Column(Modifier.weight(1f)) {
                     Text(titulo, style = MaterialTheme.typography.titleMedium)
                     SeloPerfil(perfil)
-                }
-                if (pagina == null && detalhe == null && aba != 2) IconButton(
-                    onClick = { if (aba == 1) aoVerificarTurmas(conhecidas.map { it.first }) else aoSincronizarPessoal() },
-                    enabled = !protegida && (aba == 1 || !painel.sincronizando) && (aba != 1 || conhecidas.isNotEmpty())) {
-                    if (if (aba == 1) coord.sincronizando else painel.sincronizando) CircularProgressIndicator(Modifier.size(19.dp).semantics { contentDescription = if (aba == 1) "Verificação em andamento. Toque para pausar" else "Atualizando o diário" }, strokeWidth = 2.dp)
-                    else Icon(SgeIcons.Refresh, if (aba == 1) "Verificar turmas" else "Atualizar diário", Modifier.size(21.dp))
                 }
                 if (webVisivel) IconButton(onClick = aoCopiarPagina) { Icon(SgeIcons.Export, "Copiar estrutura da página", Modifier.size(20.dp)) }
                 IconButton(onClick = { focus.clearFocus(); pagina = "ajuda" }) { Icon(SgeIcons.Info, "Legendas e ajuda", Modifier.size(21.dp)) }
@@ -186,7 +181,7 @@ fun AppDiario(
                                         aoSalvarFiltro = { recursos.aoSalvarFiltro(fonte, it) },
                                         aoExcluirFiltro = { recursos.aoExcluirFiltro(fonte, it) },
                                         filaCoord = recursos.filaCoord, aoPausarFila = recursos.aoPausarFila,
-                                        aoRetomarFila = recursos.aoRetomarFila, aoTentarFalhas = recursos.aoTentarFalhas)
+                                        aoRetomarFila = recursos.aoRetomarFila, aoTentarFalhas = recursos.aoTentarFalhas, perfil = perfil)
                                 }
                             }
                             @Composable fun detalhes(g: GrupoPendencias) {
@@ -239,14 +234,14 @@ fun AppDiario(
     }
 }
 
-@Composable private fun SeloPerfil(perfil: PerfilSge) {
+@Composable fun SeloPerfil(perfil: PerfilSge) {
     val cor = when (perfil) {
         PerfilSge.PROFESSOR -> MaterialTheme.colorScheme.primary
         PerfilSge.COORDENACAO -> MaterialTheme.colorScheme.tertiary
         PerfilSge.EXPIRADO -> MaterialTheme.colorScheme.error
         else -> MaterialTheme.colorScheme.onSurfaceVariant
     }
-    Surface(color = cor.copy(alpha = .14f), shape = RoundedCornerShape(50)) {
+    Surface(color = cor.copy(alpha = .15f), shape = RoundedCornerShape(50)) {
         Row(Modifier.padding(horizontal = 9.dp, vertical = 2.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
             Box(Modifier.size(6.dp).background(cor, CircleShape))
             Text("Perfil: ${perfil.titulo}", style = MaterialTheme.typography.labelSmall, color = cor, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -268,8 +263,8 @@ fun AppDiario(
 
 @Composable private fun DockDiario(aba: Int, visiveis: Set<Int>, escolher: (Int) -> Unit) {
     Surface(Modifier.padding(horizontal = 18.dp, vertical = 9.dp).fillMaxWidth(),
-        shape = RoundedCornerShape(30.dp), color = MaterialTheme.colorScheme.surface,
-        shadowElevation = 5.dp, border = BorderStroke(.6.dp, MaterialTheme.colorScheme.outlineVariant)) {
+        shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surface.copy(alpha = .96f),
+        shadowElevation = 8.dp, border = BorderStroke(.6.dp, MaterialTheme.colorScheme.outlineVariant)) {
         Row(Modifier.padding(6.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             listOf("Meu diário", "Coordenação", "SGE Web").forEachIndexed { i, label ->
             if (i !in visiveis) return@forEachIndexed
