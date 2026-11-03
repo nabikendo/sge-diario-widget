@@ -1,18 +1,11 @@
-SGE Diário 2.2
+SGE Diário 2.2.1
 
-Comparação entre consultas
-- Resumo das melhorias e aumentos de pendências, com variações por módulo e turma.
-- A comparação só é feita quando os componentes e a cobertura são equivalentes e completos; dados ausentes ou parciais não são tratados como zero.
+Visual atualizado
+- Novo tema verde-menta, tipografia Plus Jakarta Sans, resumo e filtros em destaque e cartões em grade.
+- Detalhes com mapa de dias, cartões de módulo, ações rápidas e compartilhamento no cabeçalho.
 
-Filtros e relatórios
-- Chips para recortes rápidos e filtros nomeados, separados entre diário e coordenação, que podem ser salvos, aplicados e removidos.
-- Os critérios ativos acompanham os relatórios individuais e em lote.
-
-Coordenação e atualidade
-- Progresso da fila, com consultadas, ignoradas recentes, falhas e restantes; controles para pausar, retomar e repetir apenas falhas.
-- Atualidade indicada por módulo, com alerta para confirmar no SGE antes de agir sobre pendências em dados antigos.
-
-Vínculos docentes
-- Conflitos e linhas sem correspondência ficam visíveis para revisão manual; o app não atribui vínculos ambíguos automaticamente.
+Leitura de períodos
+- Reconhece formatos comuns de bimestre do PEI e dos planos, como “1º Bimestre”, “Bimestre 2”, “II Bim.” e “Quarto Bimestre”, consultando as datas fornecidas pelo SGE.
+- Períodos cujas datas não forem reconhecidas continuam sem contagem e com cobertura parcial; seus nomes permanecem no diagnóstico para facilitar a correção.
 
 O app continua somente leitura no SGE. Valores parciais ou não verificados não confirmam ausência de pendências. Versão estável assinada com a chave do app principal; pode instalar por cima da versão anterior.
