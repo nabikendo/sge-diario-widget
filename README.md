@@ -1,150 +1,101 @@
 # SGE Diário Widget
 
-Aplicativo Android que mostra, na tela inicial e no app, as **pendências do diário de classe** do SGE 3.0 (Seduc-TO) **por turma e disciplina**. É somente leitura: o app não grava nada no SGE. A correção das pendências continua sendo feita pelo professor, direto no SGE.
+### O diário da escola no radar — sem caça ao tesouro e sem adivinhar zeros.
 
-## O que o app mostra
+O SGE Diário Widget acompanha pendências do **SGE 3.0 da Seduc-TO** por turma e componente. Mostra o que foi conferido, o que ainda precisa de atenção e, principalmente, quando o app **não tem dados suficientes para afirmar alguma coisa**.
 
-Para cada turma e disciplina do horário do professor:
+> O app é somente leitura: não altera registros no SGE. Para corrigir uma pendência, é só abrir o SGE e resolver por lá.
+
+[![Versão estável 2.2.1](https://img.shields.io/badge/est%C3%A1vel-2.2.1-168B75)](https://github.com/nabikendo/sge-diario-widget/releases/tag/v2.2.1)
+[![Canal de testes](https://img.shields.io/badge/testes-latest-7466D8)](https://github.com/nabikendo/sge-diario-widget/releases/tag/latest)
+[![Licença MIT](https://img.shields.io/badge/licen%C3%A7a-MIT-2D7A46)](LICENSE)
+
+## Baixe e comece
+
+- **Uso diário:** [baixar o APK estável 2.2.1](https://github.com/nabikendo/sge-diario-widget/releases/download/v2.2.1/SGE-Diario-2.2.1.apk) ou [ver a release](https://github.com/nabikendo/sge-diario-widget/releases/tag/v2.2.1).
+- **Quer experimentar antes?** [abrir o canal de testes `latest`](https://github.com/nabikendo/sge-diario-widget/releases/tag/latest) e baixar `SGE-Diario-teste.apk` nos Assets.
+
+Para instalar a versão estável, permita a instalação de apps baixados dessa fonte quando o Android perguntar. Depois, abra o app, siga a introdução e entre no SGE pela aba **SGE Web**. Volte a **Meu diário** e toque em atualizar. Pronto: o painel começa a montar o mapa das pendências.
+
+O APK de teste tem nome e pacote separados (`SGE Diário (teste)`), então pode ficar instalado ao lado do app estável. Ele é uma prévia: pode mudar com frequência; para o dia a dia, prefira a versão estável.
+
+## O que aparece no painel?
+
+O app organiza os resultados em cinco módulos:
 
 | Módulo | O que é contado |
 |---|---|
-| Conteúdos | dias pendentes no mapa de registros (até hoje) |
-| Frequência | dias com frequência não concluída (até hoje) |
-| Plano de aula | documentos ausentes + não enviados/reprovados |
-| Plano de curso | documentos ausentes + não enviados/reprovados |
-| PEI | documentos ausentes + não enviados/reprovados |
+| Conteúdos | Dias sem registro no mapa de conteúdos, até hoje. |
+| Frequência | Dias com frequência ainda não concluída, até hoje. |
+| Plano de aula | Documentos ausentes, não enviados ou reprovados. |
+| Plano de curso | Documentos ausentes, não enviados ou reprovados. |
+| PEI | Documentos ausentes, não enviados ou reprovados. |
 
-Registros "aguardando avaliação" aparecem à parte e **não** contam como pendência.
-Um valor com `*` tem cobertura parcial; `—` significa não verificado. O app nunca converte "não sei" em zero.
+“**Aguardando avaliação**” aparece à parte e não entra na conta de pendências. O app também mostra cobertura e atualidade dos dados, para a contagem não parecer mais certeira do que realmente é.
 
-## Como funciona
+### Legenda anti-susto
 
-1. Você entra no SGE pela aba **SGE Web** (um WebView). O app não pede nem guarda usuário e senha.
-2. O `SgeSyncWorker` (WorkManager) reutiliza a sessão do WebView, lê o horário do professor e consulta cada turma.
-3. O resultado é salvo localmente (`SgePainelStore`) e exibido no app e no widget (Jetpack Glance).
-4. A sincronização automática do diário pessoal usa um intervalo de 2, 6, 12 ou 24 horas, escolhido em **Ajustes → Sincronização econômica**. A consulta manual está no botão **Atualizar diário** do cabeçalho e nos widgets que o exibem. O Android determina quando as tarefas periódicas realmente executam.
+- `—` significa **não verificado**. O app ainda não conseguiu confirmar esse módulo.
+- `*` significa **cobertura parcial**. Pode haver informações que o SGE não devolveu.
+- `0*` não é “tudo certo”: é zero encontrado numa consulta incompleta.
+- Uma turma só fica **em dia** quando os cinco módulos foram conferidos completamente e todos têm zero pendências.
 
-A lista de turmas (`#TurmaContextoId`) é montada por JavaScript no SGE, então o app a lê do WebView logado e a guarda para o worker.
+Se um período do PEI ou dos planos vier num formato diferente, o app não inventa datas para preencher a lacuna. Mantém a cobertura parcial e registra o nome do período no diagnóstico — melhor um “preciso conferir” honesto do que um zero de ficção.
 
-## Instalação
+## Um passeio rápido pelos recursos
 
-1. Abra a aba **Releases** deste repositório.
-2. Baixe o APK da versão estável em **Assets** e instale (permita instalar apps desta fonte).
-3. Abra o app, siga a introdução e entre no SGE na aba **SGE Web**. Volte para **Meu diário** e toque no ícone de atualização do cabeçalho.
-4. Em **Ajustes → Galeria de widgets**, escolha um formato e configure seu recorte. Também é possível adicioná-lo pelo seletor de widgets do aparelho.
+- **Meu diário e Coordenação:** cartões pesquisáveis, filtros e agrupamentos por turma, componente ou vínculo docente.
+- **Comparação:** veja mudanças entre consultas comparáveis. O app só compara módulos completos e os mesmos vínculos; mudança de turma ou cobertura incompleta não vira tendência imaginária.
+- **Filtros salvos:** guarde recortes que você usa com frequência e aplique-os novamente sem remontar o quebra-cabeça.
+- **Mapa da escola e mapa de dias:** encontre padrões por módulo, turma ou professor e abra os detalhes a partir do próprio mapa.
+- **Vínculos docentes:** vínculos ambíguos não são atribuídos automaticamente. Você pode revisar e ajustar vínculos localmente, com a origem indicada.
+- **Fila de coordenação:** acompanhe o progresso, pause ou retome a consulta e tente novamente apenas as turmas que falharam.
+- **Histórico semanal:** confira consultas recentes e compare dados completos no próprio aparelho.
+- **Relatórios:** compartilhe resumo em texto ou PDF; na coordenação há exportações em lote e arquivos de apoio para impressão.
+- **Seis widgets:** resumo do diário, minhas turmas, por componente, coordenação, por professor e cartão em foco. Cada widget pode ter seu recorte e agrupamento.
+- **Aparência renovada na 2.2.1:** tema verde-menta, tipografia Plus Jakarta Sans, filtros e cartões mais claros, detalhes com mapa de dias e ações rápidas.
 
-A prévia do PR #2 é distribuída como `SGE-Diario-previa-N.apk` nos artefatos do workflow. Ela se chama **SGE Diário (teste)** e tem pacote `.teste`, separado da versão estável.
+## Como o app conversa com o SGE
 
-A versão estável é assinada com a chave privada do app principal, mantida fora do repositório. O canal `.teste` usa `app/debug.keystore`, uma chave pública de debug. Os dois canais são separados e não substituem um ao outro. Nunca adicione o keystore estável ou suas senhas ao repositório.
+1. Você entra no SGE pela aba **SGE Web**. O app não pede nem guarda sua senha.
+2. A consulta reutiliza a sessão do WebView para ler o horário e buscar os resultados disponíveis.
+3. Os resultados são guardados localmente no aparelho e aparecem nos painéis e widgets.
+4. Você pode atualizar manualmente. A sincronização pessoal também pode rodar automaticamente conforme o intervalo escolhido em **Ajustes → Sincronização econômica**.
 
-## Privacidade e segurança
+O Android controla quando trabalhos em segundo plano realmente executam; bateria, rede e regras do aparelho podem atrasar uma consulta automática. A atualização manual continua sendo o atalho mais direto.
 
-- Somente leitura: nenhuma rota de gravação do SGE é chamada.
-- Senha nunca é lida nem armazenada; a sessão fica no cookie store do Android.
-- Backup do Android desativado (`allowBackup=false`).
-- Os dados do painel ficam no aparelho. Exportações e backups são feitos somente por ação do usuário, para o local ou destinatário escolhido no seletor do Android.
-- **Nunca** publique tokens, senhas ou cookies em issues, commits ou conversas.
+## Privacidade e proteção
 
-## Diagnóstico
+- O app é **somente leitura** no SGE. Não grava nem corrige registros por você.
+- Senhas não são lidas nem armazenadas. A sessão permanece no armazenamento de cookies do WebView do Android.
+- Painéis e históricos ficam no aparelho. O backup é acionado por você e exportado pelo seletor de documentos do Android.
+- O backup JSON **não é criptografado pelo app**. Guarde-o num local confiável; ele não inclui senha, cookies nem sessão do SGE.
+- **Proteger coordenação** continua opcional. Usa biometria forte e, em aparelhos compatíveis com Android 11 ou superior, também a credencial do dispositivo. O bloqueio pode abranger coordenação, SGE Web, histórico, diagnósticos e widgets.
+- Os widgets são widgets Android comuns. A tela inicial e o fabricante controlam onde aparecem e quais interações funcionam; o app não atravessa a tela de bloqueio.
+- Revise o diagnóstico antes de compartilhá-lo. Ele ajuda a investigar falhas, mas pode conter informações operacionais da escola.
 
-- **Diagnóstico único** (Ajustes): reúne perfil observado, os dois painéis, itens parciais/não verificados, vínculos, regras de sincronização e logs separados por origem. Não inclui cookies ou senhas. Revise o texto antes de compartilhá-lo.
-- **Copiar página** (aba SGE Web): copia a estrutura da tela aberta. Serve para mapear telas novas, como a visão de coordenação.
+## Ajuda para investigar um “ué?”
 
-Quando o SGE mudar o HTML, o app mostra exatamente em que etapa falhou, em vez de exibir zero.
+Em **Ajustes → Diagnóstico**, o diagnóstico único reúne perfil observado, estado dos painéis, vínculos, sincronização e falhas. Ele não inclui cookies nem senhas. Em **SGE Web → Copiar página**, você pode copiar a estrutura da página aberta para ajudar a entender mudanças no site.
 
-## Desenvolvimento
+Quando o SGE muda sua estrutura, uma etapa de leitura pode falhar. O app tenta apontar onde isso aconteceu, em vez de transformar a falha num belo — e enganoso — zero.
 
-- Kotlin, Jetpack Compose (Material 3), Jetpack Glance, WorkManager, Jsoup.
-- `minSdk 29`, `targetSdk 34`, JDK 17.
-- Código em `app/src/main/java`; manifesto em `AndroidManifest.xml` (raiz); testes em `app/src/test`.
-- O GitHub Actions roda os testes, compila o APK e o publica em **Releases** (tag `latest`) a cada push na `main`.
+## Para quem desenvolve
 
-```
+O projeto usa Kotlin, Jetpack Compose, Material 3, Jetpack Glance, WorkManager e Jsoup. Requer Android 10 (API 29) ou superior e JDK 17.
+
+Para rodar os testes unitários e compilar a variante de teste, com Gradle e Android SDK instalados:
+
+```sh
 gradle testDebugUnitTest assembleDebug
 ```
 
-## Roadmap e sugestões
+O GitHub Actions executa os testes e compila o APK de teste. A mudança em `release/versao.txt` aciona o workflow que testa e publica o APK estável assinado. A chave de assinatura e suas credenciais ficam fora do repositório — não as coloque em commits, issues ou prints.
 
-**Próximos passos já planejados**
-- [x] Tela de detalhes por módulo, com cobertura, avaliação e o texto das datas informado pelo SGE.
-- [x] Seis widgets com tamanho adaptável, tema claro/escuro e configuração por instância.
-- [x] Coordenação por turma, componente e vínculo docente (SGE ou ajuste local explícito).
-- [ ] Ícone com Material You (cores dinâmicas e camada monocromática).
+## Ideias para depois — sugestões, não promessas
 
-**Ideias para próximas versões**
-- Favoritos e ordenação por registros mais antigos, depois de estruturar as datas dos módulos.
-- Alertas locais opcionais por módulo, sem repetir avisos sobre os mesmos dados.
-- Widget de aula atual/próxima turma, depois de persistir e cruzar o horário com o calendário escolar.
-- Camada monocromática do ícone e migração de SDK com revisão das bordas da tela.
+Algumas ideias que podem entrar numa conversa futura: favoritos e ordenação por antiguidade, alertas locais opcionais por módulo, um widget da aula atual/próxima e uma camada monocromática para o ícone. Nada disso tem data ou compromisso de lançamento.
 
 ## Licença
 
-MIT. Veja o arquivo [LICENSE](LICENSE).
-
-## Novo painel
-
-O PR #2 incorpora a reformulação aprovada à `main`, publicada na versão estável 1.5. A alteração de `release/versao.txt` na `main` inicia a compilação assinada; o workflow Release estável também permite disparo manual.
-O APK de debug tem pacote `.teste` e nome **SGE Diário (teste)**, independente da versão estável.
-Cada compilação mostra `1.8-preview.N` nos Ajustes e entrega `SGE-Diario-previa-N.apk` no artefato do Actions.
-
-- **Cartões**: busca e filtros por turma ou componente; cada cartão abre uma página com os cinco módulos, os detalhes originais da consulta e o resumo compartilhável.
-- **Coordenação**: visões por turma, componente e vínculo docente. A ação Atualizar vínculos docentes consulta a lista `#ProfessorId` e o quadro de horário já usado pelo cliente. Uma tarefa consulta cada professor, evitando concentrar a escola inteira em um único Worker.
-- **Vínculos**: os resultados continuam sendo da turma/componente. Uma turma com vários docentes fica em Docência compartilhada; o mesmo registro não é somado uma vez por professor. Uma correspondência ambígua fica sem atribuição. É possível ajustar os vínculos apenas no aparelho, com indicação de vínculo local.
-- **Introdução e ajuda**: a primeira abertura apresenta o funcionamento; os Ajustes permitem rever a introdução e consultar as legendas. As paletas se chamam Neutras e Do sistema.
-- **Seis widgets**: Resumo do diário, Minhas turmas, Por componente, Coordenação, Por professor e Cartão em foco. Cada instância tem origem, agrupamento e recorte próprios, filtro de atenção e opção de ocultar nomes. O cartão em foco tem controles anterior/próximo; as listas usam rolagem vertical.
-
-### Contagens e cobertura
-
-Conteúdos e frequência contam **dias**, não quantidade de aulas nem alunos faltosos. Os outros módulos contam documentos.
-Um resultado desconhecido permanece `—`; um total com qualquer parte não conferida permanece `*`, inclusive `0*`.
-Em dia exige todos os cinco módulos com cobertura completa e contagem zero. Aguardando avaliação fica separado.
-Uma turma com pendências e cobertura parcial pode aparecer tanto no contador de pendências quanto no de conferência.
-
-### Tela bloqueada
-
-Os widgets são widgets Android comuns. O host do fabricante determina se podem ser colocados na tela bloqueada e quais interações funcionam ali.
-O app não cria uma tela sobre o bloqueio, não exige sobreposição e não usa `showWhenLocked` para abrir dados sem autenticação.
-Resumo do diário e Cartão em foco são as opções compactas; Ocultar nomes permite apresentar contagens sem expor os rótulos dos cartões.
-
-### Validação da prévia
-
-Os testes JVM cobrem agrupamentos, contagens parciais/desconhecidas, docência compartilhada, prioridade dos vínculos locais e identificação conservadora das turmas do horário.
-O job `ui-previews` executa testes de navegação em emulador Android e gera capturas com **dados ilustrativos**, sem sessão do SGE.
-A leitura de vínculos no SGE real depende do perfil Unidade escolar e precisa ser validada com uma sessão do usuário. Falhas preservam vínculos anteriores ou deixam a atribuição desconhecida.
-
-### Próximas melhorias sugeridas
-
-O histórico semanal e a exportação em PDF chegaram na 1.7; mapa, filtros, lote e backup chegaram na 1.8. As ideias ainda pendentes estão no roadmap acima. A identificação de datas dos períodos depende de diagnóstico do SGE e permanece adiada.
-
-## Recursos da versão 1.7
-
-- Larguras a partir de 840 dp exibem lista e detalhe simultâneos. O cartão selecionado fica destacado; a lista mantém a rolagem.
-- Ajustes → Histórico semanal mostra consultas concluídas neste aparelho. Mantém oito dias localmente e exibe sete (o dia adicional permite a comparação do primeiro dia da semana); não recupera consultas anteriores à atualização. A comparação exige os mesmos vínculos turma/componente e cobertura completa no módulo.
-- Compartilhar nos detalhes oferece texto (seletor nativo, incluindo WhatsApp) e PDF A4 paginado. O agrupamento por professor usa os vínculos já existentes. O PDF preserva símbolos de cobertura, separa dias/documentos e não lista alunos.
-- Proteger coordenação é opcional. Usa biometria forte (Android 10+) ou credencial do aparelho (Android 11+), exige autenticação para ativar/desativar e bloqueia novamente em segundo plano. Protege também SGE Web, histórico escolar, diagnósticos e configuração de widgets. Widgets da escola ficam sem nomes e contagens enquanto a proteção está ativa. É um bloqueio local de acesso; não altera o login nem as permissões no SGE.
-- Verificação noturna é opcional: agenda a partir das 03h com rede e bateria suficiente. O Android pode adiar. Só enfileira turmas conhecidas com sessão Unidade escolar, não troca o perfil e não substitui uma fila manual em andamento. O estado da última tentativa aparece nos Ajustes.
-- O cabeçalho indica o perfil observado nas flags do SGE. A preferência Ambos/Professor/Coordenação continua organizando a navegação e não muda o perfil remoto.
-- Cookies renovados preservam os atributos dos cabeçalhos Set-Cookie; a sincronização devolve cookies também ao concluir uma turma da coordenação. Cookies de terceiros ficam desativados.
-
-A correção da leitura de datas dos períodos continua adiada a pedido do usuário. Valores parciais não confirmam ausência de pendências. Estas melhorias integram a versão estável 1.7; as opções de proteção e consulta noturna começam desativadas.
-
-
-## Recursos da versão 1.8
-
-- **Atualizações do app**: aviso opcional de nova versão, “Baixar atualização” e “Mais tarde” (24 horas). Ajustes permite verificar manualmente e escolher download só em rede sem franquia. O app consulta Releases públicos, baixa pelo DownloadManager e valida SHA-256, tamanho, pacote, versão, Android mínimo e certificado de assinatura antes de entregar o APK ao instalador. A instalação exige confirmação do Android; não é silenciosa. A primeira instalação da 1.8 é manual; as próximas versões compatíveis poderão ser baixadas pelo app.
-- **Mapa da escola**: matriz dos cinco módulos por turma ou professor, com rolagem horizontal e abertura dos detalhes pela célula. Registros sem vínculo docente ficam identificados. É um mapa de pendências, não uma planta física da escola.
-- **Filtros avançados**: escola, série/etapa, turno, componente, professor, módulo e situação; o recorte é compartilhado entre cartões, mapa e lote da coordenação. A situação usa o módulo escolhido ou todos, se nenhum for selecionado. Série e turno são organizados localmente, sem inferência a partir do código da turma e sem alteração no SGE.
-- **Relatórios em lote**: seleção de professores identificados, um PDF por professor, PDF reunido para impressão e folhas de recebimento e ciência, reunidos em ZIP. As folhas têm data e assinatura manuscritas. O cabeçalho de escola e a pessoa que entrega são opcionais. Registros sem vínculo ficam fora do lote nominal, com aviso. Cada docente de uma turma compartilhada recebe a cópia correspondente; os PDFs individuais não devem ser somados como total escolar e não atribuem autoria de registros.
-- **Backup e restauração**: arquivo JSON pelo seletor de documentos do Android (incluindo provedores como Drive quando disponíveis). Inclui painéis, histórico, vínculos, organização, filtros e preferências. Valida todo o arquivo antes da confirmação e gravação atômica. Exclui sessão, cookies, senha, diagnóstico bruto, credencial biométrica e estado do instalador. A proteção do aparelho atual é preservada. O backup não é criptografado pelo app: guarde-o em local de sua confiança; os widgets precisam ser adicionados no novo aparelho.
-- **Sincronização econômica**: rede sem franquia, carregamento, bateria suficiente, intervalo de 2/6/12/24h e horário escolar configurável. As regras valem para automáticos e para cada turma da fila noturna. Consultas manuais continuam usando a rede disponível. WorkManager pode adiar horários.
-- **Diagnóstico único**: reúne as duas origens, sem depender da aba em que a cópia foi iniciada. Consultas antigas invalidadas por sair, limpar ou restaurar não podem sobrescrever os dados restaurados nem recriar a fila da escola.
-
-### Decisão sobre Google
-
-Nesta versão não há uma conta Google adicional dentro do app: ela não autentica o usuário no SGE e não substitui a sessão do WebView. O seletor do Android já permite salvar backups em provedores instalados, sem o app pedir acesso à conta Google. Um login Google próprio passa a fazer sentido se houver uma futura conta de nuvem, sincronização entre aparelhos ou integração institucional aprovada; exigiria configuração OAuth e tratamento próprio dos dados.
-
-### Publicação e validação
-
-O workflow estável publica `atualizacao.json` junto ao APK assinado, obtido dos metadados do próprio APK. O canal de testes publica `atualizacao-teste.json`, independente da versão estável. A assinatura oficial não muda.
-Os testes incluem filtros combinados, vínculos compartilhados, backup sem credenciais, rejeição de arquivos inválidos, integridade/assinatura/canal do atualizador, PDF/ZIP/recibos e navegação protegida no telefone e tablet.
-A identificação das datas de alguns períodos continua adiada. Os resultados permanecem parciais ou não verificados até esse ajuste.
+MIT. Consulte [LICENSE](LICENSE).
