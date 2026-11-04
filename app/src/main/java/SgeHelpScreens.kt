@@ -241,7 +241,7 @@ fun TelaAjustes(tema: Int, cor: Int, versao: String, aoTema: (Int) -> Unit, aoCo
         item { LinhaAjuste("Como interpretar", "Módulos, estados e símbolos", SgeIcons.Info, aoAjuda) }
         item { LinhaAjuste("Ver introdução", "O funcionamento do app em três passos", SgeIcons.Book, aoIntroducao) }
         item { LinhaAjuste("Diagnóstico único", "Professor, coordenação, perfil e agendamentos", SgeIcons.Settings, aoDiagnostico) }
-        item { LinhaAjuste("Saúde do app", "Última consulta, falhas recentes e reparo", SgeIcons.Info) { saude = true } }
+        item { LinhaAjuste("Saúde do app", "Última consulta, falhas recentes e reparo", SgeIcons.Info, abrir = { saude = true }) }
         item { LinhaAjuste("Sincronização econômica", "Intervalo, rede, bateria e horário noturno", SgeIcons.Refresh, aoEconomia) }
         item { LinhaAjuste("Backup e restauração", "Salvar e recuperar dados sem senha ou sessão", SgeIcons.Export, aoBackup) }
         item { LinhaAjuste("Atualizações do app", "Verificar, baixar e instalar por aqui", SgeIcons.Refresh, aoAtualizacoes) }
