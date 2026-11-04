@@ -81,7 +81,7 @@ class SgeUiSmokeTest {
         compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText("13.01"))
         foto("01b-cartoes")
         compose.onNodeWithText("13").assertExists()
-        compose.onNodeWithText("01").assertExists()
+        compose.onAllNodesWithText("01").assertCountEquals(2)
         compose.onNodeWithText("13.01").performClick()
         compose.onAllNodesWithText("PENDÊNCIAS POR MÓDULO")[0].assertExists()
         foto("02-detalhes")
