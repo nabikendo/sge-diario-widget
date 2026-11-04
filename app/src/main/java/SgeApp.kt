@@ -50,7 +50,8 @@ fun AppDiario(
     historico: List<DiaHistorico> = emptyList(), perfil: PerfilSge = PerfilSge.DESCONHECIDO,
     bloqueioCoord: Boolean = false, coordDesbloqueada: Boolean = false, aoDesbloquear: () -> Unit = {},
     aoBloqueio: (Boolean) -> Unit = {}, noturna: Boolean = false, aoNoturna: (Boolean) -> Unit = {}, statusNoturno: String = "",
-    aoPdf: (GrupoPendencias, FontePainel, String) -> Unit = { _, _, _ -> }, recursos: RecursosSge = RecursosSge()
+    aoPdf: (GrupoPendencias, FontePainel, String) -> Unit = { _, _, _ -> }, recursos: RecursosSge = RecursosSge(),
+    modoComputadorWeb: Boolean = false, aoModoComputadorWeb: (Boolean) -> Unit = {}
 ) {
     val visiveis = remember(papel) { when (papel) { 1 -> setOf(0, 2); 2 -> setOf(1, 2); else -> setOf(0, 1, 2) } }
     var aba by rememberSaveable { mutableStateOf(if (papel == 2) 1 else 0) }
@@ -66,6 +67,7 @@ fun AppDiario(
     var vincular by remember { mutableStateOf<ResultadoTurma?>(null) }
     var filtroPessoal by remember { mutableStateOf(FiltroAvancado()) }
     var filtroCoord by remember { mutableStateOf(FiltroAvancado()) }
+    var confirmarModoComputador by remember { mutableStateOf<Boolean?>(null) }
     LaunchedEffect(recursos.filtros) {
         recursos.filtros[FontePainel.PESSOAL]?.let { filtroPessoal = it }
         recursos.filtros[FontePainel.COORDENACAO]?.let { filtroCoord = it }
@@ -153,6 +155,21 @@ fun AppDiario(
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp).fillMaxWidth()) {
                 Text(avisoPerfil, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(10.dp))
             }
+            if (webVisivel) Surface(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
+                shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.secondaryContainer
+            ) {
+                Row(Modifier.fillMaxWidth().padding(start = 14.dp, end = 10.dp, top = 5.dp, bottom = 5.dp),
+                    verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Versão para computador", style = MaterialTheme.typography.labelLarge)
+                        Text("Use-a para acessar o seletor de ano letivo.", style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer)
+                    }
+                    Switch(checked = modoComputadorWeb, onCheckedChange = { confirmarModoComputador = it },
+                        modifier = Modifier.semantics { contentDescription = "Usar versão para computador" })
+                }
+            }
             Box(Modifier.weight(1f)) {
                 // O documento do SGE permanece anexado para preservar sessão, rolagem e navegação.
                 AndroidView(factory = { web }, modifier = Modifier.fillMaxSize(), update = {
@@ -237,6 +254,13 @@ fun AppDiario(
         if (intro) TelaIntroducao { abrirSge ->
             intro = false; aoIntroduzido(); pagina = null
             if (abrirSge) { detalhe = null; aba = 2 }
+        }
+        confirmarModoComputador?.let { computador ->
+            AlertDialog(onDismissRequest = { confirmarModoComputador = null },
+                title = { Text(if (computador) "Mudar para a versão para computador?" else "Voltar à versão móvel?") },
+                text = { Text("O SGE Web será recarregado para aplicar a versão escolhida. Salve alterações pendentes antes de continuar; sua sessão será mantida neste aparelho.") },
+                confirmButton = { Button(onClick = { aoModoComputadorWeb(computador); confirmarModoComputador = null }) { Text("Recarregar") } },
+                dismissButton = { TextButton(onClick = { confirmarModoComputador = null }) { Text("Cancelar") } })
         }
         if (filtrosAbertos && autorizado) FiltrosDialog(if (aba == 1) filtroCoord else filtroPessoal,
             if (aba == 1) rsCoord else painel.turmas, recursos.organizacao, docentes, { filtrosAbertos = false }) {

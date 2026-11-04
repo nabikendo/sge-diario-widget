@@ -57,8 +57,7 @@ fun nomeEstado(estado: EstadoGrupo) = when (estado) {
     0 -> SgeIcons.Book; 1 -> SgeIcons.Calendar; 4 -> SgeIcons.User; else -> SgeIcons.Document
 }
 
-@Composable
-fun EmblemaEstado(estado: EstadoGrupo) {
+@Composable fun EmblemaEstado(estado: EstadoGrupo) {
     val cor = corEstado(estado)
     Surface(color = cor.copy(alpha = .15f), shape = RoundedCornerShape(40.dp)) {
         Row(Modifier.padding(horizontal = 9.dp, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically,
@@ -66,6 +65,32 @@ fun EmblemaEstado(estado: EstadoGrupo) {
             Icon(if (estado == EstadoGrupo.EM_DIA) SgeIcons.Check else if (estado == EstadoGrupo.PENDENTE) SgeIcons.Clock else SgeIcons.Info,
                 null, Modifier.size(13.dp), tint = cor)
             Text(nomeEstado(estado), color = cor, style = MaterialTheme.typography.labelSmall)
+        }
+    }
+}
+
+/** Marca vetorial/typográfica determinística: o próprio código identifica a turma, sem ilustração decorativa. */
+@Composable
+private fun MarcaTurma(codigo: String) {
+    val esquema = MaterialTheme.colorScheme
+    val (fundo, tinta) = when ((codigo.hashCode() and Int.MAX_VALUE) % 3) {
+        0 -> esquema.primaryContainer to esquema.onPrimaryContainer
+        1 -> esquema.secondaryContainer to esquema.onSecondaryContainer
+        else -> esquema.tertiaryContainer to esquema.onTertiaryContainer
+    }
+    val codigoTurma = codigo.trim().substringBefore(' ')
+    val partes = Regex("^(\\d{1,3})[.-](\\d{1,3})$").matchEntire(codigoTurma)
+    Surface(color = fundo, shape = RoundedCornerShape(16.dp), border = BorderStroke(1.dp, tinta.copy(alpha = .12f))) {
+        Column(Modifier.size(56.dp), horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center) {
+            if (partes != null) {
+                Text(partes.groupValues[1], style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp), color = tinta, maxLines = 1)
+                HorizontalDivider(Modifier.width(18.dp), color = tinta.copy(alpha = .35f), thickness = 1.dp)
+                Text(partes.groupValues[2], style = MaterialTheme.typography.labelLarge.copy(fontSize = 14.sp, fontWeight = FontWeight.Bold), color = tinta, maxLines = 1)
+            } else {
+                Text(codigoTurma.take(5).uppercase(), style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                    color = tinta, maxLines = 1, overflow = TextOverflow.Clip)
+            }
         }
     }
 }
@@ -85,11 +110,11 @@ fun CartaoGrupo(grupo: GrupoPendencias, por: Agrupamento, selecionado: Boolean =
         border = BorderStroke(if (selecionado) 1.5.dp else .6.dp, if (selecionado) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant), shadowElevation = .5.dp) {
         Column(Modifier.fillMaxWidth().padding(19.dp), verticalArrangement = Arrangement.spacedBy(13.dp)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(13.dp)) {
-                Surface(color = MaterialTheme.colorScheme.surfaceVariant, shape = RoundedCornerShape(18.dp)) {
+                if (por == Agrupamento.TURMA && grupo.turmaIds.size <= 1) {
+                    MarcaTurma(grupo.resultados.firstOrNull()?.turma?.nome?.substringBefore('/') ?: tituloV)
+                } else Surface(color = MaterialTheme.colorScheme.surfaceVariant, shape = RoundedCornerShape(18.dp)) {
                     Box(Modifier.size(56.dp), contentAlignment = Alignment.Center) {
-                        if (por == Agrupamento.TURMA) Text(tituloV.substringBefore(' ').take(6), style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.ExtraBold),
-                            color = MaterialTheme.colorScheme.primary, maxLines = 1)
-                        else Icon(if (por == Agrupamento.COMPONENTE) SgeIcons.Book else SgeIcons.User, null, Modifier.size(24.dp), tint = MaterialTheme.colorScheme.primary)
+                        Icon(if (por == Agrupamento.COMPONENTE) SgeIcons.Book else SgeIcons.User, null, Modifier.size(24.dp), tint = MaterialTheme.colorScheme.primary)
                     }
                 }
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
