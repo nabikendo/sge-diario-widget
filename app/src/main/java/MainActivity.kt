@@ -75,7 +75,7 @@ class MainActivity : FragmentActivity() {
         atualizador = SgeAtualizador(this)
         val prefs = getSharedPreferences(SgePainelStore.PREFS_NAME, MODE_PRIVATE)
         userAgentMovel = WebSettings.getDefaultUserAgent(this)
-        modoComputadorWeb = prefs.getBoolean(SgeModoWeb.PREFERENCIA, false)
+        modoComputadorWeb = prefs.getBoolean(SgeModoWeb.PREFERENCIA, SgeModoWeb.PADRAO_COMPUTADOR)
         SgeSyncWorker.agendarPeriodico(this)
         SgeNoturnoWorker.agendar(this, prefs.getBoolean("coord_noturna", false))
         LembreteWorker.agendar(this, prefs.getBoolean("lembrete", false))

@@ -5,6 +5,10 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class SgeModoWebTest {
+    @Test fun versaoComputadorEhOPadrao() {
+        assertTrue(SgeModoWeb.PADRAO_COMPUTADOR)
+    }
+
     @Test fun userAgentDeComputadorMantemChromiumERemoveIdentificadoresMoveis() {
         val userAgentMovel = "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/130.0.6723.91 Mobile Safari/537.36"
         val userAgentComputador = SgeModoWeb.userAgentComputador(userAgentMovel)

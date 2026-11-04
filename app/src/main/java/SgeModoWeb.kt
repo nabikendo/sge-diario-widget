@@ -3,6 +3,7 @@ package br.to.seduc.sgediariowidget
 /** Helpers do modo navegador/desktop do WebView do SGE. */
 internal object SgeModoWeb {
     const val PREFERENCIA = "web_modo_computador"
+    const val PADRAO_COMPUTADOR = true
 
     fun userAgentComputador(userAgentMovel: String): String {
         val chrome = Regex("Chrome/[\\d.]+")

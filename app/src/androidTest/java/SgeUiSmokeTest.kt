@@ -80,13 +80,15 @@ class SgeUiSmokeTest {
         foto("01-painel")
         compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText("13.01"))
         foto("01b-cartoes")
+        compose.onNodeWithText("13").assertExists()
+        compose.onNodeWithText("01").assertExists()
         compose.onNodeWithText("13.01").performClick()
         compose.onAllNodesWithText("PENDÊNCIAS POR MÓDULO")[0].assertExists()
         foto("02-detalhes")
     }
     @Test fun sgeWebPermiteAtivarVersaoComputadorComConfirmacao() {
         var modoSolicitado: Boolean? = null
-        content { appExemplo(aoModoComputadorWeb = { modoSolicitado = it }) }
+        content { appExemplo(modoComputadorWeb = false, aoModoComputadorWeb = { modoSolicitado = it }) }
         compose.onNodeWithText("SGE Web").performClick()
         compose.onNodeWithText("Versão para computador").assertIsDisplayed()
         compose.onNodeWithText("Use-a para acessar o seletor de ano letivo.").assertIsDisplayed()
@@ -95,6 +97,25 @@ class SgeUiSmokeTest {
         compose.onNodeWithText("Cancelar").assertIsDisplayed()
         compose.onNodeWithText("Recarregar").performClick()
         compose.runOnIdle { check(modoSolicitado == true) }
+    }
+    @Test fun sgeWebAbreComModoComputadorAtivoPorPadrao() {
+        content { appExemplo(modoComputadorWeb = SgeModoWeb.PADRAO_COMPUTADOR) }
+        compose.onNodeWithText("SGE Web").performClick()
+        compose.onNodeWithContentDescription("Usar versão para computador").assertIsOn()
+    }
+    @Test fun ajustesOrganizamPreferenciasEmConjuntosDeGrade() {
+        content {
+            TelaAjustes(tema = 1, cor = 0, versao = "prévia ilustrativa", aoTema = {}, aoCor = {},
+                aoWidgets = {}, aoAjuda = {}, aoIntroducao = {}, aoDiagnostico = {}, papel = 0, aoPapel = {},
+                lembrete = false, aoLembrete = {}, aoSobre = {}, aoSair = {}, aoLimpar = {})
+        }
+        compose.onNodeWithText("Do seu jeito.").assertIsDisplayed()
+        compose.onNodeWithText("Proteger coordenação").assertExists()
+        foto("13-ajustes-grade")
+        compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText("Galeria de widgets"))
+        compose.onNodeWithText("Galeria de widgets").assertIsDisplayed()
+        compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText("Modo privacidade"))
+        compose.onNodeWithText("Modo privacidade").assertExists()
     }
     @Test fun coordenacaoPermiteAgruparPorProfessor() {
         content {
