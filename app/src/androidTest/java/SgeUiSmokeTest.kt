@@ -84,6 +84,18 @@ class SgeUiSmokeTest {
         compose.onAllNodesWithText("PENDÊNCIAS POR MÓDULO")[0].assertExists()
         foto("02-detalhes")
     }
+    @Test fun sgeWebPermiteAtivarVersaoComputadorComConfirmacao() {
+        var modoSolicitado: Boolean? = null
+        content { appExemplo(aoModoComputadorWeb = { modoSolicitado = it }) }
+        compose.onNodeWithText("SGE Web").performClick()
+        compose.onNodeWithText("Versão para computador").assertIsDisplayed()
+        compose.onNodeWithText("Use-a para acessar o seletor de ano letivo.").assertIsDisplayed()
+        compose.onNodeWithContentDescription("Usar versão para computador").performClick()
+        compose.onNodeWithText("Mudar para a versão para computador?").assertIsDisplayed()
+        compose.onNodeWithText("Cancelar").assertIsDisplayed()
+        compose.onNodeWithText("Recarregar").performClick()
+        compose.runOnIdle { check(modoSolicitado == true) }
+    }
     @Test fun coordenacaoPermiteAgruparPorProfessor() {
         content {
             var por by remember { mutableStateOf(Agrupamento.TURMA) }
@@ -131,7 +143,8 @@ class SgeUiSmokeTest {
         foto("06-widgets-compactos")
     }
 
-    @Composable private fun appExemplo(bloqueio: Boolean = false, liberada: Boolean = false, desbloquear: () -> Unit = {}, papel: Int = 0) {
+    @Composable private fun appExemplo(bloqueio: Boolean = false, liberada: Boolean = false, desbloquear: () -> Unit = {}, papel: Int = 0,
+        modoComputadorWeb: Boolean = false, aoModoComputadorWeb: (Boolean) -> Unit = {}) {
         val context = LocalContext.current
         val web = remember { WebView(context).apply { loadData("<html><body>SGE de demonstração</body></html>", "text/html", "utf-8") } }
         DisposableEffect(web) { onDispose { web.destroy() } }
@@ -140,7 +153,8 @@ class SgeUiSmokeTest {
             aoTema = {}, aoCor = {}, aoIntroduzido = {}, aoSincronizarPessoal = {}, aoVerificarTurmas = {},
             aoCarregarTurmas = {}, aoAtualizarDocentes = {}, aoCopiarDiagnostico = {}, aoCopiarPagina = {},
             aoSalvarVinculo = { _, _ -> }, aoAdicionarWidget = {}, aoCompartilhar = { _, _ -> }, aoWebVisivel = {},
-            papel = papel, perfil = PerfilSge.COORDENACAO, bloqueioCoord = bloqueio, coordDesbloqueada = liberada, aoDesbloquear = desbloquear)
+            papel = papel, perfil = PerfilSge.COORDENACAO, bloqueioCoord = bloqueio, coordDesbloqueada = liberada, aoDesbloquear = desbloquear,
+            modoComputadorWeb = modoComputadorWeb, aoModoComputadorWeb = aoModoComputadorWeb)
     }
     @Test fun coordenacaoProtegidaNaoExibeDadosAntesDeAutenticar() {
         var liberada by mutableStateOf(false)

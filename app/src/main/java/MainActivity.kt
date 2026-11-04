@@ -11,6 +11,7 @@ import android.os.Bundle
 import androidx.activity.result.contract.ActivityResultContracts
 import br.to.seduc.sgediariowidget.worker.LembreteWorker
 import android.webkit.CookieManager
+import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Toast
@@ -61,6 +62,8 @@ class MainActivity : FragmentActivity() {
         } }
     }
     private lateinit var web: WebView
+    private var userAgentMovel = ""
+    private var modoComputadorWeb by mutableStateOf(false)
     private lateinit var protecao: CoordProtecao
     private val coordDesbloqueada = mutableStateOf(false)
     private val pedidoWidget = mutableStateOf<PedidoWidget?>(null)
@@ -71,6 +74,8 @@ class MainActivity : FragmentActivity() {
         protecao = CoordProtecao(this)
         atualizador = SgeAtualizador(this)
         val prefs = getSharedPreferences(SgePainelStore.PREFS_NAME, MODE_PRIVATE)
+        userAgentMovel = WebSettings.getDefaultUserAgent(this)
+        modoComputadorWeb = prefs.getBoolean(SgeModoWeb.PREFERENCIA, false)
         SgeSyncWorker.agendarPeriodico(this)
         SgeNoturnoWorker.agendar(this, prefs.getBoolean("coord_noturna", false))
         LembreteWorker.agendar(this, prefs.getBoolean("lembrete", false))
@@ -81,7 +86,6 @@ class MainActivity : FragmentActivity() {
             settings.domStorageEnabled = true
             CookieManager.getInstance().setAcceptCookie(true)
             CookieManager.getInstance().setAcceptThirdPartyCookies(this, false)
-            prefs.edit().putString("web_user_agent", settings.userAgentString).apply()
             webViewClient = object : WebViewClient() {
                 override fun onPageFinished(view: WebView?, url: String?) {
                     if (url?.contains("/Acesso/Entrar", true) == true) SgeSessaoStore.salvar(this@MainActivity, PerfilSge.EXPIRADO)
@@ -89,6 +93,9 @@ class MainActivity : FragmentActivity() {
                 }
             }
         }
+        configurarWebViewModo(modoComputadorWeb)
+        // O cliente de sincronização replica o User-Agent ativo no WebView para preservar compatibilidade da sessão.
+        prefs.edit().putString("web_user_agent", web.settings.userAgentString).apply()
         val state = savedInstanceState?.getBundle("web_state")
         if (state == null || web.restoreState(state) == null) web.loadUrl(SgeSyncWorker.BASE + "/")
         SgeUi.carregar(this); SgeUi.aplicarJanela(this)
@@ -190,7 +197,9 @@ class MainActivity : FragmentActivity() {
                         }, filaCoord,
                         { SgeSyncWorker.pausar(this@MainActivity) },
                         { SgeSyncWorker.retomar(this@MainActivity) },
-                        { SgeSyncWorker.tentarFalhas(this@MainActivity) }))
+                        { SgeSyncWorker.tentarFalhas(this@MainActivity) }),
+                    modoComputadorWeb = modoComputadorWeb,
+                    aoModoComputadorWeb = { definirModoComputadorWeb(it) })
                 AtualizacoesDialog(atualizador) { lifecycleScope.launch {
                     try { val arquivo = atualizador.prepararInstalacao(); lifecycle.withResumed { if(atualizador.aberto) atualizador.instalar(arquivo) } }
                     catch (e: CancellationException) { throw e }
@@ -356,12 +365,34 @@ class MainActivity : FragmentActivity() {
     private fun limparDadosLocais() {
         cancelarConsultas()
         val prefs = getSharedPreferences(SgePainelStore.PREFS_NAME, MODE_PRIVATE)
-        val manter = SgeEconomia.chaves + setOf("tema", "estilo", "papel", "lembrete", "introducao_v2", "web_user_agent", "coord_biometria", "coord_noturna", "sessao_geracao")
+        val manter = SgeEconomia.chaves + setOf("tema", "estilo", "papel", "lembrete", "introducao_v2", "web_user_agent", SgeModoWeb.PREFERENCIA, "coord_biometria", "coord_noturna", "sessao_geracao")
         prefs.edit().also { e -> prefs.all.keys.filter { it !in manter }.forEach { e.remove(it) } }.apply()
         lifecycleScope.launch { SgeWidgets.atualizar(this@MainActivity) }
         Toast.makeText(this, "Dados locais apagados", Toast.LENGTH_SHORT).show()
     }
     private fun abrirUrl(url: String) { runCatching { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) } }
+
+    private fun configurarWebViewModo(computador: Boolean) {
+        if (!::web.isInitialized) return
+        web.settings.apply {
+            userAgentString = if (computador) SgeModoWeb.userAgentComputador(userAgentMovel) else userAgentMovel
+            useWideViewPort = computador
+            loadWithOverviewMode = computador
+            setSupportZoom(true)
+            builtInZoomControls = computador
+            displayZoomControls = !computador
+        }
+    }
+
+    private fun definirModoComputadorWeb(computador: Boolean) {
+        if (modoComputadorWeb == computador) return
+        modoComputadorWeb = computador
+        configurarWebViewModo(computador)
+        getSharedPreferences(SgePainelStore.PREFS_NAME, MODE_PRIVATE).edit()
+            .putBoolean(SgeModoWeb.PREFERENCIA, computador).putString("web_user_agent", web.settings.userAgentString).apply()
+        if (web.url.isNullOrBlank()) web.loadUrl(SgeSyncWorker.BASE + "/") else web.reload()
+        Toast.makeText(this, if (computador) "Versão para computador ativada" else "Versão móvel ativada", Toast.LENGTH_SHORT).show()
+    }
 
     private fun sincronizarPessoal() {
         val p = SgePainelStore.ler(this)
