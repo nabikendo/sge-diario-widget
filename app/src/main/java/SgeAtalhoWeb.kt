@@ -100,16 +100,21 @@ object SgeAtalhoWeb {
         // 1) turma no contexto do SGE
         var ctx=await esperar(function(){return document.getElementById('TurmaContextoId');},10000);
         if(!ctx){aviso('Seletor de turma indisponível. Abra o SGE e tente novamente.');return;}
+        function nomeTurma(o){var s=norm(o.getAttribute('data-turmadescricao')||o.text);var alvo=norm(cfg.turma);
+          return s===alvo||s.indexOf(alvo+'/')===0||s.indexOf(alvo+' -')===0;}
+        var selecionada=ctx.options[ctx.selectedIndex];
+        var idConfere=selecionada&&(selecionada.value===cfg.turmaId||selecionada.value.split('_')[0]===cfg.turmaId);
         var trocou=false;
-        if(ctx.value!==cfg.turmaId&&ctx.value.split('_')[0]!==cfg.turmaId){
-          var alvoT=norm(cfg.turma);
-          var ops=[].slice.call(ctx.options).filter(function(o){return o.value===cfg.turmaId||o.value.split('_')[0]===cfg.turmaId;});
-          if(ops.length===0)ops=[].slice.call(ctx.options).filter(function(o){return norm(o.getAttribute('data-turmadescricao')||o.text)===alvoT;});
+        if(!idConfere||!nomeTurma(selecionada)){
+          var ops=[].slice.call(ctx.options).filter(function(o){return nomeTurma(o)&&(o.value===cfg.turmaId||o.value.split('_')[0]===cfg.turmaId);});
+          if(ops.length===0)ops=[].slice.call(ctx.options).filter(nomeTurma);
           if(ops.length!==1){aviso('Turma não identificada de forma única no SGE. Selecione-a manualmente.');return;}
+          if([].slice.call(ctx.options).filter(function(o){return o.value===ops[0].value;}).length!==1){aviso('O SGE repetiu o identificador da turma. Selecione-a manualmente.');return;}
           if(!escolherValor(ctx,ops[0].value)){aviso('Não foi possível selecionar a turma.');return;}
           trocou=true;await dorme(1800);
         }
-        if(ctx.value.split('_')[0]!==cfg.turmaId&&!trocou){aviso('A turma selecionada não corresponde ao painel.');return;}
+        selecionada=ctx.options[ctx.selectedIndex];
+        if(!selecionada||!nomeTurma(selecionada)){aviso('A turma selecionada não corresponde ao painel.');return;}
         // 2) ação do contexto: usa o onclick CarregarPaginaAjaxComLoading extraído ao vivo
         if(trocou||!cfg.marcador.split(',').some(function(s){return document.querySelector(s);})){
           var acoes=[].slice.call(document.querySelectorAll('#div-contexto-acoes-turma a,#div-contexto-turma-visao-professor a'));

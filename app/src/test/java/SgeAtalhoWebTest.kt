@@ -15,6 +15,12 @@ class SgeAtalhoWebTest {
         assertFalse(js.contains("Jsoup?"))
         assertTrue(js.contains("querySelectorAll(s.trim())"))
     }
+    @Test fun turmaExigeNomeEIdentificadorUnicos() {
+        val js = SgeAtalhoWeb.jsAtalho(AtalhoSge("27713", "13.01", "QUÍMICA", 0))
+        assertTrue(js.contains("data-turmadescricao"))
+        assertTrue(js.contains("nomeTurma(selecionada)"))
+        assertTrue(js.contains("O SGE repetiu o identificador da turma"))
+    }
     @Test fun normalizaAcentosEEspacos() {
         assertEquals("frequencia", SgeAtalhoWeb.normalizar("  Frequência "))
         assertEquals("lingua portuguesa", SgeAtalhoWeb.normalizar("LÍNGUA   PORTUGUESA"))
