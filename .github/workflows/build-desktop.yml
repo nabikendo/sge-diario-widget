@@ -3,10 +3,8 @@ on:
   push:
     paths: [ 'desktop/**', '.github/workflows/build-desktop.yml' ]
   workflow_dispatch:
-  release:
-    types: [published]
 permissions:
-  contents: write
+  contents: read
 jobs:
   windows:
     runs-on: windows-latest
@@ -30,10 +28,3 @@ jobs:
         with:
           name: sge-diario-desktop-windows
           path: desktop/dist/SGE-Diario-Desktop-*.exe
-      - name: Anexar executável à versão estável
-        if: github.event_name == 'release'
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-          TAG: ${{ github.event.release.tag_name }}
-        run: gh release upload "$TAG" desktop/dist/SGE-Diario-Desktop-*.exe --clobber
