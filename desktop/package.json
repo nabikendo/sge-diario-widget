@@ -1,0 +1,23 @@
+{
+  "name": "sge-diario-desktop",
+  "version": "2.5.5",
+  "private": true,
+  "description": "Painel local do SGE Diário para Windows",
+  "main": "main.js",
+  "scripts": {
+    "test": "node --test tests/*.test.js",
+    "build:win": "electron-builder --win portable --x64"
+  },
+  "devDependencies": {
+    "electron": "^35.7.5",
+    "electron-builder": "^26.0.12"
+  },
+  "build": {
+    "appId": "br.to.seduc.sgediariowidget.desktop",
+    "productName": "SGE Diário Desktop",
+    "directories": { "output": "dist" },
+    "files": ["main.js", "preload.js", "index.html", "ui.js", "model.js", "package.json"],
+    "win": { "target": ["portable"], "artifactName": "SGE-Diario-Desktop-${version}.exe" },
+    "publish": null
+  }
+}

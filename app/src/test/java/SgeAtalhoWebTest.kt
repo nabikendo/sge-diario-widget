@@ -4,6 +4,17 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class SgeAtalhoWebTest {
+    @Test fun extraiDatasEHorarioDoDetalheReal() {
+        assertEquals(listOf("05/11", "06/11"), SgeAtalhoWeb.datasPendentes("Dias pendentes até 06/11/2026: 05/11, 06/11"))
+        assertEquals("13:50", SgeAtalhoWeb.horarioPendente("Chamada 13:50 - 14:40"))
+    }
+
+    @Test fun atalhoNaoClicaControleDePresencaNemUsaJsoupNoNavegador() {
+        val js = SgeAtalhoWeb.jsAtalho(AtalhoSge("27713", "13.01", "QUÍMICA", 1))
+        assertFalse(js.contains("check_ativo_"))
+        assertFalse(js.contains("Jsoup?"))
+        assertTrue(js.contains("querySelectorAll(s.trim())"))
+    }
     @Test fun normalizaAcentosEEspacos() {
         assertEquals("frequencia", SgeAtalhoWeb.normalizar("  Frequência "))
         assertEquals("lingua portuguesa", SgeAtalhoWeb.normalizar("LÍNGUA   PORTUGUESA"))

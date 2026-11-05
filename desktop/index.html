@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SGE Diário Desktop</title>
+<style>
+  :root{color-scheme:light;--bg:#f3f7f5;--card:#fff;--ink:#18332b;--muted:#657770;--line:#dbe7e1;--green:#16765c;--amber:#a35c12;--red:#af3939}
+  *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,Segoe UI,sans-serif}
+  header{background:#173b31;color:white;padding:24px max(28px,4vw)}h1{margin:0;font-size:28px}header p{margin:4px 0 0;color:#cce1d8}
+  main{max-width:1440px;margin:auto;padding:26px max(28px,4vw)}.actions,.filters,.summary{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:20px}
+  button,select,input{font:inherit;border-radius:10px;border:1px solid var(--line);padding:10px 13px;background:var(--card);color:var(--ink)}button{cursor:pointer;font-weight:650}button.primary{background:var(--green);color:white;border-color:var(--green)}button:hover{filter:brightness(.96)}
+  input{min-width:250px;flex:1}.summary>div{background:white;border:1px solid var(--line);padding:13px 18px;border-radius:12px;min-width:140px}.summary b{display:block;font-size:22px}
+  .note{color:var(--muted);margin:0 0 18px}.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:15px}
+  article{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:19px;break-inside:avoid}article h2{font-size:18px;margin:0}article .subtitle{font-size:13px;color:var(--muted);margin:2px 0 14px}
+  article table{border-collapse:collapse;width:100%;font-size:14px}td{padding:5px 0;border-top:1px solid #eef3f0}td:last-child{text-align:right;font-weight:700}
+  .badge{float:right;border-radius:20px;padding:4px 9px;font-size:12px;font-weight:700}.pendente{background:#fce9e8;color:var(--red)}.conferir{background:#fff1d8;color:var(--amber)}.emdia{background:#ddf4e9;color:var(--green)}
+  #empty{padding:60px 20px;text-align:center;border:2px dashed var(--line);border-radius:16px;background:white}#message{min-height:1.5em;color:var(--red)}
+  @media print{header,.actions,.filters,#message{display:none}main{padding:0}.cards{grid-template-columns:repeat(2,1fr)}body{background:white}}
+</style></head><body>
+<header><h1>SGE Diário Desktop</h1><p>Pendências da última consulta, com cobertura explícita</p></header>
+<main>
+  <div class="actions"><button class="primary" id="open">Importar backup JSON</button><button id="sge">Abrir SGE Web</button><button id="pdf" disabled>Salvar relatório PDF</button></div>
+  <p id="message" role="status"></p><p class="note" id="source">Os dados do Android não aparecem automaticamente no PC. Importe um backup feito no aplicativo.</p>
+  <div class="filters"><select id="panel" aria-label="Painel"><option value="pessoal">Meu diário</option><option value="coordenacao">Coordenação</option></select><select id="status" aria-label="Estado"><option value="">Todos os estados</option><option value="pendente">Com pendência</option><option value="conferir">A conferir</option><option value="em dia">Em dia</option></select><input id="search" placeholder="Buscar turma, escola ou componente" aria-label="Busca"></div>
+  <div class="summary" id="summary"></div><section class="cards" id="cards"><div id="empty">Importe um backup para ver o painel e gerar o relatório.</div></section>
+  <p class="note">— não verificado · * cobertura parcial · aguardando avaliação não é pendência. Confirme os dados no SGE antes de agir.</p>
+</main><script src="model.js"></script><script src="ui.js"></script></body></html>

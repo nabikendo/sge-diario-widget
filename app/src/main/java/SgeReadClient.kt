@@ -241,7 +241,7 @@ class SgeReadClient(cookies: String, private val userAgent: String, private val 
         val page = Jsoup.parse(request("/planejamentoturma", mapOf("turmaId" to t.id)))
         val tipo = page.select("#TipoDeRegistroPedagogicoId option").singleOrNull {
             it.text().trim().equals(tipoNome, true)
-        }?.attr("value") ?: return@consulta ResultadoModulo(0, "Não se aplica: este tipo de planejamento não existe para a turma no SGE.", coberturaCompleta = true)
+        }?.attr("value") ?: return@consulta ResultadoModulo(null, "Tipo de planejamento não encontrado no seletor do SGE: $tipoNome. Confira a turma e o diagnóstico.", coberturaCompleta = false)
         val response = JSONObject(request("/PlanejamentoTurma/PartialPlanejamentos", mapOf(
             "TurmaId" to t.id, "TipoDeRegistroPedagogicoId" to tipo, "GradeEscolarId" to grade(t),
             "AtividadeDeAEEId" to "", "ModuloUnidadeCurricularId" to "", "Situacao" to "", "Periodos" to "[]")))

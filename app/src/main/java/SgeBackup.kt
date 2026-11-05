@@ -81,6 +81,7 @@ object SgeBackup {
         val validado = validar(JSONObject().put("formato", "sge-diario-backup").put("schema", 1).put("criado", b.criado).put("versao", b.versao).put("dados", b.dados).toString())
         val e = ctx.getSharedPreferences(SgePainelStore.PREFS_NAME, 0).edit()
         chaves.forEach { e.remove(it) }
+        e.remove("cache_planos_v1")
         validado.dados.keys().forEach { k -> when (val v = validado.dados.get(k)) { is Boolean -> e.putBoolean(k,v); is Int -> e.putInt(k,v); is String -> e.putString(k,v) } }
         check(e.commit()) { "Não foi possível gravar o backup." }
     }
