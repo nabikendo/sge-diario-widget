@@ -31,7 +31,7 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          gradle testDebugUnitTest assembleDebug -Pversao=1.8-preview.${{ github.run_number }} -Pcodigo=${{ github.run_number }} --no-daemon --stacktrace 2>&1 | tee build.log
+          gradle testDebugUnitTest assembleDebug -Pversao=2.3-preview.${{ github.run_number }} -Pcodigo=${{ github.run_number }} --no-daemon --stacktrace 2>&1 | tee build.log
       - name: Resumo dos erros
         if: failure()
         run: |
