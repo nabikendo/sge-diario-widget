@@ -35,7 +35,7 @@ jobs:
       - name: Resumo dos erros
         if: failure()
         run: |
-          grep -E '^e: |error:|What went wrong|Could not |FAILED|Caused by|Unresolved|> ' build.log | head -40 | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}' > erros.txt
+          (grep -E '^e: |^e: file|error:' build.log | head -25; grep -A14 'What went wrong' build.log | head -30) | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}' > erros.txt
           echo "::error title=Erros do build::$(cat erros.txt)"
       - name: Identificar APK de prévia
         run: |
