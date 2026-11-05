@@ -24,11 +24,25 @@ class SgeReadClient(cookies: String, private val userAgent: String, private val 
     private val conteudosHtml = mutableMapOf<String, String>()
     val historico = mutableListOf<String>()
     private val base = "https://sge.seduc.to.pontoid.com.br"
+    /** As consultas só leem dados; repetir é seguro. Cobre DNS/rede instáveis de madrugada ("Unable to resolve host"). */
+    private fun <T> comRetentativa(bloco: () -> T): T {
+        val esperas = longArrayOf(1_500, 4_000)
+        var i = 0
+        while (true) {
+            try { return bloco() }
+            catch (e: java.io.IOException) {
+                val transitoria = e is java.net.UnknownHostException || e is java.net.ConnectException || e is java.net.SocketTimeoutException || e is java.net.NoRouteToHostException
+                if (!transitoria || i >= esperas.size) throw e
+                historico.add("tentativa ${i + 2}: ${e.javaClass.simpleName}")
+                Thread.sleep(esperas[i++])
+            }
+        }
+    }
     private fun request(path: String, params: Map<String, String> = emptyMap(), post: Boolean = false, ajax: Boolean = true): String {
-        val response = try {
+        val response = try { comRetentativa {
             Jsoup.connect(base + path).cookies(jar).apply { if (ajax) header("X-Requested-With", "XMLHttpRequest") }
             .userAgent(userAgent).data(params).timeout(30000).ignoreContentType(true).maxBodySize(12 * 1024 * 1024)
-            .method(if (post) org.jsoup.Connection.Method.POST else org.jsoup.Connection.Method.GET).execute()
+            .method(if (post) org.jsoup.Connection.Method.POST else org.jsoup.Connection.Method.GET).execute() }
         } catch (e: Exception) {
             historico.add("$path -> falha de rede: ${e.javaClass.simpleName}")
             throw IllegalStateException("Falha de rede em $path: ${e.message ?: e.javaClass.simpleName}", e)
@@ -369,6 +383,16 @@ object SgeParsing {
         val anoNoTexto = Regex("\\b(20\\d{2})\\b").find(texto)?.value?.toInt()
         val mes = meses.indexOfFirst { texto.startsWith(it) }.let { i -> if (i >= 0) i + 1 else abreviacoes.indexOfFirst { texto.startsWith(it) } + 1 }
         if (mes in 1..12) return mesInteiro(anoNoTexto ?: ano, mes)
+        // "13ª Semana de 2026" (cód. 202613): semana ISO 8601 (segunda a domingo). Sem isso, o código 2026NN
+        // das semanas 1 a 12 seria lido como mês e as semanas 13+ ficariam sem datas.
+        Regex("(\\d{1,2})\\s*[ªº°a]?\\s*semana(?:\\s+de)?\\s*(20\\d{2})?").find(texto)?.let { s ->
+            val semana = s.groupValues[1].toLong(); val anoSemana = s.groupValues[2].toIntOrNull() ?: anoNoTexto ?: ano
+            return runCatching {
+                val segunda = LocalDate.of(anoSemana, 1, 4).with(java.time.temporal.IsoFields.WEEK_OF_WEEK_BASED_YEAR, semana)
+                    .with(java.time.DayOfWeek.MONDAY)
+                segunda to segunda.plusDays(6)
+            }.getOrNull()
+        }
         Regex("(1|2|primeiro|segundo)\\s*[º°o]?\\s*semestre").find(texto)?.let { s ->
             val primeiro = s.groupValues[1].let { it == "1" || it == "primeiro" }
             return if (primeiro) LocalDate.of(ano, 1, 1) to LocalDate.of(ano, 6, 30) else LocalDate.of(ano, 7, 1) to LocalDate.of(ano, 12, 31)

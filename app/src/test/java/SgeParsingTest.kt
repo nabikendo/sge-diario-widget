@@ -87,6 +87,9 @@ class SgeParsingTest {
         assertEquals(LocalDate.of(2026, 10, 26) to LocalDate.of(2026, 11, 1), SgeParsing.janelaOuNull("26/10 a 01/11", "9", 2026))
         assertEquals(LocalDate.of(2026, 7, 1), SgeParsing.janelaOuNull("2º semestre", "2", 2026)!!.first)
         assertEquals(null, SgeParsing.janelaOuNull("Período especial", "19", 2026))
+        assertEquals(LocalDate.of(2026, 3, 23) to LocalDate.of(2026, 3, 29), SgeParsing.janelaOuNull("13ª Semana de 2026", "202613", 2026))
+        assertEquals(LocalDate.of(2026, 2, 2) to LocalDate.of(2026, 2, 8), SgeParsing.janelaOuNull("6ª Semana de 2026", "202606", 2026))
+        assertEquals(null, SgeParsing.janelaOuNull("60ª Semana de 2026", "202660", 2026))
     }
     @Test fun numeroDoBimestreAceitaFormasComuns() {
         listOf("1º Bimestre" to 1, "2ª bimestre" to 2, "Bimestre 3" to 3, "IV Bimestre" to 4, "Quarto Bimestre" to 4, "3o bim." to 3, "Bimestre - 2" to 2, "Bimestre I" to 1)
