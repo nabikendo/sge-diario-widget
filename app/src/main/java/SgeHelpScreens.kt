@@ -181,7 +181,8 @@ fun TelaAjustes(tema: Int, cor: Int, versao: String, aoTema: (Int) -> Unit, aoCo
     papel: Int, aoPapel: (Int) -> Unit, lembrete: Boolean, aoLembrete: (Boolean) -> Unit,
     aoSobre: () -> Unit, aoSair: () -> Unit, aoLimpar: () -> Unit,
     aoHistorico: () -> Unit = {}, bloqueio: Boolean = false, aoBloqueio: (Boolean) -> Unit = {},
-    noturna: Boolean = false, aoNoturna: (Boolean) -> Unit = {}, statusNoturno: String = "", aoEconomia: ()->Unit = {}, aoBackup: ()->Unit = {}, aoAtualizacoes: ()->Unit = {}) {
+    noturna: Boolean = false, aoNoturna: (Boolean) -> Unit = {}, statusNoturno: String = "", aoEconomia: ()->Unit = {}, aoBackup: ()->Unit = {}, aoAtualizacoes: ()->Unit = {},
+    horarioLembrete: String = "17:00", aoEscolherHorarioLembrete: () -> Unit = {}) {
     var confirmar by remember { mutableStateOf(0) }
     var saude by remember { mutableStateOf(false) }
     val ctxUi = LocalContext.current
@@ -230,7 +231,12 @@ fun TelaAjustes(tema: Int, cor: Int, versao: String, aoTema: (Int) -> Unit, aoCo
             Row(Modifier.padding(19.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                     Text("Lembrete diário", style = MaterialTheme.typography.titleMedium)
-                    Text("Todos os dias às 17h, com o resumo da última consulta e a variação desde o lembrete anterior.",
+                    Text("Com o resumo da última consulta. Só avisa quando há pendências; não consulta o SGE.",
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    TextButton(onClick = aoEscolherHorarioLembrete, modifier = Modifier.heightIn(min = 48.dp)) {
+                        Text("Horário preferido: $horarioLembrete")
+                    }
+                    Text("O Android pode adiar alguns minutos para poupar bateria.",
                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 Switch(checked = lembrete, onCheckedChange = aoLembrete)
@@ -238,7 +244,7 @@ fun TelaAjustes(tema: Int, cor: Int, versao: String, aoTema: (Int) -> Unit, aoCo
         }
         Surface(color = MaterialTheme.colorScheme.surface, shape = MaterialTheme.shapes.large) {
             Column(Modifier.padding(8.dp)) {
-                LinhaAjuste("Histórico semanal", "Consultas e contagens dos últimos sete dias", SgeIcons.Clock, aoHistorico)
+                LinhaAjuste("Histórico e ranking semanal", "Comparação por módulo nas últimas quatro semanas", SgeIcons.Clock, aoHistorico)
                 LinhaAjuste("Galeria de widgets", "Seis formatos e recortes independentes", SgeIcons.Cards, aoWidgets)
                 LinhaAjuste("Como interpretar", "Módulos, estados e símbolos", SgeIcons.Info, aoAjuda)
                 LinhaAjuste("Ver introdução", "O funcionamento do app em três passos", SgeIcons.Book, aoIntroducao)
@@ -247,6 +253,9 @@ fun TelaAjustes(tema: Int, cor: Int, versao: String, aoTema: (Int) -> Unit, aoCo
                 LinhaAjuste("Sincronização econômica", "Intervalo, rede, bateria e horário noturno", SgeIcons.Refresh, aoEconomia)
                 LinhaAjuste("Backup e restauração", "Salvar e recuperar dados sem senha ou sessão", SgeIcons.Export, aoBackup)
                 LinhaAjuste("Atualizações do app", "Verificar, baixar e instalar por aqui", SgeIcons.Refresh, aoAtualizacoes)
+                Text("Atalho rápido: mantenha pressionado o ícone do app ou adicione “Meu diário” ao Painel rápido do Android.",
+                    Modifier.padding(horizontal = 18.dp, vertical = 10.dp), style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
         Surface(color = MaterialTheme.colorScheme.surface, shape = MaterialTheme.shapes.large) {

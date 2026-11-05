@@ -37,16 +37,27 @@ class SgeNoturnoWorker(private val ctx: Context, params: WorkerParameters) : Cor
             status("Verificação noturna enfileirada para ${ids.size} turmas.")
             // KEEP evita substituir uma fila manual que começa enquanto o perfil é verificado.
             SgeSyncWorker.verificarTurmas(ctx, ids, substituir = false, automatica = true)
-        } catch (e: CancellationException) { if (e !is TimeoutCancellationException) throw e; status("Verificação noturna: tempo de consulta esgotado.") }
+        } catch (e: CancellationException) {
+            if (e !is TimeoutCancellationException) throw e
+            status("Verificação noturna: tempo esgotado. Uma nova tentativa foi agendada para a manhã.", repetir = true)
+        }
         catch (e: SessaoExpirada) { SgeSessaoStore.salvar(ctx, PerfilSge.EXPIRADO); status("Verificação noturna: entre novamente no SGE Web."); SgeAvisos.sessaoExpirada(ctx) }
-        catch (e: Exception) { status("Verificação noturna: não foi possível consultar a escola. Tente uma verificação manual.") }
+        catch (e: Exception) {
+            val falhaDeRede = generateSequence(e as Throwable?) { it.cause }.any { it is java.io.IOException }
+            status(if (falhaDeRede) "Verificação noturna sem internet. Tentaremos novamente pela manhã, quando houver conexão."
+                else "Verificação noturna não concluída. Tentaremos novamente pela manhã.", repetir = true)
+        }
         finally { withContext(NonCancellable + Dispatchers.Main) { if (SgeSessaoStore.geracao(ctx) == geracao) { cookiesAtualizados.forEach { CookieManager.getInstance().setCookie(SgeSyncWorker.BASE, it) }; CookieManager.getInstance().flush() } } }
         return Result.success()
     }
-    private fun status(texto: String) { SgeSessaoStore.gravarSeAtual(ctx) { ctx.getSharedPreferences(SgePainelStore.PREFS_NAME, Context.MODE_PRIVATE).edit().putString("coord_noturna_status", texto).apply() } }
+    private fun status(texto: String, repetir: Boolean = false) {
+        SgeSessaoStore.gravarSeAtual(ctx) { ctx.getSharedPreferences(SgePainelStore.PREFS_NAME, Context.MODE_PRIVATE).edit()
+            .putString("coord_noturna_status", texto).putBoolean("coord_retry_pending", repetir).apply() }
+    }
     companion object {
         fun agendar(ctx: Context, ativo: Boolean, recriar: Boolean = false) {
             val wm = WorkManager.getInstance(ctx)
+            SgeRepetirFalhasWorker.agendar(ctx, ativo, recriar)
             if (!ativo) { wm.cancelUniqueWork("sge_coord_noturna"); return }
             val rede = SgeEconomia.restricoes(ctx)
             wm.enqueueUniquePeriodicWork("sge_coord_noturna", if (recriar) ExistingPeriodicWorkPolicy.UPDATE else ExistingPeriodicWorkPolicy.KEEP,

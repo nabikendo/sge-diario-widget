@@ -14,6 +14,9 @@ import android.webkit.CookieManager
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Toast
+import android.app.DownloadManager
+import android.app.TimePickerDialog
+import android.os.Environment
 import androidx.activity.enableEdgeToEdge
 import androidx.fragment.app.FragmentActivity
 import androidx.core.content.FileProvider
@@ -64,8 +67,16 @@ class MainActivity : FragmentActivity() {
     private lateinit var web: WebView
     private lateinit var protecao: CoordProtecao
     private val coordDesbloqueada = mutableStateOf(false)
+    private val modoComputadorWeb = mutableStateOf(true)
+    private data class WebDownload(val url: String, val userAgent: String?, val contentDisposition: String?, val mimeType: String?)
+    private var downloadPendente: WebDownload? = null
     private val pedidoWidget = mutableStateOf<PedidoWidget?>(null)
     private val pedirNotificacao = registerForActivityResult(ActivityResultContracts.RequestPermission()) { ok -> definirLembrete(ok) }
+    private val pedirArmazenamento = registerForActivityResult(ActivityResultContracts.RequestPermission()) { ok ->
+        val arquivo = downloadPendente
+        downloadPendente = null
+        if (ok) arquivo?.let(::baixarWeb) else aviso("Permita acesso aos arquivos para salvar em Downloads.")
+    }
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
@@ -83,15 +94,26 @@ class MainActivity : FragmentActivity() {
             settings.domStorageEnabled = true
             settings.allowFileAccess = false
             settings.allowContentAccess = false
-            // Versão de computador: a barra superior do SGE (ano letivo) só aparece nesse layout.
-            SgeWebComputador.aplicar(settings)
+            val agenteCelular = prefs.getString("web_user_agent_celular", null) ?: settings.userAgentString.orEmpty()
+            prefs.edit().putString("web_user_agent_celular", agenteCelular).apply()
+            modoComputadorWeb.value = prefs.getBoolean("web_computador", true)
+            SgeWebComputador.aplicar(settings, modoComputadorWeb.value, agenteCelular)
+            // Consultas em segundo plano mantêm um agente desktop estável, independentemente do modo visível.
+            prefs.edit().putString("web_user_agent", SgeWebComputador.agenteComputador(agenteCelular)).apply()
             CookieManager.getInstance().setAcceptCookie(true)
             CookieManager.getInstance().setAcceptThirdPartyCookies(this, false)
-            prefs.edit().putString("web_user_agent", settings.userAgentString).apply()
+            setDownloadListener { url, userAgent, contentDisposition, mimeType, _ ->
+                val arquivo = WebDownload(url, userAgent, contentDisposition, mimeType)
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q &&
+                    checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+                    downloadPendente = arquivo
+                    pedirArmazenamento.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                } else baixarWeb(arquivo)
+            }
             webViewClient = object : WebViewClient() {
-                override fun onPageCommitVisible(view: WebView?, url: String?) { SgeWebComputador.viewport(view) }
+                override fun onPageCommitVisible(view: WebView?, url: String?) { SgeWebComputador.viewport(view, modoComputadorWeb.value) }
                 override fun onPageFinished(view: WebView?, url: String?) {
-                    SgeWebComputador.viewport(view)
+                    SgeWebComputador.viewport(view, modoComputadorWeb.value)
                     if (url?.contains("/Acesso/Entrar", true) == true) SgeSessaoStore.salvar(this@MainActivity, PerfilSge.EXPIRADO)
                     CookieManager.getInstance().flush(); verificarSessao(); extrairEscola(); instalarHook()
                 }
@@ -123,6 +145,7 @@ class MainActivity : FragmentActivity() {
             var webVisivel by remember { mutableStateOf(false) }
             var papel by remember { mutableStateOf(prefs.getInt("papel", 0)) }
             var lembrete by remember { mutableStateOf(prefs.getBoolean("lembrete", false)) }
+            var lembreteMinuto by remember { mutableStateOf(prefs.getInt("lembrete_minuto", 17 * 60).coerceIn(0, 1439)) }
             val scope = rememberCoroutineScope()
             DisposableEffect(this@MainActivity, webVisivel) {
                 val observer = androidx.lifecycle.LifecycleEventObserver { _, evento ->
@@ -146,6 +169,7 @@ class MainActivity : FragmentActivity() {
                     conhecidas = SgeWidgetStore.conhecidas(this@MainActivity)
                     tema = prefs.getInt("tema", 0); cor = prefs.getInt("estilo", 0)
                     papel = prefs.getInt("papel", 0); lembrete = prefs.getBoolean("lembrete", false)
+                    lembreteMinuto = prefs.getInt("lembrete_minuto", 17 * 60).coerceIn(0, 1439)
                 } }
                 prefs.registerOnSharedPreferenceChangeListener(listener)
                 onDispose { prefs.unregisterOnSharedPreferenceChangeListener(listener) }
@@ -197,7 +221,17 @@ class MainActivity : FragmentActivity() {
                         }, filaCoord,
                         { SgeSyncWorker.pausar(this@MainActivity) },
                         { SgeSyncWorker.retomar(this@MainActivity) },
-                        { SgeSyncWorker.tentarFalhas(this@MainActivity) }))
+                        { SgeSyncWorker.tentarFalhas(this@MainActivity) }),
+                    horarioLembrete = String.format(java.util.Locale.ROOT, "%02d:%02d", lembreteMinuto / 60, lembreteMinuto % 60),
+                    aoEscolherHorarioLembrete = {
+                        val atual = prefs.getInt("lembrete_minuto", 17 * 60).coerceIn(0, 1439)
+                        TimePickerDialog(this@MainActivity, { _, hora, minuto ->
+                            prefs.edit().putInt("lembrete_minuto", hora * 60 + minuto).apply()
+                            LembreteWorker.agendar(this@MainActivity, prefs.getBoolean("lembrete", false), recriar = true)
+                        }, atual / 60, atual % 60, true).show()
+                    },
+                    modoComputador = modoComputadorWeb.value,
+                    aoModoComputador = { alterarModoWeb(it) })
                 AtualizacoesDialog(atualizador) { lifecycleScope.launch {
                     try { val arquivo = atualizador.prepararInstalacao(); lifecycle.withResumed { if(atualizador.aberto) atualizador.instalar(arquivo) } }
                     catch (e: CancellationException) { throw e }
@@ -223,6 +257,35 @@ class MainActivity : FragmentActivity() {
     }
     private fun aviso(texto: String) { Toast.makeText(this, texto, Toast.LENGTH_LONG).show() }
     private fun quandoAtiva(acao: ()->Unit) { lifecycleScope.launch { lifecycle.withResumed { acao() } } }
+    private fun baixarWeb(arquivo: WebDownload) {
+        val uri = runCatching { Uri.parse(arquivo.url) }.getOrNull()
+        if (uri?.scheme != "https" || !uri.host.equals("sge.seduc.to.pontoid.com.br", ignoreCase = true)) {
+            aviso("Por segurança, só é possível baixar arquivos do domínio oficial do SGE."); return
+        }
+        runCatching {
+            val nome = android.webkit.URLUtil.guessFileName(arquivo.url, arquivo.contentDisposition, arquivo.mimeType)
+                .replace(Regex("[^\\p{L}\\p{N}._() -]"), "_").trim().trim('.').take(140).ifBlank { "arquivo-sge" }
+            val pedido = DownloadManager.Request(uri).setTitle(nome).setDescription("Baixando arquivo do SGE")
+                .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+                .setAllowedOverMetered(true).setAllowedOverRoaming(false)
+                .setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, nome)
+            arquivo.mimeType?.takeIf { it.isNotBlank() }?.let(pedido::setMimeType)
+            CookieManager.getInstance().getCookie(arquivo.url)?.takeIf { it.isNotBlank() }?.let { pedido.addRequestHeader("Cookie", it) }
+            (arquivo.userAgent?.takeIf { it.isNotBlank() } ?: web.settings.userAgentString).let { pedido.addRequestHeader("User-Agent", it) }
+            val id = (getSystemService(DOWNLOAD_SERVICE) as DownloadManager).enqueue(pedido)
+            aviso("Download iniciado. O arquivo ficará em Downloads (nº $id).")
+        }.onFailure { aviso("Não foi possível iniciar o download. Confira a conexão e o espaço disponível.") }
+    }
+    private fun alterarModoWeb(computador: Boolean) {
+        if (!::web.isInitialized || modoComputadorWeb.value == computador) return
+        val prefs = getSharedPreferences(SgePainelStore.PREFS_NAME, MODE_PRIVATE)
+        val agenteCelular = prefs.getString("web_user_agent_celular", null) ?: web.settings.userAgentString.orEmpty()
+        modoComputadorWeb.value = computador
+        SgeWebComputador.aplicar(web.settings, computador, agenteCelular)
+        prefs.edit().putBoolean("web_computador", computador)
+            .putString("web_user_agent", SgeWebComputador.agenteComputador(agenteCelular)).apply()
+        web.reload()
+    }
     private fun reagendar() {
         val p = getSharedPreferences(SgePainelStore.PREFS_NAME,MODE_PRIVATE)
         SgeSyncWorker.agendarPeriodico(this)
@@ -254,7 +317,7 @@ class MainActivity : FragmentActivity() {
                 withContext(Dispatchers.IO) {
                     // Aguarda o cancelamento das filas antes da transação de restauração.
                     val wm = androidx.work.WorkManager.getInstance(this@MainActivity)
-                    listOf("sge_sync_now","sge_periodic_sync","sge_coord","sge_docentes_lista","sge_docentes_horarios","sge_coord_noturna").forEach { wm.cancelUniqueWork(it).result.get() }
+                    listOf("sge_sync_now","sge_periodic_sync","sge_coord","sge_docentes_lista","sge_docentes_horarios","sge_coord_noturna","sge_retry_morning").forEach { wm.cancelUniqueWork(it).result.get() }
                     SgeBackup.restaurar(this@MainActivity,b)
                 }
                 reagendar(); SgeWidgets.atualizar(this@MainActivity)
@@ -300,7 +363,13 @@ class MainActivity : FragmentActivity() {
         if (ativo) protecao.autenticar(aplicar) else comProtecao(aplicar)
     }
     private fun ativarNoturna(ativa: Boolean) {
-        getSharedPreferences(SgePainelStore.PREFS_NAME, MODE_PRIVATE).edit().putBoolean("coord_noturna", ativa).apply()
+        val hora = SgeEconomia.ler(this).horaNoturna.coerceIn(0, 23)
+        getSharedPreferences(SgePainelStore.PREFS_NAME, MODE_PRIVATE).edit()
+            .putBoolean("coord_noturna", ativa)
+            .putBoolean("coord_retry_pending", false)
+            .putString("coord_noturna_status", if (ativa) "Ativa; consulta noturna prevista por volta de %02d:00. O Android pode adiá-la.".format(hora)
+                else "Verificação noturna desativada.")
+            .apply()
         SgeNoturnoWorker.agendar(this, ativa, recriar = true)
     }
     private fun exportarPdf(g: GrupoPendencias, fonte: FontePainel, recorte: String = "") {
@@ -345,12 +414,16 @@ class MainActivity : FragmentActivity() {
             pedirNotificacao.launch(Manifest.permission.POST_NOTIFICATIONS); return
         }
         definirLembrete(ligar)
-        if (ligar) Toast.makeText(this, "Lembrete diário ativado para as 17h", Toast.LENGTH_SHORT).show()
+        if (ligar) {
+            val minuto = getSharedPreferences(SgePainelStore.PREFS_NAME, MODE_PRIVATE).getInt("lembrete_minuto", 17 * 60).coerceIn(0, 1439)
+            val hora = String.format(java.util.Locale.ROOT, "%02d:%02d", minuto / 60, minuto % 60)
+            Toast.makeText(this, "Lembrete diário ativado para $hora", Toast.LENGTH_SHORT).show()
+        }
     }
     private fun cancelarConsultas() {
         SgeSessaoStore.invalidar(this)
         val wm = androidx.work.WorkManager.getInstance(this)
-        listOf("sge_sync_now", "sge_periodic_sync", "sge_coord", "sge_docentes_lista", "sge_docentes_horarios", "sge_coord_noturna").forEach { wm.cancelUniqueWork(it) }
+        listOf("sge_sync_now", "sge_periodic_sync", "sge_coord", "sge_docentes_lista", "sge_docentes_horarios", "sge_coord_noturna", "sge_retry_morning").forEach { wm.cancelUniqueWork(it) }
     }
     private fun sairDoSge() {
         cancelarConsultas()
@@ -363,7 +436,7 @@ class MainActivity : FragmentActivity() {
     private fun limparDadosLocais() {
         cancelarConsultas()
         val prefs = getSharedPreferences(SgePainelStore.PREFS_NAME, MODE_PRIVATE)
-        val manter = SgeEconomia.chaves + setOf("tema", "estilo", "papel", "lembrete", "introducao_v2", "web_user_agent", "coord_biometria", "coord_noturna", "sessao_geracao")
+        val manter = SgeEconomia.chaves + setOf("tema", "estilo", "papel", "lembrete", "lembrete_minuto", "introducao_v2", "web_user_agent", "web_user_agent_celular", "web_computador", "coord_biometria", "coord_noturna", "coord_retry_pending", "sessao_geracao")
         prefs.edit().also { e -> prefs.all.keys.filter { it !in manter }.forEach { e.remove(it) } }.apply()
         lifecycleScope.launch { SgeWidgets.atualizar(this@MainActivity) }
         Toast.makeText(this, "Dados locais apagados", Toast.LENGTH_SHORT).show()
@@ -391,8 +464,10 @@ class MainActivity : FragmentActivity() {
         Toast.makeText(this, mensagem, Toast.LENGTH_SHORT).show()
     }
     private fun compartilhar(g: GrupoPendencias, recorte: String = "") {
-        val texto = SgeRelatorioTexto.gerar(g, recorte)
-        startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, texto), "Compartilhar resumo"))
+        val porProfessor = g.chave.startsWith("professor:")
+        val texto = if (porProfessor) SgeRelatorioTexto.mensagemProfessor(g) else SgeRelatorioTexto.gerar(g, recorte)
+        val titulo = if (porProfessor) "Mensagem pronta para o professor" else "Compartilhar resumo"
+        startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, texto), titulo))
     }
     private fun registrarAtalhos() {
         runCatching {
@@ -400,6 +475,7 @@ class MainActivity : FragmentActivity() {
                 .setShortLabel(curto).setLongLabel(longo).setIcon(androidx.core.graphics.drawable.IconCompat.createWithResource(this, icone))
                 .setIntent(Intent(this, MainActivity::class.java).setAction(Intent.ACTION_VIEW).putExtra("sge_atalho", id)).build()
             androidx.core.content.pm.ShortcutManagerCompat.setDynamicShortcuts(this, listOf(
+                atalho("diario", "Meu diário", "Abrir meu diário", R.drawable.ic_widget_refresh),
                 atalho("sincronizar", "Sincronizar", "Sincronizar agora", R.drawable.ic_widget_refresh),
                 atalho("coordenacao", "Coordenação", "Abrir a coordenação", R.drawable.ic_widget_settings),
                 atalho("relatorio", "Relatório", "Gerar relatório em PDF", R.drawable.ic_widget_down)))
@@ -422,6 +498,7 @@ class MainActivity : FragmentActivity() {
             intent?.removeExtra("sge_atalho")
             android.os.Handler(android.os.Looper.getMainLooper()).post {
                 when (a) {
+                    "diario" -> pedidoWidget.value = PedidoWidget(FontePainel.PESSOAL, Agrupamento.TURMA, "")
                     "sincronizar" -> atalhoSincronizar()
                     "coordenacao" -> pedidoWidget.value = PedidoWidget(FontePainel.COORDENACAO, Agrupamento.TURMA, "")
                     "relatorio" -> atalhoRelatorio()

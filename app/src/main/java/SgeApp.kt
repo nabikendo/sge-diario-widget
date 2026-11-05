@@ -50,7 +50,9 @@ fun AppDiario(
     historico: List<DiaHistorico> = emptyList(), perfil: PerfilSge = PerfilSge.DESCONHECIDO,
     bloqueioCoord: Boolean = false, coordDesbloqueada: Boolean = false, aoDesbloquear: () -> Unit = {},
     aoBloqueio: (Boolean) -> Unit = {}, noturna: Boolean = false, aoNoturna: (Boolean) -> Unit = {}, statusNoturno: String = "",
-    aoPdf: (GrupoPendencias, FontePainel, String) -> Unit = { _, _, _ -> }, recursos: RecursosSge = RecursosSge()
+    aoPdf: (GrupoPendencias, FontePainel, String) -> Unit = { _, _, _ -> }, recursos: RecursosSge = RecursosSge(),
+    horarioLembrete: String = "17:00", aoEscolherHorarioLembrete: () -> Unit = {},
+    modoComputador: Boolean = true, aoModoComputador: (Boolean) -> Unit = {}
 ) {
     val visiveis = remember(papel) { when (papel) { 1 -> setOf(0, 2); 2 -> setOf(1, 2); else -> setOf(0, 1, 2) } }
     var aba by rememberSaveable { mutableStateOf(if (papel == 2) 1 else 0) }
@@ -127,7 +129,12 @@ fun AppDiario(
                         style = if (emDetalhe) MaterialTheme.typography.labelLarge.copy(letterSpacing = 1.sp) else MaterialTheme.typography.titleMedium)
                     if (!emDetalhe) SeloPerfil(perfil)
                 }
-                if (webVisivel) IconButton(onClick = aoCopiarPagina) { Icon(SgeIcons.Export, "Copiar estrutura da página", Modifier.size(20.dp)) }
+                if (webVisivel) {
+                    TextButton(onClick = { aoModoComputador(!modoComputador) }, modifier = Modifier.heightIn(min = 48.dp)) {
+                        Text(if (modoComputador) "Celular" else "Computador", style = MaterialTheme.typography.labelMedium)
+                    }
+                    IconButton(onClick = aoCopiarPagina) { Icon(SgeIcons.Export, "Copiar estrutura da página", Modifier.size(20.dp)) }
+                }
                 if (emDetalhe) {
                     var menuTopo by remember { mutableStateOf(false) }
                     Box {
@@ -169,14 +176,15 @@ fun AppDiario(
                             { intro = true }, { aoCopiarDiagnostico(aba == 1) },
                             papel, aoPapel, lembrete, aoLembrete, { pagina = "sobre" }, aoSair, aoLimpar,
                             { fonteHistorico = if (aba == 1) FontePainel.COORDENACAO else FontePainel.PESSOAL; pagina = "historico" },
-                            bloqueioCoord, aoBloqueio, noturna, aoNoturna, statusNoturno, { pagina = "economia" }, { pagina = "backup" }, recursos.aoAtualizacoes)
+                            bloqueioCoord, aoBloqueio, noturna, aoNoturna, statusNoturno, { pagina = "economia" }, { pagina = "backup" }, recursos.aoAtualizacoes,
+                            horarioLembrete, aoEscolherHorarioLembrete)
                         rota.pagina == "mapa" -> TelaMapa(rsCoord, conhecidas, docentes, filtroCoord, recursos.organizacao,
                             { filtrosAbertos = true }, { pagina = "organizacao" }) { g, m -> fonteDetalhe = FontePainel.COORDENACAO; detalhe = g; moduloDetalhe = m; aba = 1; origemDetalhe = "mapa"; pagina = null }
                         rota.pagina == "lote" -> TelaLote(rsCoord, docentes, filtroCoord, recursos.organizacao, { filtrosAbertos = true }, recursos.aoLote)
                         rota.pagina == "organizacao" -> TelaOrganizacao(conhecidas, rsCoord, recursos.organizacao, recursos.aoOrganizacao)
                         rota.pagina == "economia" -> TelaEconomia(recursos.economia, recursos.aoEconomia)
                         rota.pagina == "backup" -> TelaBackup(recursos.aoBackup, recursos.aoRestaurar)
-                        rota.pagina == "historico" -> TelaHistorico(historico, fonteHistorico, { fonteHistorico = it }, !autorizado, aoDesbloquear)
+                        rota.pagina == "historico" -> TelaHistorico(historico, fonteHistorico, { fonteHistorico = it }, !autorizado, aoDesbloquear, docentes = docentes)
                         rota.pagina == "sobre" -> TelaSobre(versao, aoUrl)
                         rota.pagina == "ajuda" -> TelaAjuda()
                         rota.pagina == "widgets" -> TelaWidgets(aoAdicionarWidget)

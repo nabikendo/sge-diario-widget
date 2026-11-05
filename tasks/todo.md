@@ -71,3 +71,19 @@ A correção dos períodos continua adiada por solicitação do usuário; não s
 - Backup validado e restaurado preservando bloqueio local; resposta de consulta invalidada não pode sobrescrever a restauração.
 - PDF de lote A4 e recibo de uma página revisados visualmente. ZIP contém arquivos individuais e PDFs reunidos. O teste com descrições extensas mantém o recibo em uma página.
 - Mapa, filtros, lote, bloqueio ao voltar do segundo plano e escolha Mais tarde verificados em interface nativa com dados ilustrativos; não houve consulta a uma sessão real do SGE nestes testes.
+
+
+## Próxima prévia — ferramentas do dia a dia do professor
+- [x] Alternância celular/computador no SGE Web, preservando agente e viewport originais.
+- [x] Downloads autenticados do host oficial do SGE para Downloads; URLs externos são bloqueados para proteger cookies.
+- [x] Lembrete com horário escolhido, somente para pendências positivas confirmadas; notificação não expõe dados de coordenação protegida.
+- [x] Mensagem breve por professor preparada para o seletor nativo de compartilhamento.
+- [x] Ranking por turma/professor e módulo, comparando as últimas consultas completas em duas janelas de sete dias; retenção local de até quatro semanas.
+- [x] Nova tentativa matinal para falhas noturnas/fila, aguardando rede e sem substituir fila pausada ou em andamento.
+- [x] Tela de Saúde distingue último resultado com contagem, falhas, estado da rotina noturna e alerta estrutural do SGE.
+- [x] PDF adaptado ao modelo anexado: metadados, prazo, coluna Feito, observações e destaque de mais de 100 dias úteis aproximados.
+- [x] Tile do Painel rápido e shortcut launcher “Meu diário”; tablet lado a lado já existia.
+- [x] Testes JVM para ranking, lembrete, horário e parser contra zero falso.
+- [ ] Seletor de ano, atalho turma/data e widget Hoje: aguardam amostra da tela/agenda real do SGE, porque a URL/ano e o dia/horário não estão preservados pelo parser atual.
+- [ ] Envio semanal automático de PDF: aguarda destinatário e canal definidos; os relatórios atuais permanecem locais e são compartilhados pela pessoa usuária.
+- [ ] Build e testes finais no GitHub Actions para esta branch de teste.

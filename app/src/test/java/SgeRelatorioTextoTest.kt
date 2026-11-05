@@ -15,4 +15,18 @@ class SgeRelatorioTextoTest {
         assertEquals(1, texto.split("13.01/EM · Química").size - 1)
         assertTrue(texto.lineSequence().filter { it.startsWith("Conteúdos:") }.all { !it.contains("aguardando") })
     }
+
+    @Test fun mensagemProfessorDestacaPendenciasConfirmadasSemDadosDeAlunos() {
+        val r = ResultadoTurma(TurmaMonitorada("1", "13.01/EM", "", "Química"), listOf(
+            ResultadoModulo(1, coberturaCompleta = true), ResultadoModulo(0, coberturaCompleta = true),
+            ResultadoModulo(2, coberturaCompleta = true), ResultadoModulo(0, coberturaCompleta = true),
+            ResultadoModulo(0, "NOME DE ALUNO", coberturaCompleta = true)), "01/11 10:00")
+        val grupo = SgeDashboard.agrupar(listOf(r), Agrupamento.TURMA).single()
+            .copy(chave = "professor:42", titulo = "Ana Silva")
+        val mensagem = SgeRelatorioTexto.mensagemProfessor(grupo)
+        assertTrue(mensagem.contains("Olá, Prof. Ana Silva"))
+        assertTrue(mensagem.contains("13.01/EM · Química"))
+        assertTrue(mensagem.contains("Plano de aula: 2 documentos pendente(s)"))
+        assertFalse(mensagem.contains("NOME DE ALUNO"))
+    }
 }
