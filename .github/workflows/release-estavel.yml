@@ -49,7 +49,15 @@ jobs:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-        run: gradle testDebugUnitTest assembleRelease "-Pversao=$SGE_VERSAO" -Pcodigo=${{ github.run_number }} --no-daemon --stacktrace
+        shell: bash
+        run: |
+          set -o pipefail
+          gradle testDebugUnitTest assembleRelease "-Pversao=$SGE_VERSAO" -Pcodigo=${{ github.run_number }} --no-daemon --stacktrace 2>&1 | tee build.log
+      - name: Resumo dos erros
+        if: failure()
+        run: |
+          grep -E '^e: |error:|What went wrong|Could not |FAILED|Caused by|Unresolved|> ' build.log | head -40 | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}' > erros.txt
+          echo "::error title=Erros do build::$(cat erros.txt)"
       - name: Publicar versão estável
         env:
           SGE_VERSAO: ${{ steps.versao.outputs.numero }}
