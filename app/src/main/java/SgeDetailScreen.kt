@@ -42,7 +42,7 @@ import java.util.UUID
 @Composable
 fun TelaDetalhes(grupo: GrupoPendencias, fonte: FontePainel, docentes: PainelDocentes,
     aoAtualizar: () -> Unit, aoAbrirSge: () -> Unit, aoVincular: (ResultadoTurma) -> Unit, aoCompartilhar: () -> Unit, aoPdf: () -> Unit = {}, moduloInicial: Int = -1,
-    mudancas: List<MudancaModulo> = emptyList()) {
+    mudancas: List<MudancaModulo> = emptyList(), aoAtalhoSge: (ResultadoTurma, Int) -> Unit = { _, _ -> }) {
     var menuCompartilhar by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxSize()) {
     LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(20.dp, 12.dp, 20.dp, 24.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -58,7 +58,7 @@ fun TelaDetalhes(grupo: GrupoPendencias, fonte: FontePainel, docentes: PainelDoc
             MensagemVazia("Turma ainda sem consulta", "Verifique esta turma para mostrar conteúdos, frequência e planejamentos.", "Verificar turma", aoAtualizar)
         } else {
             item { Text("PENDÊNCIAS POR MÓDULO", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-            items(grupo.modulos.sortedBy { if (it.indice == moduloInicial) -1 else it.indice }, key = { it.indice }) { modulo -> CartaoModulo(grupo, modulo, moduloInicial, mudancas, aoAbrirSge) }
+            items(grupo.modulos.sortedBy { if (it.indice == moduloInicial) -1 else it.indice }, key = { it.indice }) { modulo -> CartaoModulo(grupo, modulo, moduloInicial, mudancas, aoAbrirSge, aoAtalhoSge) }
         }
         if (fonte == FontePainel.COORDENACAO && grupo.resultados.isNotEmpty()) {
             item {
@@ -197,7 +197,9 @@ private fun rotuloDia(d: LocalDate) = d.dayOfWeek.getDisplayName(java.time.forma
     SgeIdade.Faixa.ANTIGA -> MaterialTheme.colorScheme.error
 }
 
-@Composable private fun CartaoModulo(grupo: GrupoPendencias, resumo: ResumoModulo, moduloInicial: Int = -1, mudancas: List<MudancaModulo> = emptyList(), aoAbrirSge: () -> Unit = {}) {
+@Composable private fun CartaoModulo(grupo: GrupoPendencias, resumo: ResumoModulo, moduloInicial: Int = -1, mudancas: List<MudancaModulo> = emptyList(), aoAbrirSge: () -> Unit = {}, aoAtalhoSge: (ResultadoTurma, Int) -> Unit = { _, _ -> }) {
+    var escolherTurma by remember { mutableStateOf(false) }
+    val candidatos = remember(grupo, resumo) { grupo.resultados.filter { (it.modulos.getOrNull(resumo.indice)?.quantidade ?: 0) > 0 }.ifEmpty { grupo.resultados } }
     var aberto by rememberSaveable(grupo.chave, resumo.indice, moduloInicial) { mutableStateOf(resumo.indice == moduloInicial || (resumo.quantidade ?: 0) > 0) }
     val estado = when { (resumo.quantidade ?: 0) > 0 -> EstadoGrupo.PENDENTE
         !resumo.completa -> EstadoGrupo.CONFERIR; else -> EstadoGrupo.EM_DIA }
@@ -258,12 +260,19 @@ private fun rotuloDia(d: LocalDate) = d.dayOfWeek.getDisplayName(java.time.forma
                         ultimaConsulta != null -> "Consulta $ultimaConsulta · horário aproximado"
                         else -> "Sem horário de consulta"
                     }, Modifier.weight(1f), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    TextButton(onClick = aoAbrirSge, contentPadding = PaddingValues(horizontal = 4.dp)) {
-                        Text(if ((resumo.quantidade ?: 0) > 0) when (resumo.indice) { 0 -> "Registrar aula →"; 1 -> "Concluir chamada →"; else -> "Abrir no SGE →" } else "Abrir no SGE →",
+                    TextButton(onClick = { if (candidatos.size == 1) aoAtalhoSge(candidatos[0], resumo.indice) else if (candidatos.isEmpty()) aoAbrirSge() else escolherTurma = true }, contentPadding = PaddingValues(horizontal = 4.dp)) {
+                        Text(if ((resumo.quantidade ?: 0) > 0) when (resumo.indice) { 0 -> "Registrar aula →"; 1 -> "Concluir chamada →"; 2 -> "Abrir plano de aula →"; 3 -> "Abrir plano de curso →"; else -> "Abrir PEI →" } else "Abrir no SGE →",
                             style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
                     }
                 }
             }
+            if (escolherTurma) AlertDialog(onDismissRequest = { escolherTurma = false },
+                confirmButton = { TextButton(onClick = { escolherTurma = false }) { Text("Cancelar") } },
+                title = { Text("Abrir ${SgeDashboard.nomes[resumo.indice]} no SGE") },
+                text = { Column(Modifier.verticalScroll(rememberScrollState())) {
+                    candidatos.forEach { r -> TextButton(onClick = { escolherTurma = false; aoAtalhoSge(r, resumo.indice) }) {
+                        Text("${r.turma.nome} • ${r.turma.disciplina}", maxLines = 2) } }
+                } })
             AnimatedVisibility(visible = aberto, enter = fadeIn(tween(SgeMotion.duration(130))),
                 exit = fadeOut(tween(SgeMotion.duration(100)))) {
                 Column(Modifier.padding(start = 19.dp, end = 19.dp, bottom = 19.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {

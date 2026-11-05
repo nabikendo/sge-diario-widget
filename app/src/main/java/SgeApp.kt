@@ -52,7 +52,8 @@ fun AppDiario(
     aoBloqueio: (Boolean) -> Unit = {}, noturna: Boolean = false, aoNoturna: (Boolean) -> Unit = {}, statusNoturno: String = "",
     aoPdf: (GrupoPendencias, FontePainel, String) -> Unit = { _, _, _ -> }, recursos: RecursosSge = RecursosSge(),
     horarioLembrete: String = "17:00", aoEscolherHorarioLembrete: () -> Unit = {},
-    modoComputador: Boolean = true, aoModoComputador: (Boolean) -> Unit = {}
+    modoComputador: Boolean = true, aoModoComputador: (Boolean) -> Unit = {},
+    aoAtalhoSge: (String, String, String, Int) -> Unit = { _, _, _, _ -> }
 ) {
     val visiveis = remember(papel) { when (papel) { 1 -> setOf(0, 2); 2 -> setOf(1, 2); else -> setOf(0, 1, 2) } }
     var aba by rememberSaveable { mutableStateOf(if (papel == 2) 1 else 0) }
@@ -205,7 +206,8 @@ fun AppDiario(
                                         aoSalvarFiltro = { recursos.aoSalvarFiltro(fonte, it) },
                                         aoExcluirFiltro = { recursos.aoExcluirFiltro(fonte, it) },
                                         filaCoord = recursos.filaCoord, aoPausarFila = recursos.aoPausarFila,
-                                        aoRetomarFila = recursos.aoRetomarFila, aoTentarFalhas = recursos.aoTentarFalhas, perfil = perfil)
+                                        aoRetomarFila = recursos.aoRetomarFila, aoTentarFalhas = recursos.aoTentarFalhas, perfil = perfil,
+                                        pausaDiario = recursos.pausaDiario, aoPausarDiario = recursos.aoPausarDiario, aoRetomarDiario = recursos.aoRetomarDiario)
                                 }
                             }
                             @Composable fun detalhes(g: GrupoPendencias) {
@@ -214,7 +216,8 @@ fun AppDiario(
                                 TelaDetalhes(g, rota.fonte, docentes,
                                     { if (rota.fonte == FontePainel.COORDENACAO) aoVerificarTurmas(g.turmaIds.toList()) else aoSincronizarPessoal() },
                                     { detalhe = null; pagina = null; aba = 2 }, { vincular = it }, { aoCompartilhar(g, recorte) }, { aoPdf(g, rota.fonte, recorte) }, moduloDetalhe,
-                                    mudancas = if (rota.fonte == FontePainel.COORDENACAO) coord.mudancas else painel.mudancas)
+                                    mudancas = if (rota.fonte == FontePainel.COORDENACAO) coord.mudancas else painel.mudancas,
+                                    aoAtalhoSge = { r, modulo -> detalhe = null; pagina = null; aba = 2; aoAtalhoSge(r.turma.id, r.turma.nome, r.turma.disciplina, modulo) })
                             }
                             if (largo) Row(Modifier.fillMaxSize()) {
                                 Box(Modifier.weight(.43f).fillMaxHeight()) { lista() }

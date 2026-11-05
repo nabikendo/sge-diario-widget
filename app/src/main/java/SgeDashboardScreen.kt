@@ -214,7 +214,7 @@ fun TelaCartoes(
     aoAbrir: (GrupoPendencias) -> Unit, aoSincronizar: () -> Unit, aoCarregarTurmas: () -> Unit,
     aoAtualizarDocentes: () -> Unit, aoAbrirSge: () -> Unit, aoAjuda: () -> Unit, selecionada: String? = null, filtroAvancado: FiltroAvancado = FiltroAvancado(), organizacao: Map<String,DadosTurma> = emptyMap(), aoFiltros: ()->Unit = {}, aoMapa: ()->Unit = {}, aoLote: ()->Unit = {},
     filtrosSalvos: List<FiltroSalvo> = emptyList(), aoAplicarFiltro: (FiltroAvancado)->Unit = {}, aoSalvarFiltro: (FiltroSalvo)->Unit = {}, aoExcluirFiltro: (String)->Unit = {},
-    filaCoord: FilaCoord? = null, aoPausarFila: ()->Unit = {}, aoRetomarFila: ()->Unit = {}, aoTentarFalhas: ()->Unit = {}, perfil: PerfilSge? = null
+    filaCoord: FilaCoord? = null, aoPausarFila: ()->Unit = {}, aoRetomarFila: ()->Unit = {}, aoTentarFalhas: ()->Unit = {}, pausaDiario: PausaPessoal? = null, aoPausarDiario: ()->Unit = {}, aoRetomarDiario: ()->Unit = {}, perfil: PerfilSge? = null
 ) {
     var busca by rememberSaveable(fonte.name) { mutableStateOf("") }
     val filtro = filtroAvancado.estado
@@ -312,6 +312,12 @@ fun TelaCartoes(
                             color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
                     }
                     Icon(SgeIcons.Chevron, null, Modifier.size(17.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    val diarioPausando = !escola && carregando && pausaDiario?.pausada == true
+                    val podePausar = carregando && !diarioPausando && (!escola || filaCoord?.ids?.isNotEmpty() == true)
+                    val podeContinuar = !carregando && if (escola) filaCoord?.let { it.pausada && it.ids.isNotEmpty() } == true else pausaDiario?.pausada == true
+                    if (podePausar) TextButton(onClick = if (escola) aoPausarFila else aoPausarDiario) { Text("Pausar") }
+                    else if (diarioPausando) TextButton(onClick = {}, enabled = false) { Text("Pausando…") }
+                    else if (podeContinuar) Button(onClick = if (escola) aoRetomarFila else aoRetomarDiario) { Text("Continuar") }
                     if (escola) TextButton(onClick = aoCarregarTurmas) { Text(if (conhecidas.isEmpty()) "Carregar turmas" else "Reler turmas") }
                 }
             }

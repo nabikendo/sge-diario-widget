@@ -114,6 +114,7 @@ class MainActivity : FragmentActivity() {
                 override fun onPageCommitVisible(view: WebView?, url: String?) { SgeWebComputador.viewport(view, modoComputadorWeb.value) }
                 override fun onPageFinished(view: WebView?, url: String?) {
                     SgeWebComputador.viewport(view, modoComputadorWeb.value)
+                    SgeAtalhoWeb.aoPaginaPronta(view, url)
                     if (url?.contains("/Acesso/Entrar", true) == true) SgeSessaoStore.salvar(this@MainActivity, PerfilSge.EXPIRADO)
                     CookieManager.getInstance().flush(); verificarSessao(); extrairEscola(); instalarHook()
                 }
@@ -140,6 +141,7 @@ class MainActivity : FragmentActivity() {
             var painel by remember { mutableStateOf(SgePainelStore.ler(this)) }
             var coord by remember { mutableStateOf(SgeCoordStore.ler(this)) }
             var filaCoord by remember { mutableStateOf(SgeFila.ler(this)) }
+            var pausaDiario by remember { mutableStateOf(SgePausaPessoal.ler(this)) }
             var docentes by remember { mutableStateOf(SgeDocentesStore.ler(this)) }
             var conhecidas by remember { mutableStateOf(SgeWidgetStore.conhecidas(this)) }
             var webVisivel by remember { mutableStateOf(false) }
@@ -165,6 +167,7 @@ class MainActivity : FragmentActivity() {
                     painel = SgePainelStore.ler(this@MainActivity)
                     coord = SgeCoordStore.ler(this@MainActivity)
                     filaCoord = SgeFila.ler(this@MainActivity)
+                    pausaDiario = SgePausaPessoal.ler(this@MainActivity)
                     docentes = SgeDocentesStore.ler(this@MainActivity)
                     conhecidas = SgeWidgetStore.conhecidas(this@MainActivity)
                     tema = prefs.getInt("tema", 0); cor = prefs.getInt("estilo", 0)
@@ -221,7 +224,9 @@ class MainActivity : FragmentActivity() {
                         }, filaCoord,
                         { SgeSyncWorker.pausar(this@MainActivity) },
                         { SgeSyncWorker.retomar(this@MainActivity) },
-                        { SgeSyncWorker.tentarFalhas(this@MainActivity) }),
+                        { SgeSyncWorker.tentarFalhas(this@MainActivity) },
+                        pausaDiario = pausaDiario, aoPausarDiario = { SgeSyncWorker.pausarPessoal(this@MainActivity) },
+                        aoRetomarDiario = { SgeSyncWorker.retomarPessoal(this@MainActivity) }),
                     horarioLembrete = String.format(java.util.Locale.ROOT, "%02d:%02d", lembreteMinuto / 60, lembreteMinuto % 60),
                     aoEscolherHorarioLembrete = {
                         val atual = prefs.getInt("lembrete_minuto", 17 * 60).coerceIn(0, 1439)
@@ -231,7 +236,8 @@ class MainActivity : FragmentActivity() {
                         }, atual / 60, atual % 60, true).show()
                     },
                     modoComputador = modoComputadorWeb.value,
-                    aoModoComputador = { alterarModoWeb(it) })
+                    aoModoComputador = { alterarModoWeb(it) },
+                    aoAtalhoSge = { id, turma, componente, modulo -> abrirAtalhoSge(id, turma, componente, modulo) })
                 AtualizacoesDialog(atualizador) { lifecycleScope.launch {
                     try { val arquivo = atualizador.prepararInstalacao(); lifecycle.withResumed { if(atualizador.aberto) atualizador.instalar(arquivo) } }
                     catch (e: CancellationException) { throw e }
@@ -275,6 +281,10 @@ class MainActivity : FragmentActivity() {
             val id = (getSystemService(DOWNLOAD_SERVICE) as DownloadManager).enqueue(pedido)
             aviso("Download iniciado. O arquivo ficará em Downloads (nº $id).")
         }.onFailure { aviso("Não foi possível iniciar o download. Confira a conexão e o espaço disponível.") }
+    }
+    private fun abrirAtalhoSge(turmaId: String, turma: String, componente: String, modulo: Int) {
+        if (!::web.isInitialized) return
+        SgeAtalhoWeb.abrir(web, SgeSyncWorker.BASE, AtalhoSge(turmaId, turma, componente, modulo))
     }
     private fun alterarModoWeb(computador: Boolean) {
         if (!::web.isInitialized || modoComputadorWeb.value == computador) return

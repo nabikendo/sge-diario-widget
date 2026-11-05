@@ -22,7 +22,8 @@ data class RecursosSge(
     val filtros: Map<FontePainel,FiltroAvancado> = emptyMap(), val aoFiltro: (FontePainel,FiltroAvancado)->Unit = {_,_->},
     val filtrosSalvos: Map<FontePainel,List<FiltroSalvo>> = emptyMap(),
     val aoSalvarFiltro: (FontePainel,FiltroSalvo)->Unit = {_,_->}, val aoExcluirFiltro: (FontePainel,String)->Unit = {_,_->},
-    val filaCoord: FilaCoord? = null, val aoPausarFila: ()->Unit = {}, val aoRetomarFila: ()->Unit = {}, val aoTentarFalhas: ()->Unit = {}
+    val filaCoord: FilaCoord? = null, val aoPausarFila: ()->Unit = {}, val aoRetomarFila: ()->Unit = {}, val aoTentarFalhas: ()->Unit = {},
+    val pausaDiario: PausaPessoal? = null, val aoPausarDiario: ()->Unit = {}, val aoRetomarDiario: ()->Unit = {}
 )
 
 @Composable fun EscolhaFiltro(titulo: String, atual: String, opcoes: List<Pair<String,String>>, escolher: (String)->Unit) {

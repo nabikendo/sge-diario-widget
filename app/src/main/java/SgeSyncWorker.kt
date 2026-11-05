@@ -29,6 +29,12 @@ class SgeSyncWorker(private val ctx: Context, params: WorkerParameters) : Corout
         val alvo = inputData.getString("coord_alvo")
         val coordenacao = alvo != null
         val inicioWorker = System.currentTimeMillis()
+        val retomando = inputData.getBoolean("retomar", false)
+        if (!coordenacao && !retomando) {
+            // A pausa pedida pelo usuário vale também para consultas automáticas; atualizar manualmente recomeça do zero.
+            if (!inputData.getBoolean("manual", false) && SgePausaPessoal.ler(ctx)?.pausada == true) return Result.success()
+            SgePausaPessoal.limpar(ctx)
+        }
         if (!coordenacao) mostrar(antigo.copy(sincronizando = true, inicioConsulta = System.currentTimeMillis(), mensagem = "Consultando o horário do professor…"))
         var cliente: SgeReadClient? = null
         var cancelado = false
@@ -60,19 +66,45 @@ class SgeSyncWorker(private val ctx: Context, params: WorkerParameters) : Corout
             val turmas = withTimeout(90_000L) {
                 withContext(Dispatchers.IO) { client.turmas() }
             }
-            val resultados = mutableListOf<ResultadoTurma>()
+            val todosIds = turmas.map { chaveVinculo(it.id, it.disciplina) }.toSet()
+            // Continuar segue de onde parou; qualquer outra consulta recomeça do zero.
+            val feitasAntes = if (retomando) SgePausaPessoal.ler(ctx)?.feitas.orEmpty().filter { it in todosIds }.toSet() else emptySet()
+            val idsFeitasAntes = turmas.filter { chaveVinculo(it.id, it.disciplina) in feitasAntes }.map { it.id }.toSet()
+            val mudancasAnteriores = antigo.mudancas.filter { it.turmaId in idsFeitasAntes }
+            val resultados = antigo.turmas.filter { chaveResultado(it) in feitasAntes }.toMutableList()
+            val novos = mutableListOf<ResultadoTurma>()
+            var pausou = false
             for ((indice, turma) in turmas.withIndex()) {
-                mostrar(PainelSge(SgeDashboard.progresso(antigo.turmas, resultados, turmas.map { chaveVinculo(it.id, it.disciplina) }.toSet()), "Consultando ${indice + 1}/${turmas.size}: ${turma.nome} • ${turma.disciplina}", true, true, System.currentTimeMillis()))
+                val chave = chaveVinculo(turma.id, turma.disciplina)
+                if (chave in feitasAntes) continue
+                if (pausaPedida()) { pausou = true; break }
+                mostrar(PainelSge(SgeDashboard.progresso(antigo.turmas, resultados, todosIds), "Consultando ${indice + 1}/${turmas.size}: ${turma.nome} \u2022 ${turma.disciplina}", true, true, System.currentTimeMillis(), mudancasAnteriores))
+                val etapas = listOf<() -> ResultadoModulo>(
+                    { client.conteudos(turma).carimbar() }, { client.frequencia(turma).carimbar() },
+                    { planosComCache(client, turma, "PLANO DE AULA", 2, antigo.turmas) },
+                    { planosComCache(client, turma, "PLANO DE CURSO", 3, antigo.turmas) },
+                    { planosComCache(client, turma, "PEI - Plano de Ensino Individualizado", 4, antigo.turmas) })
                 val modulos = withTimeout(90_000L) {
-                    withContext(Dispatchers.IO) { listOf(
-                        client.conteudos(turma).carimbar(), client.frequencia(turma).carimbar(), planosComCache(client, turma, "PLANO DE AULA", 2, antigo.turmas),
-                        planosComCache(client, turma, "PLANO DE CURSO", 3, antigo.turmas), planosComCache(client, turma, "PEI - Plano de Ensino Individualizado", 4, antigo.turmas))
+                    withContext<List<ResultadoModulo>?>(Dispatchers.IO) {
+                        val lidos = mutableListOf<ResultadoModulo>()
+                        for (etapa in etapas) { if (pausaPedida()) return@withContext null; lidos.add(etapa()) }
+                        lidos.toList()
                     }
                 }
-                resultados.add(ResultadoTurma(turma, modulos, LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd/MM HH:mm"))))
+                if (modulos == null) { pausou = true; break } // pausa no meio da turma: ela é refeita ao continuar
+                val lida = ResultadoTurma(turma, modulos, LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd/MM HH:mm")))
+                resultados.add(lida); novos.add(lida)
+                SgePausaPessoal.marcarFeita(ctx, chave)
+            }
+            val mudancas = mudancasAnteriores + SgeComparacao.calcular(antigo.turmas, novos)
+            if (pausou) {
+                guardarDiagnostico("Pausado pelo usuário", cliente, resultados)
+                mostrar(PainelSge(SgeDashboard.progresso(antigo.turmas, resultados, todosIds),
+                    "Pausado: ${resultados.size}/${turmas.size} consultas feitas. Toque em Continuar para seguir de onde parou.", false, true, 0L, mudancas))
+                return Result.success()
             }
             SgeHistoricoStore.registrar(ctx, FontePainel.PESSOAL, resultados)
-            val mudancas = SgeComparacao.calcular(antigo.turmas, resultados)
+            SgePausaPessoal.limpar(ctx)
             val falhas = resultados.sumOf { r -> r.modulos.count { it.quantidade == null } }
             val parciais = resultados.sumOf { r -> r.modulos.count { !it.coberturaCompleta } }
             guardarDiagnostico(if (falhas > 0 || parciais > 0) "Módulos com falha ou cobertura parcial" else "Consulta completa", cliente, resultados)
@@ -195,6 +227,7 @@ class SgeSyncWorker(private val ctx: Context, params: WorkerParameters) : Corout
         if (novo.quantidade != null && (novo.coberturaCompleta || novo.naoConfigurado)) SgeCachePlanos.marcar(ctx, chave, agora)
         return novo
     }
+    private fun pausaPedida() = SgePausaPessoal.ler(ctx)?.pausada == true
     private fun ResultadoModulo.carimbar() = copy(atualizadoMs = System.currentTimeMillis())
     private fun guardarDiagnostico(titulo: String, c: SgeReadClient?, resultados: List<ResultadoTurma> = emptyList()) {
         val t = buildString {
@@ -222,6 +255,7 @@ class SgeSyncWorker(private val ctx: Context, params: WorkerParameters) : Corout
         fun verificarTurmas(context: Context, ids: List<String>, substituir: Boolean = true, automatica: Boolean = false) {
             if (ids.isEmpty()) return
             val atual = SgeFila.ler(context)
+            if (automatica && atual != null && atual.pausada && atual.ids.isNotEmpty()) return
             if (!substituir && atual != null && !atual.pausada && atual.ids.isNotEmpty()) return
             // Várias turmas: pendentes primeiro e sem refazer as verificadas há pouco. Uma turma escolhida de propósito sempre é verificada.
             val plano = SgeFila.planejar(ids, SgeCoordStore.ler(context).turmas, System.currentTimeMillis(), pular = automatica || ids.distinct().size > 1)
@@ -248,6 +282,20 @@ class SgeSyncWorker(private val ctx: Context, params: WorkerParameters) : Corout
             SgeCoordStore.salvar(context, SgeCoordStore.ler(context).copy(sincronizando = true, inicioConsulta = System.currentTimeMillis(),
                 mensagem = "Retomando: restam ${f.ids.size} turma(s), ${SgeFila.textoEstimativa(f.ids.size, f.mediaMs)}."))
             enfileirar(context, f.ids, true, false)
+        }
+        /** Meu diário: para na próxima etapa guardando o que já foi lido. */
+        fun pausarPessoal(context: Context) {
+            SgePausaPessoal.pedirPausa(context)
+            val p = SgePainelStore.ler(context)
+            if (p.sincronizando) SgePainelStore.salvar(context, p.copy(mensagem = "Pausando… a consulta termina a etapa atual e para."))
+        }
+        /** Meu diário: segue a consulta de onde parou, sem refazer o que já foi lido. */
+        fun retomarPessoal(context: Context) {
+            if (!SgePausaPessoal.retomar(context)) return
+            val p = SgePainelStore.ler(context)
+            SgePainelStore.salvar(context, p.copy(sincronizando = true, inicioConsulta = System.currentTimeMillis(), mensagem = "Retomando a consulta de onde parou…"))
+            WorkManager.getInstance(context).enqueueUniqueWork("sge_sync_now", ExistingWorkPolicy.REPLACE,
+                OneTimeWorkRequestBuilder<SgeSyncWorker>().setConstraints(rede()).setInputData(workDataOf("manual" to true, "retomar" to true)).build())
         }
         fun tentarFalhas(context: Context) {
             val falhas = SgeFila.ler(context)?.falhas.orEmpty()
