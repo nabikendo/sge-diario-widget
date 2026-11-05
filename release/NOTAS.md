@@ -1,10 +1,9 @@
-SGE Diário 2.5.2
+SGE Diário 2.5.3
 
-### Atalhos mais certeiros
-- Conteúdo, chamada, plano de aula, plano de curso e PEI agora fazem o mesmo caminho que você faria no SGE: escolhem a turma no cabeçalho, abrem a tela, escolhem o componente e pesquisam.
-- Na chamada, o atalho só gera a listagem; nunca marca presença nem grava nada.
+### Atalhos: conteúdo e chamada certeiros
+- Os atalhos agora leem as ações do contexto da turma ao vivo e chamam a mesma função JavaScript que o SGE usa internamente (CarregarPaginaAjaxComLoading). O resultado é o mesmo de tocar manualmente no botão da turma.
+- Chamada usa a Frequência Diária quando disponível, com o componente já escolhido.
+- Planos e PEI abrem o planejamento da turma com tipo e componente escolhidos e pesquisa feita.
+- Nenhum atalho toca em botões que salvam ou geram dados em lote.
 
-### Copiar página
-- A cópia da estrutura agora inclui as ações da turma e os botões da tela, para melhorar os atalhos.
-
-O app continua somente leitura. Instala por cima da versão anterior.
+Instala por cima da versão anterior.
