@@ -8,6 +8,13 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.app.Activity
+import android.app.HandoffActivityData
+import android.app.HandoffActivityDataRequestInfo
+import android.content.ComponentName
+import android.os.PersistableBundle
+import android.provider.ContactsContract
+import android.provider.ContactsPickerSessionContract
 import androidx.activity.result.contract.ActivityResultContracts
 import br.to.seduc.sgediariowidget.worker.LembreteWorker
 import android.webkit.CookieManager
@@ -48,10 +55,27 @@ import kotlinx.coroutines.launch
 import org.json.JSONTokener
 
 class MainActivity : FragmentActivity() {
+    private var handoffAba by mutableStateOf(-1)
+    private var abaAtual = 0
     private lateinit var atualizador: SgeAtualizador
     private var backupPendente by mutableStateOf<SgeBackup.Validado?>(null)
     private var lotePronto by mutableStateOf<ArquivosLote?>(null)
     private var operando by mutableStateOf(false)
+    private var pdfParaContato: Uri? = null
+    private val escolherContatoPdf = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { r ->
+        val pdf = pdfParaContato.also { pdfParaContato = null } ?: return@registerForActivityResult
+        if (r.resultCode != Activity.RESULT_OK) return@registerForActivityResult
+        val contato = r.data?.data ?: return@registerForActivityResult
+        runCatching {
+            val email = contentResolver.query(contato, arrayOf(ContactsContract.Data.DATA1), null, null, null)?.use { c ->
+                if (c.moveToFirst()) c.getString(0) else null
+            }?.takeIf { it.contains('@') } ?: error("Contato sem e-mail disponível")
+            val enviar = Intent(Intent.ACTION_SEND).setType("application/pdf")
+                .putExtra(Intent.EXTRA_EMAIL, arrayOf(email)).putExtra(Intent.EXTRA_STREAM, pdf)
+                .apply { clipData = android.content.ClipData.newUri(contentResolver, "Relatório SGE", pdf); addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION) }
+            startActivity(Intent.createChooser(enviar, "Compartilhar PDF com $email"))
+        }.onFailure { aviso("Não foi possível obter o e-mail deste contato. Compartilhe o PDF pelo menu normal.") }
+    }
     private val criarBackup = registerForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
         uri?.let { quandoAtiva { comProtecao { salvarBackup(it) } } }
     }
@@ -81,6 +105,8 @@ class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        handoffAba = intent.getIntExtra("handoff_aba", -1)
+        if (Build.VERSION.SDK_INT >= 37) setHandoffEnabled(true, null)
         protecao = CoordProtecao(this)
         atualizador = SgeAtualizador(this)
         val prefs = getSharedPreferences(SgePainelStore.PREFS_NAME, MODE_PRIVATE)
@@ -207,6 +233,7 @@ class MainActivity : FragmentActivity() {
                     papel, lembrete, { definirPapel(it) }, { alternarLembrete(it) }, { sairDoSge() }, { comProtecao { limparDadosLocais() } }, { abrirUrl(it) },
                     historico, perfil, bloqueio, coordDesbloqueada.value, { comProtecao {} }, { alterarBloqueio(it) },
                     noturna, { ativarNoturna(it) }, statusNoturno, { g, fonte, recorte -> exportarPdf(g, fonte, recorte) },
+                    { g, fonte, recorte -> exportarPdf(g, fonte, recorte, escolherContato = true) },
                     RecursosSge(organizacao, economia,
                         { SgeOrganizacao.salvar(this@MainActivity,it) }, { SgeEconomia.salvar(this@MainActivity,it); reagendar(); aviso("Preferências de sincronização salvas") },
                         { comProtecao { criarBackup.launch("SGE-Diario-backup-${java.time.LocalDate.now()}.json") } },
@@ -237,7 +264,8 @@ class MainActivity : FragmentActivity() {
                     },
                     modoComputador = modoComputadorWeb.value,
                     aoModoComputador = { alterarModoWeb(it) },
-                    aoAtalhoSge = { id, turma, componente, modulo, datas, horario -> abrirAtalhoSge(id, turma, componente, modulo, datas, horario) })
+                    aoAtalhoSge = { id, turma, componente, modulo, datas, horario -> abrirAtalhoSge(id, turma, componente, modulo, datas, horario) },
+                    abaInicial = handoffAba, aoAbaAlterada = { abaAtual = it })
                 AtualizacoesDialog(atualizador) { lifecycleScope.launch {
                     try { val arquivo = atualizador.prepararInstalacao(); lifecycle.withResumed { if(atualizador.aberto) atualizador.instalar(arquivo) } }
                     catch (e: CancellationException) { throw e }
@@ -383,13 +411,24 @@ class MainActivity : FragmentActivity() {
             .apply()
         SgeNoturnoWorker.agendar(this, ativa, recriar = true)
     }
-    private fun exportarPdf(g: GrupoPendencias, fonte: FontePainel, recorte: String = "") {
+    private fun exportarPdf(g: GrupoPendencias, fonte: FontePainel, recorte: String = "", escolherContato: Boolean = false) {
         val iniciar = {
             lifecycleScope.launch {
                 try {
                     val arquivo = withContext(Dispatchers.IO) { SgeRelatorioPdf.criar(File(cacheDir, "relatorios"), g, fonte, recorte) }
                     if (!lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED) || (fonte == FontePainel.COORDENACAO && SgeSessaoStore.protegida(this@MainActivity) && !coordDesbloqueada.value)) return@launch
                     val uri = FileProvider.getUriForFile(this@MainActivity, "$packageName.arquivos", arquivo)
+                    if (escolherContato) {
+                        pdfParaContato = uri
+                        val intent = if (Build.VERSION.SDK_INT >= 37) {
+                            Intent(ContactsPickerSessionContract.ACTION_PICK_CONTACTS).apply {
+                                putExtra(ContactsPickerSessionContract.EXTRA_PICK_CONTACTS_REQUESTED_DATA_FIELDS,
+                                    arrayListOf(ContactsContract.CommonDataKinds.Email.CONTENT_ITEM_TYPE))
+                            }
+                        } else Intent(Intent.ACTION_PICK, ContactsContract.CommonDataKinds.Email.CONTENT_URI)
+                        escolherContatoPdf.launch(intent)
+                        return@launch
+                    }
                     val enviar = Intent(Intent.ACTION_SEND).setType("application/pdf").putExtra(Intent.EXTRA_STREAM, uri)
                         .apply { clipData = android.content.ClipData.newUri(contentResolver, "Relatório SGE", uri); addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION) }
                     startActivity(Intent.createChooser(enviar, "Compartilhar PDF"))
@@ -533,7 +572,12 @@ class MainActivity : FragmentActivity() {
         }
         return super.dispatchKeyEvent(e)
     }
-    override fun onNewIntent(intent: Intent) { super.onNewIntent(intent); setIntent(intent); receberDestino(intent) }
+    override fun onNewIntent(intent: Intent) { super.onNewIntent(intent); setIntent(intent); handoffAba = intent.getIntExtra("handoff_aba", -1); receberDestino(intent) }
+
+    override fun onHandoffActivityDataRequested(requestInfo: HandoffActivityDataRequestInfo): HandoffActivityData {
+        return HandoffActivityData.Builder(ComponentName(this, MainActivity::class.java))
+            .setExtras(PersistableBundle().apply { putInt("handoff_aba", abaAtual) }).build()
+    }
     /** O SGE monta #TurmaContextoId no navegador; guardamos a lista lida do WebView logado para o Worker. */
     private fun extrairTurmas(depois: () -> Unit) {
         if (!::web.isInitialized) { depois(); return }

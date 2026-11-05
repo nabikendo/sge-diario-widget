@@ -1,5 +1,12 @@
 # Reformulação do painel e dos widgets
 
+## Próxima versão: atalhos, Android 17 e Windows
+- [ ] Corrigir extração de datas/horários, seleção de turma/grade e cliques automáticos nos atalhos; testar com DOM semelhante às capturas reais.
+- [ ] Acrescentar diagnóstico de espera do JobScheduler, seleção de contato para compartilhamento e continuidade de navegação no Android 17, com fallback nas versões anteriores.
+- [ ] Preparar executável Windows com painel local, importação de backup e acesso ao SGE, documentando capacidades e limites.
+- [ ] Verificar testes, build Android e build Windows; publicar artefatos somente após validação.
+
+
 ## Critérios de aceite
 - [x] Cartões por turma/componente/professor abrem uma página de detalhes com os cinco módulos.
 - [x] Resumos preservam dados desconhecidos/parciais e não tratam avaliação pendente como ação do professor.

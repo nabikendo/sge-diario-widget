@@ -50,13 +50,17 @@ fun AppDiario(
     historico: List<DiaHistorico> = emptyList(), perfil: PerfilSge = PerfilSge.DESCONHECIDO,
     bloqueioCoord: Boolean = false, coordDesbloqueada: Boolean = false, aoDesbloquear: () -> Unit = {},
     aoBloqueio: (Boolean) -> Unit = {}, noturna: Boolean = false, aoNoturna: (Boolean) -> Unit = {}, statusNoturno: String = "",
-    aoPdf: (GrupoPendencias, FontePainel, String) -> Unit = { _, _, _ -> }, recursos: RecursosSge = RecursosSge(),
+    aoPdf: (GrupoPendencias, FontePainel, String) -> Unit = { _, _, _ -> },
+    aoPdfContato: (GrupoPendencias, FontePainel, String) -> Unit = { _, _, _ -> }, recursos: RecursosSge = RecursosSge(),
     horarioLembrete: String = "17:00", aoEscolherHorarioLembrete: () -> Unit = {},
     modoComputador: Boolean = true, aoModoComputador: (Boolean) -> Unit = {},
-    aoAtalhoSge: (String, String, String, Int, List<String>, String) -> Unit = { _, _, _, _, _, _ -> }
+    aoAtalhoSge: (String, String, String, Int, List<String>, String) -> Unit = { _, _, _, _, _, _ -> },
+    abaInicial: Int = -1, aoAbaAlterada: (Int) -> Unit = {}
 ) {
     val visiveis = remember(papel) { when (papel) { 1 -> setOf(0, 2); 2 -> setOf(1, 2); else -> setOf(0, 1, 2) } }
     var aba by rememberSaveable { mutableStateOf(if (papel == 2) 1 else 0) }
+    LaunchedEffect(abaInicial) { if (abaInicial in 0..2) aba = abaInicial }
+    LaunchedEffect(aba) { aoAbaAlterada(aba) }
     LaunchedEffect(papel, aba) { if (aba !in visiveis) aba = visiveis.first() }
     var pagina by rememberSaveable { mutableStateOf<String?>(null) }
     var intro by rememberSaveable { mutableStateOf(introduzir) }
@@ -147,6 +151,7 @@ fun AppDiario(
                             val recorteTopo = if (filtroTopo.ativo) descreverFiltro(filtroTopo, docentes) else ""
                             DropdownMenuItem(text = { Text("Texto / WhatsApp") }, onClick = { menuTopo = false; detalhe?.let { aoCompartilhar(it, recorteTopo) } })
                             DropdownMenuItem(text = { Text("Relatório em PDF") }, onClick = { menuTopo = false; detalhe?.let { aoPdf(it, fonteDetalhe, recorteTopo) } })
+                            DropdownMenuItem(text = { Text("PDF para contato") }, onClick = { menuTopo = false; detalhe?.let { aoPdfContato(it, fonteDetalhe, recorteTopo) } })
                         }
                     }
                 } else {
@@ -217,13 +222,13 @@ fun AppDiario(
                                 val recorte = if (filtroAtual.ativo) descreverFiltro(filtroAtual, docentes) else ""
                                 TelaDetalhes(g, rota.fonte, docentes,
                                     { if (rota.fonte == FontePainel.COORDENACAO) aoVerificarTurmas(g.turmaIds.toList()) else aoSincronizarPessoal() },
-                                    { detalhe = null; pagina = null; aba = 2 }, { vincular = it }, { aoCompartilhar(g, recorte) }, { aoPdf(g, rota.fonte, recorte) }, moduloDetalhe,
+                                    { detalhe = null; pagina = null; aba = 2 }, { vincular = it }, { aoCompartilhar(g, recorte) }, { aoPdf(g, rota.fonte, recorte) }, { aoPdfContato(g, rota.fonte, recorte) }, moduloDetalhe,
                                     mudancas = if (rota.fonte == FontePainel.COORDENACAO) coord.mudancas else painel.mudancas,
                                     aoAtalhoSge = { r, modulo ->
                                         detalhe = null; pagina = null; aba = 2
                                         val mod = r.modulos.getOrNull(modulo)
-                                        val datas = Regex("""\\b(\\d{2}/\\d{2})\\b""").findAll(mod?.detalhe.orEmpty()).map { it.value }.distinct().toList()
-                                        val horario = if (modulo==1) Regex("""(\\d{2}:\\d{2})""").find(mod?.detalhe.orEmpty())?.value.orEmpty() else ""
+                                        val datas = SgeAtalhoWeb.datasPendentes(mod?.detalhe.orEmpty())
+                                        val horario = if (modulo==1) SgeAtalhoWeb.horarioPendente(mod?.detalhe.orEmpty()) else ""
                                         aoAtalhoSge(r.turma.id, r.turma.nome, r.turma.disciplina, modulo, datas, horario) })
                             }
                             if (largo) Row(Modifier.fillMaxSize()) {

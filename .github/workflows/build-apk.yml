@@ -2,7 +2,7 @@ name: Build SGE Widget APK
 
 on:
   push:
-    branches: [ main, master, feat/ios-inspired-neutral-ui, feat/tablet-history-coordination, feat/inapp-updates-school-tools ]
+    branches: [ main, master, feat/ios-inspired-neutral-ui, feat/tablet-history-coordination, feat/inapp-updates-school-tools, feat/android17-desktop-2-5-5 ]
   workflow_dispatch:
 
 permissions:

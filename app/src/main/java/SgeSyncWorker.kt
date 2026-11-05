@@ -221,7 +221,9 @@ class SgeSyncWorker(private val ctx: Context, params: WorkerParameters) : Corout
         val chave = "${t.id}|${t.disciplina}|$indice"
         val prev = anteriores.firstOrNull { it.turma.id == t.id && it.turma.disciplina == t.disciplina }?.modulos?.getOrNull(indice)
         val ts = SgeCachePlanos.ts(ctx, chave)
-        if (SgeCachePlanos.reaproveitavel(prev, ts, agora)) return SgeCachePlanos.anotar(prev!!, ts)
+        val consultaManual = if (inputData.getString("coord_alvo") != null) !inputData.getBoolean("auto", false)
+            else inputData.getBoolean("manual", false)
+        if (!consultaManual && SgeCachePlanos.reaproveitavel(prev, ts, agora)) return SgeCachePlanos.anotar(prev!!, ts)
             .copy(atualizadoMs = prev.atualizadoMs.takeIf { it > 0L } ?: ts)
         val novo = client.planos(t, tipo).carimbar()
         if (novo.quantidade != null && (novo.coberturaCompleta || novo.naoConfigurado)) SgeCachePlanos.marcar(ctx, chave, agora)

@@ -41,7 +41,7 @@ import java.util.UUID
 
 @Composable
 fun TelaDetalhes(grupo: GrupoPendencias, fonte: FontePainel, docentes: PainelDocentes,
-    aoAtualizar: () -> Unit, aoAbrirSge: () -> Unit, aoVincular: (ResultadoTurma) -> Unit, aoCompartilhar: () -> Unit, aoPdf: () -> Unit = {}, moduloInicial: Int = -1,
+    aoAtualizar: () -> Unit, aoAbrirSge: () -> Unit, aoVincular: (ResultadoTurma) -> Unit, aoCompartilhar: () -> Unit, aoPdf: () -> Unit = {}, aoPdfContato: () -> Unit = {}, moduloInicial: Int = -1,
     mudancas: List<MudancaModulo> = emptyList(), aoAtalhoSge: (ResultadoTurma, Int) -> Unit = { _, _ -> }) {
     var menuCompartilhar by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxSize()) {
@@ -111,6 +111,7 @@ fun TelaDetalhes(grupo: GrupoPendencias, fonte: FontePainel, docentes: PainelDoc
                 DropdownMenu(expanded = menuCompartilhar, onDismissRequest = { menuCompartilhar = false }) {
                     DropdownMenuItem(text = { Text("Texto / WhatsApp") }, onClick = { menuCompartilhar = false; aoCompartilhar() })
                     DropdownMenuItem(text = { Text("Relatório em PDF") }, onClick = { menuCompartilhar = false; aoPdf() })
+                    DropdownMenuItem(text = { Text("PDF para contato") }, onClick = { menuCompartilhar = false; aoPdfContato() })
                 }
             }
         }

@@ -1,0 +1,30 @@
+name: Build Windows Desktop
+on:
+  push:
+    paths: [ 'desktop/**', '.github/workflows/build-desktop.yml' ]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Instalar dependências
+        working-directory: desktop
+        run: npm install --no-audit --no-fund
+      - name: Testar modelo do backup
+        working-directory: desktop
+        run: npm test
+      - name: Gerar executável portátil
+        working-directory: desktop
+        run: npm run build:win
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sge-diario-desktop-windows
+          path: desktop/dist/SGE-Diario-Desktop-*.exe

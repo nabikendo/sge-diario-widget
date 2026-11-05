@@ -18,7 +18,27 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  desktop:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Instalar, testar e compilar Windows
+        working-directory: desktop
+        run: |
+          npm install --no-audit --no-fund
+          npm test
+          npm run build:win
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desktop-estavel
+          path: desktop/dist/SGE-Diario-Desktop-*.exe
   release:
+    needs: desktop
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-22.04
     steps:
@@ -58,13 +78,19 @@ jobs:
         run: |
           (grep -E '^e: |^e: file|error:' build.log | head -25; grep -A14 'What went wrong' build.log | head -30) | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}' > erros.txt
           echo "::error title=Erros do build::$(cat erros.txt)"
+      - uses: actions/download-artifact@v4
+        with:
+          name: desktop-estavel
+          path: .
       - name: Publicar versão estável
+        id: publicar
+        continue-on-error: false
         env:
           SGE_VERSAO: ${{ steps.versao.outputs.numero }}
           GH_TOKEN: ${{ github.token }}
         run: |
           cp app/build/outputs/apk/release/app-release.apk "SGE-Diario-$SGE_VERSAO.apk"
           python scripts/metadata-atualizacao.py "SGE-Diario-$SGE_VERSAO.apk" atualizacao.json
-          gh release create "v$SGE_VERSAO" "SGE-Diario-$SGE_VERSAO.apk" atualizacao.json --latest --target "$GITHUB_SHA" \
+          gh release create "v$SGE_VERSAO" "SGE-Diario-$SGE_VERSAO.apk" "SGE-Diario-Desktop-$SGE_VERSAO.exe" atualizacao.json --latest --target "$GITHUB_SHA" \
             --title "SGE Diário $SGE_VERSAO" \
             --notes-file release/NOTAS.md

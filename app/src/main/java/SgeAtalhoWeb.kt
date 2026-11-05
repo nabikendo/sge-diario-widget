@@ -21,6 +21,11 @@ object SgeAtalhoWeb {
     private var aguardandoCarga: AtalhoSge? = null
     private var expira = 0L
 
+    fun datasPendentes(detalhe: String): List<String> = Regex("""\b\d{2}/\d{2}\b""")
+        .findAll(detalhe.substringAfter(':', "")).map { it.value }.distinct().toList()
+    fun horarioPendente(detalhe: String): String = Regex("""\b\d{2}:\d{2}\b""")
+        .find(detalhe)?.value.orEmpty()
+
     fun normalizar(s: String): String = Normalizer.normalize(s, Normalizer.Form.NFD)
         .replace(Regex("\\p{M}+"), "").lowercase().replace(Regex("\\s+"), " ").trim()
 
@@ -83,8 +88,9 @@ object SgeAtalhoWeb {
         var dorme=function(ms){return new Promise(function(r){setTimeout(r,ms);});};
         async function esperar(teste,ms){var fim=Date.now()+ms;while(Date.now()<fim){try{var v=teste();if(v)return v;}catch(e){}await dorme(250);}return null;}
         function dispararJquery(el,ev){if(window.jQuery)window.jQuery(el).trigger(ev);else el.dispatchEvent(new Event(ev,{bubbles:true}));}
-        function escolherValor(s,valor){if(s.value===valor)return true;s.value=valor;dispararJquery(s,'change');return true;}
-        function escolherTexto(s,comp){var ops=[].slice.call(s.options);var alvo=ops.find(function(o){return o.value&&comp&&norm(o.text).indexOf(comp)>=0;});if(!alvo&&ops.filter(function(o){return o.value;}).length===1)alvo=ops.find(function(o){return o.value;});if(!alvo)return false;escolherValor(s,alvo.value);return true;}
+        function escolherValor(s,valor){if(s.value===valor)return true;s.value=valor;dispararJquery(s,'change');return s.value===valor;}
+        function escolherTexto(s,comp){var ops=[].slice.call(s.options).filter(function(o){return o.value&&comp&&norm(o.text)===comp;});
+          if(ops.length!==1)return false;return escolherValor(s,ops[0].value);}
         var cfg={turmaId:${q(a.turmaId)},turma:${q(a.turma)},comp:norm(${q(a.componente)}),rotulo:${q(rotulo(a.modulo))},
           modulo:${a.modulo},padroes:${lista(padroesOnclick(a.modulo))},marcador:${q(marcador(a.modulo))},
           selComp:${q(filtroComponente(a.modulo))},pesquisar:${q(botaoPesquisar(a.modulo).orEmpty())},
@@ -93,14 +99,24 @@ object SgeAtalhoWeb {
         aviso('Abrindo '+cfg.rotulo+' de '+cfg.turma+'…');
         // 1) turma no contexto do SGE
         var ctx=await esperar(function(){return document.getElementById('TurmaContextoId');},10000);
-        if(ctx&&ctx.value!==cfg.turmaId){
-          var alvoT=norm(cfg.turma);
-          var op=[].slice.call(ctx.options).find(function(o){return o.value===cfg.turmaId;})||
-            [].slice.call(ctx.options).find(function(o){var d=norm(o.getAttribute('data-turmadescricao')||o.text);return d&&(d===alvoT||d.indexOf(alvoT)>=0||alvoT.indexOf(d)>=0);});
-          if(op){escolherValor(ctx,op.value);await dorme(1800);}
+        if(!ctx){aviso('Seletor de turma indisponível. Abra o SGE e tente novamente.');return;}
+        function nomeTurma(o){var s=norm(o.getAttribute('data-turmadescricao')||o.text);var alvo=norm(cfg.turma);
+          return s===alvo||s.indexOf(alvo+'/')===0||s.indexOf(alvo+' -')===0;}
+        var selecionada=ctx.options[ctx.selectedIndex];
+        var idConfere=selecionada&&(selecionada.value===cfg.turmaId||selecionada.value.split('_')[0]===cfg.turmaId);
+        var trocou=false;
+        if(!idConfere||!nomeTurma(selecionada)){
+          var ops=[].slice.call(ctx.options).filter(function(o){return nomeTurma(o)&&(o.value===cfg.turmaId||o.value.split('_')[0]===cfg.turmaId);});
+          if(ops.length===0)ops=[].slice.call(ctx.options).filter(nomeTurma);
+          if(ops.length!==1){aviso('Turma não identificada de forma única no SGE. Selecione-a manualmente.');return;}
+          if([].slice.call(ctx.options).filter(function(o){return o.value===ops[0].value;}).length!==1){aviso('O SGE repetiu o identificador da turma. Selecione-a manualmente.');return;}
+          if(!escolherValor(ctx,ops[0].value)){aviso('Não foi possível selecionar a turma.');return;}
+          trocou=true;await dorme(1800);
         }
+        selecionada=ctx.options[ctx.selectedIndex];
+        if(!selecionada||!nomeTurma(selecionada)){aviso('A turma selecionada não corresponde ao painel.');return;}
         // 2) ação do contexto: usa o onclick CarregarPaginaAjaxComLoading extraído ao vivo
-        if(!document.querySelector(cfg.marcador.split(',')[0])){
+        if(trocou||!cfg.marcador.split(',').some(function(s){return document.querySelector(s);})){
           var acoes=[].slice.call(document.querySelectorAll('#div-contexto-acoes-turma a,#div-contexto-turma-visao-professor a'));
           var el=null;
           for(var i=0;i<cfg.padroes.length&&!el;i++){
@@ -122,7 +138,7 @@ object SgeAtalhoWeb {
           var t=document.getElementById('TipoDeRegistroPedagogicoId');
           if(t&&t.value!==cfg.tipo){escolherValor(t,cfg.tipo);await dorme(600);}
         }
-        var sels=cfg.selComp.split(',').map(function(s){return document.querySelector(s.trim());}).filter(Boolean);
+        var sels=cfg.selComp.split(',').reduce(function(acc,s){return acc.concat([].slice.call(document.querySelectorAll(s.trim())));},[]).filter(function(s){return s.tagName==='SELECT';});
         sels.sort(function(a,b){return b.options.length-a.options.length;});
         var feito=false;
         for(var i=0;i<sels.length&&!feito;i++){
@@ -137,25 +153,20 @@ object SgeAtalhoWeb {
           await dorme(400);
           var clicou=await esperar(function(){
             var dias=[].slice.call(document.querySelectorAll('.calendario .semana .vermelho'));
-            var d=dias.find(function(el){var t=el.getAttribute('data-original-title')||el.getAttribute('title')||'';return t.indexOf(alvoData.split('/')[0])>=0&&t.indexOf(alvoData.split('/')[1])>=0;});
+            var d=dias.find(function(el){var t=el.getAttribute('data-original-title')||el.getAttribute('title')||'';var m=t.match(/(\d{2}\/\d{2})\/\d{4}/);return m&&m[1]===alvoData;});
             if(!d)return false;
-            // O ícone fa-plus-circle abre o formulário de lançamento; fa-edit edita o existente
-            var btn=d.closest('[data-content]')?null:null;
-            var popup=Jsoup?null:null;
-            // Clica no botão de adicionar conteúdo dentro do popup do dia
-            var inner=d.querySelector('a,button');if(inner){inner.click();return true;}
             d.click();return true;},8000);
-          if(clicou)aviso('Abrindo lançamento de '+cfg.rotulo+' para '+alvoData+'…');
+          if(clicou)aviso('Dia '+alvoData+' selecionado. Confira o componente e toque em adicionar no SGE.');
           else aviso(cfg.rotulo+' de '+cfg.turma+' pronto. Clique no dia '+alvoData+' (marcado em vermelho) para lançar.');
         }
-        // 5) Chamada: seleciona o horário mais antigo pendente e clica em Lançar
+        // 6) Chamada: apenas um botão de horário explicitamente identificado pode ser acionado.
         else if(feito&&cfg.modulo===1){
           await dorme(600);
-          var horarios=[].slice.call(document.querySelectorAll('#_ListaDeHorariosTurma button,[id^=check_ativo_]'));
+          var horarios=[].slice.call(document.querySelectorAll('#_ListaDeHorariosTurma button'));
           var alvoH=cfg.horarioPref;
-          var btn=horarios.find(function(b){return alvoH&&(b.textContent||'').indexOf(alvoH)>=0;})||horarios[0];
-          if(btn){btn.click();await dorme(600);var gerarBtn=document.getElementById('btnGerar');if(gerarBtn)gerarBtn.click();aviso('Chamada de '+cfg.turma+': horário selecionado. Confira e salve.');}
-          else aviso('Chamada de '+cfg.turma+' pronta. Selecione o horário e toque em Gerar.');
+          var encontrados=horarios.filter(function(b){return alvoH&&(b.textContent||'').indexOf(alvoH)>=0;});
+          if(encontrados.length===1){encontrados[0].click();aviso('Horário '+alvoH+' selecionado. Confira a chamada antes de salvar.');}
+          else aviso('Chamada de '+cfg.turma+' aberta. Selecione o horário e confira antes de salvar.');
         }
         else if(!feito)aviso('Turma pronta. Escolha o componente '+${q(a.componente)}+'.');
         else if(cfg.modulo>1)aviso(cfg.rotulo+' de '+cfg.turma+' — pronto.');
