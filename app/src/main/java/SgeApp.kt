@@ -134,7 +134,9 @@ fun AppDiario(
                     TextButton(onClick = { aoModoComputador(!modoComputador) }, modifier = Modifier.heightIn(min = 48.dp)) {
                         Text(if (modoComputador) "Celular" else "Computador", style = MaterialTheme.typography.labelMedium)
                     }
-                    IconButton(onClick = aoCopiarPagina) { Icon(SgeIcons.Export, "Copiar estrutura da página", Modifier.size(20.dp)) }
+                    TextButton(onClick = aoCopiarPagina, modifier = Modifier.heightIn(min = 48.dp)) {
+                        Text("Copiar página", style = MaterialTheme.typography.labelMedium)
+                    }
                 }
                 if (emDetalhe) {
                     var menuTopo by remember { mutableStateOf(false) }

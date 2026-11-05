@@ -1,23 +1,16 @@
-SGE Diário 2.5
+SGE Diário 2.5.1
 
-### Diário no SGE Web
-- Alterne entre os modos celular e computador diretamente no app.
-- Baixe arquivos servidos pelo domínio oficial do SGE; links externos não recebem os cookies da sessão.
+### Pausar e continuar a atualização
+- Meu diário e Coordenação ganharam os botões **Pausar** e **Continuar**, visíveis ao lado da mensagem de status.
+- Continuar segue de onde parou, sem refazer as turmas já lidas.
+- A consulta automática não passa por cima de uma pausa feita por você.
 
-### Acompanhamento de pendências
-- Lembrete local em horário escolhido, somente quando a consulta confirmou pendências.
-- Nova tentativa matinal das consultas noturnas que falharam, quando houver conexão.
-- Tela Saúde informa a última leitura com contagens e explica falhas em linguagem simples.
+### Atalhos que abrem a tela certa do SGE
+- Plano de aula, plano de curso e PEI abrem a listagem da turma já com o tipo e o componente escolhidos.
+- Conteúdo e chamada procuram o item no menu do SGE e já escolhem a turma e o componente.
+- Com mais de uma turma ou componente pendente, o app pergunta qual abrir.
 
-### Coordenação
-- Mensagem de pendências pronta para compartilhar com cada professor.
-- Comparação semanal por turma e professor, com avisos quando os dados não permitem uma comparação segura.
-- Relatório PDF baseado no modelo encaminhado, com marcação “Feito”, observações e destaque de pendências antigas.
-- Atalho “Meu diário” no Painel rápido do Android.
+### SGE Web
+- O botão **Copiar página** agora aparece com texto na barra da aba SGE Web.
 
-### Privacidade e limites
-- O app permanece somente leitura no SGE e não envia alterações ao sistema.
-- Os relatórios são gerados localmente e compartilhados manualmente; não há envio automático.
-- Esta versão ainda não inclui seletor integrado de ano letivo, atalho direto para turma/data nem widget “Hoje”.
-
-Versão estável assinada com a chave do app principal. Pode ser instalada por cima da versão estável anterior; a versão de teste usa um pacote separado.
+O app continua somente leitura: abrir um atalho nunca envia nem salva nada no SGE. Instala por cima da versão anterior.
