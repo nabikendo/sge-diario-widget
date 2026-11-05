@@ -358,12 +358,23 @@ object SgeParsing {
         val cells = doc.select(".calendario .semana [data-original-title], .calendario .semana [title]")
         check(cells.isNotEmpty()) { "Datas do calendário ausentes" }
         val ano = date(cells.first()!!.attr("data-original-title").ifBlank { cells.first()!!.attr("title") }).year
-        return doc.select(".calendario .mes").mapNotNull { month ->
+        val blocosMes = doc.select(".calendario .mes")
+        check(blocosMes.isNotEmpty()) { "Meses do calendário ausentes" }
+        val resultado = mutableSetOf<YearMonth>()
+        for (month in blocosMes) {
             val numero = meses.indexOf(month.select(".mes-titulo").text().trim().lowercase()) + 1
+            check(numero in 1..12) { "Mês do calendário não reconhecido" }
+            val resumo = month.selectFirst(".mes-subtitulo")?.text()?.trim().orEmpty()
             val total = Regex("(\\d+)\\s+de\\s+(\\d+)\\s+registrados", RegexOption.IGNORE_CASE)
-                .find(month.select(".mes-subtitulo").text())?.groupValues?.get(2)?.toIntOrNull()
-            if (numero in 1..12 && total != null && total > 0) YearMonth.of(ano, numero) else null
-        }.toSet()
+                .find(resumo)?.groupValues?.get(2)?.toIntOrNull()
+            when {
+                total != null -> if (total > 0) resultado += YearMonth.of(ano, numero)
+                resumo.contains("nenhum registro a ser feito", ignoreCase = true) ||
+                    resumo.contains("sem dias letivos", ignoreCase = true) -> Unit
+                else -> error("Resumo mensal do calendário não reconhecido")
+            }
+        }
+        return resultado
     }
     private val ordinais = mapOf("primeiro" to 1, "segundo" to 2, "terceiro" to 3, "quarto" to 4, "i" to 1, "ii" to 2, "iii" to 3, "iv" to 4)
     private val bimNumeroAntes = Regex("(?<![\\p{L}\\d])(\\d|primeiro|segundo|terceiro|quarto|iv|iii|ii|i)\\s*[º°ªo]?\\s*[-.]?\\s*(?:bimestre|bim)(?![\\p{L}])", RegexOption.IGNORE_CASE)

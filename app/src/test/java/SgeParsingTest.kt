@@ -20,6 +20,20 @@ class SgeParsingTest {
         val meses = SgeParsing.mesesComAula(org.jsoup.Jsoup.parse(html))
         assertEquals(setOf(java.time.YearMonth.of(2026, 8)), meses)
     }
+    @Test fun resumoMensalDesconhecidoNaoViraCalendarioSemAulas() {
+        val html = """<div class="calendario"><div class="mes">
+            <div class="mes-titulo">AGOSTO</div><div class="mes-subtitulo">Conteúdos lançados: 0</div>
+            <div class="semana"><div title="01/08/2026"></div></div></div></div>"""
+        assertThrows(IllegalStateException::class.java) {
+            SgeParsing.mesesComAula(org.jsoup.Jsoup.parse(html))
+        }
+    }
+    @Test fun calendarioSemMesesReconhecidosNaoViraConjuntoVazio() {
+        val html = """<div class="calendario"><div class="semana"><div title="01/08/2026"></div></div></div>"""
+        assertThrows(IllegalStateException::class.java) {
+            SgeParsing.mesesComAula(org.jsoup.Jsoup.parse(html))
+        }
+    }
     @Test fun conteudosExcluemFuturoEOutrosComponentes() {
         val html = """<div class="calendario"><div class="semana">
           <div class="vermelho" title="29/10/2026" data-content="&lt;table&gt;&lt;tr&gt;&lt;td&gt;QUÍMICA&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;"></div>

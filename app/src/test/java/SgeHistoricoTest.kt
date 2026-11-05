@@ -35,9 +35,32 @@ class SgeHistoricoTest {
         val b = SgeHistorico.registrar(a, FontePainel.COORDENACAO, listOf(r(n = null)), hoje)
         val raw = SgeHistorico.json(b); assertFalse(raw.contains("texto que")); assertEquals(b, SgeHistorico.ler(raw))
     }
-    @Test fun retencaoMantemSeteDiasEMaisUmParaComparacao() {
-        val a = SgeHistorico.registrar(emptyList(), FontePainel.PESSOAL, listOf(r()), hoje.minusDays(8))
-        val b = SgeHistorico.registrar(a, FontePainel.PESSOAL, listOf(r()), hoje)
-        assertEquals(listOf(hoje), b.map { it.data })
+    @Test fun retencaoMantemQuatroSemanasSemDadosPessoais() {
+        val antigas = listOf(hoje.minusDays(31), hoje.minusDays(30)).map { data ->
+            DiaHistorico(data, FontePainel.PESSOAL, listOf(MedicaoHistorica("1|quimica", "1", r().modulos, "13.01/EM")))
+        }
+        val b = SgeHistorico.registrar(antigas, FontePainel.PESSOAL, listOf(r()), hoje)
+        assertEquals(listOf(hoje.minusDays(30), hoje), b.map { it.data })
+        assertFalse(SgeHistorico.json(b).contains("texto que não integra"))
+    }
+
+    @Test fun rankingComparaUltimasConsultasDeDuasJanelasEAgrupaPorProfessor() {
+        val anterior = SgeHistorico.registrar(emptyList(), FontePainel.PESSOAL, listOf(r(n = 4)), hoje.minusDays(8))
+        val dias = SgeHistorico.registrar(anterior, FontePainel.PESSOAL, listOf(r(n = 1)), hoje)
+        val professor = DocenteRef("p1", "Professora Ana")
+        val ranking = SgeHistorico.rankingSemanal(dias, FontePainel.PESSOAL, 0, hoje, Agrupamento.PROFESSOR,
+            listOf(VinculoDocente("1", "Química", professor)))
+        assertEquals("Professora Ana", ranking.single().titulo)
+        assertEquals(1, ranking.single().quantidade)
+        assertEquals(4, ranking.single().anterior)
+        assertEquals(-3, ranking.single().variacao)
+    }
+
+    @Test fun rankingParcialNaoConverteZeroEmSituacaoResolvida() {
+        val anterior = SgeHistorico.registrar(emptyList(), FontePainel.PESSOAL, listOf(r(n = 2)), hoje.minusDays(8))
+        val dias = SgeHistorico.registrar(anterior, FontePainel.PESSOAL, listOf(r(n = 0, completa = false)), hoje)
+        val ranking = SgeHistorico.rankingSemanal(dias, FontePainel.PESSOAL, 0, hoje, Agrupamento.TURMA).single()
+        assertNull(ranking.quantidade)
+        assertNull(ranking.variacao)
     }
 }

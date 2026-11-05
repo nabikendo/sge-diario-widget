@@ -30,7 +30,7 @@ object SgeRelatorioTabela {
 
     private class Celula(val estado: Int, val linhas: List<String>, val dias: Int = -1) // 0 nenhuma, 1 pendente, 2 não verificado, 3 parcial
     private class Linha(val turma: String, val turno: String, val comp: String, val cont: Celula, val freq: Celula,
-                        val docs: List<String>, val nivel: Int, val peso: Int, val notas: List<String>)
+                        val docs: List<String>, val maisDe100Dias: Boolean, val nivel: Int, val peso: Int, val notas: List<String>)
     private class Prioridade(val dias: Int, val texto: String)
 
     fun escrever(saida: OutputStream, grupos: List<GrupoPendencias>, fonte: FontePainel, agora: LocalDateTime,
@@ -87,7 +87,8 @@ object SgeRelatorioTabela {
             else if (m != null && !m.coberturaCompleta && !m.naoConfigurado) "${turmaCurta(r.turma.nome)} ${r.turma.disciplina}: ${SgeDashboard.nomes[i]} com cobertura parcial (${(m.detalhe.substringAfter("não contados:", m.detalhe.substringAfter("Cobertura não verificada:", "")).trim()).take(90)})."
             else null
         }
-        return Linha(turmaCurta(r.turma.nome), turno(r.turma.nome), r.turma.disciplina, cont, freq, docs, nivel, qs.sumOf { it ?: 0 }, notas)
+        return Linha(turmaCurta(r.turma.nome), turno(r.turma.nome), r.turma.disciplina, cont, freq, docs,
+            cont.dias > 100 || freq.dias > 100, nivel, qs.sumOf { it ?: 0 }, notas)
     }
 
     private fun desenhar(pdf: PdfDocument, grupos: List<GrupoPendencias>, fonte: FontePainel, agora: LocalDateTime,
@@ -148,12 +149,27 @@ object SgeRelatorioTabela {
             for (grupo in grupos) {
                 titulo = grupo.titulo
                 nova()
+                estilo(14f, true); canvas.drawText("RELATÓRIO DE PENDÊNCIAS DO DIÁRIO ESCOLAR", L, y + 4f, tinta); y += 20f
                 estilo(20f, true); canvas.drawText(cortar(grupo.titulo, W), L, y + 6f, tinta); y += 26f
                 estilo(11f, cor = CINZA)
                 val atualizado = agora.format(DateTimeFormatter.ofPattern("dd/MM/uuuu 'às' HH:mm"))
-                canvas.drawText(cortar("${grupo.subtitulo} | Atualizado em $atualizado", W), L, y, tinta); y += 14f
+                canvas.drawText(cortar("${grupo.subtitulo} | Gerado em $atualizado", W), L, y, tinta); y += 14f
+                val resultadosGrupo = grupo.resultados.distinctBy(::chaveResultado)
+                val unidades = resultadosGrupo.map { it.turma.escola }.filter { it.isNotBlank() }.distinct()
+                val unidade = escola.takeIf { it.isNotBlank() } ?: unidades.singleOrNull()
+                    ?: if (unidades.isEmpty()) "____________________________" else "Múltiplas unidades escolares"
+                val componentes = resultadosGrupo.map { it.turma.disciplina }.filter { it.isNotBlank() }.distinct().sorted()
+                val componente = when (componentes.size) { 0 -> "____________________________"; 1 -> componentes.single(); else -> componentes.joinToString(", ") }
+                val professor = if (grupo.chave.startsWith("professor:")) grupo.titulo else "____________________________________________"
+                val consultaMs = resultadosGrupo.flatMap { it.modulos }.mapNotNull { it.atualizadoMs.takeIf { ms -> ms > 0L } }.maxOrNull()
+                val consulta = consultaMs?.let { java.time.Instant.ofEpochMilli(it).atZone(java.time.ZoneId.systemDefault()).toLocalDateTime()
+                    .format(DateTimeFormatter.ofPattern("dd/MM/uuuu 'às' HH:mm")) } ?: "não registrada"
                 estilo(9f, cor = CINZA)
-                if (escola.isNotBlank()) { canvas.drawText(cortar("Escola: $escola", W), L, y, tinta); y += 12f }
+                canvas.drawText(cortar("Unidade escolar: $unidade", W), L, y, tinta); y += 12f
+                canvas.drawText(cortar("Professor(a): $professor", W), L, y, tinta); y += 12f
+                canvas.drawText(cortar("Componente curricular: $componente", W), L, y, tinta); y += 12f
+                canvas.drawText(cortar("Consulta mais recente: $consulta", W), L, y, tinta); y += 12f
+                canvas.drawText("Prazo combinado para regularização: ____ / ____ / ______", L, y, tinta); y += 12f
                 if (recorte.isNotBlank()) { canvas.drawText(cortar("Recorte: $recorte", W), L, y, tinta); y += 12f }
                 if (grupo.compartilhado) { canvas.drawText(cortar("Docência compartilhada: cada turma/componente aparece uma vez; os registros não indicam autoria individual.", W), L, y, tinta); y += 12f }
                 y += 4f
@@ -184,7 +200,7 @@ object SgeRelatorioTabela {
                 }
                 y += altura + 6f
 
-                val unicos = grupo.resultados.distinctBy(::chaveResultado)
+                val unicos = resultadosGrupo
                 val linhas = unicos.map { montar(it, hoje) }
                     .sortedWith(compareByDescending<Linha> { it.nivel }.thenByDescending { it.peso }.thenBy { it.turma }.thenBy { it.comp })
 
@@ -210,13 +226,14 @@ object SgeRelatorioTabela {
                 // 2. Tabela
                 secao("2. Pendências por Turma")
                 estilo(8f, cor = CINZA)
-                canvas.drawText("Ordenado por urgência.  — nenhuma pendência   N/V não verificado   * cobertura parcial: o valor conhecido pode aumentar.", L, y, tinta); y += 10f
+                canvas.drawText(cortar("Ordenado por urgência. — nenhuma pendência · N/V não verificado · * parcial · Negrito: mais de 100 dias úteis aproximados (sem recessos locais). Marque Feito após conferir no SGE.", W), L, y, tinta); y += 10f
                 if (linhas.isEmpty()) { estilo(10f); canvas.drawText("Sem consultas para este recorte.", L, y + 12f, tinta); y += 24f }
-                val cx = floatArrayOf(L, L + 118f, L + 216f, L + 366f); val cw = floatArrayOf(118f, 98f, 150f, 157f)
+                val cw = floatArrayOf(115f, 92f, 92f, 176f, 48f)
+                val cx = floatArrayOf(L, L + cw[0], L + cw[0] + cw[1], L + cw[0] + cw[1] + cw[2], L + cw[0] + cw[1] + cw[2] + cw[3])
                 fun cabecalho() {
                     garantir(34f)
                     tinta.style = Paint.Style.FILL; tinta.color = Color.rgb(236, 240, 247); canvas.drawRect(L, y, L + W, y + 28f, tinta)
-                    val titulos = listOf("Turma / Componente" to "", "Conteúdos" to "(datas em aberto)", "Frequência" to "(datas em aberto)", "Documentos" to "(pendentes de envio)")
+                    val titulos = listOf("Turma / componente" to "", "Conteúdos" to "(em aberto)", "Frequência" to "(em aberto)", "Documentos" to "(pendentes)", "Feito" to "")
                     titulos.forEachIndexed { i, (a, b) ->
                         estilo(9f, true); canvas.drawText(a, cx[i] + 7f, y + 12f, tinta)
                         if (b.isNotEmpty()) { estilo(7.5f, cor = CINZA); canvas.drawText(b, cx[i] + 7f, y + 22f, tinta) }
@@ -230,35 +247,40 @@ object SgeRelatorioTabela {
                     val c2 = l.cont.linhas.flatMap { quebrar(it, cw[1] - 12f) }
                     val c3 = l.freq.linhas.flatMap { quebrar(it, cw[2] - 12f) }
                     val c4 = (if (l.docs.isEmpty()) listOf("—") else l.docs).flatMap { quebrar(it, cw[3] - 12f) }
-                    val h = maxOf(c1.size, c2.size, c3.size, c4.size) * 11.2f + 10f
+                    val h = maxOf(c1.size, c2.size, c3.size, c4.size, 1) * 11.2f + 10f
                     if (y + h > LIMITE) { nova(); cabecalho() }
                     if (n % 2 == 1) { tinta.style = Paint.Style.FILL; tinta.color = Color.rgb(249, 250, 252); canvas.drawRect(L, y, L + W, y + h, tinta) }
                     tinta.style = Paint.Style.FILL
                     tinta.color = when (l.nivel) { 2 -> VERMELHO; 1 -> AMBAR; else -> VERDE }; canvas.drawRect(L, y, L + 3f, y + h, tinta)
                     tinta.color = Color.rgb(226, 230, 237); canvas.drawRect(L, y + h - 0.6f, L + W, y + h, tinta)
-                    fun coluna(i: Int, ls: List<String>, cor: (Int) -> Int, negritoPrimeira: Boolean = false) {
+                    fun coluna(i: Int, ls: List<String>, cor: (Int) -> Int, negritoPrimeira: Boolean = false, negritoTudo: Boolean = false) {
                         ls.forEachIndexed { k, t ->
-                            estilo(if (negritoPrimeira && k == 0) 9.2f else 8.8f, negritoPrimeira && k == 0, cor(k))
+                            estilo(if (negritoTudo || (negritoPrimeira && k == 0)) 9.2f else 8.8f, negritoTudo || (negritoPrimeira && k == 0), cor(k))
                             canvas.drawText(t, cx[i] + 7f, y + 13f + k * 11.2f, tinta)
                         }
                     }
-                    coluna(0, c1, { if (it == 0) TEXTO else CINZA }, true)
+                    coluna(0, c1, { if (it == 0) TEXTO else CINZA }, true, l.maisDe100Dias)
                     fun corCelula(c: Celula): (Int) -> Int = { k -> when { c.estado == 2 -> AMBAR; c.estado == 3 -> AMBAR; c.estado == 0 -> CINZA; k > 0 -> CINZA; else -> TEXTO } }
-                    coluna(1, c2, corCelula(l.cont)); coluna(2, c3, corCelula(l.freq))
-                    coluna(3, c4, { k -> if (c4.getOrNull(k)?.contains("N/V") == true || c4.getOrNull(k)?.endsWith("*") == true) AMBAR else if (l.docs.isEmpty()) CINZA else TEXTO })
+                    coluna(1, c2, corCelula(l.cont), negritoTudo = l.cont.dias > 100)
+                    coluna(2, c3, corCelula(l.freq), negritoTudo = l.freq.dias > 100)
+                    coluna(3, c4, { k -> if (c4.getOrNull(k)?.contains("N/V") == true || c4.getOrNull(k)?.endsWith("*") == true) AMBAR else if (l.docs.isEmpty()) CINZA else TEXTO }, negritoTudo = l.maisDe100Dias)
+                    tinta.style = Paint.Style.STROKE; tinta.strokeWidth = .9f; tinta.color = CINZA
+                    val tamanhoCaixa = 9f; val esquerda = cx[4] + (cw[4] - tamanhoCaixa) / 2f; val topo = y + (h - tamanhoCaixa) / 2f
+                    canvas.drawRect(esquerda, topo, esquerda + tamanhoCaixa, topo + tamanhoCaixa, tinta); tinta.style = Paint.Style.FILL
                     y += h
                 }
                 y += 8f
 
                 // Observações
                 val notas = linhas.flatMap { it.notas }.distinct()
+                secao("Observações")
                 if (notas.isNotEmpty()) {
-                    secao("Observações")
                     estilo(8.8f, cor = CINZA)
                     notas.take(6).forEach { n -> quebrar(n, W - 6f).forEach { garantir(12f); canvas.drawText(it, L + 3f, y + 2f, tinta); y += 11f } }
                     if (notas.size > 6) { garantir(12f); canvas.drawText("… e mais ${notas.size - 6} observação(ões); veja o diagnóstico no app.", L + 3f, y + 2f, tinta); y += 11f }
                     y += 4f
                 }
+                repeat(3) { garantir(18f); tinta.color = Color.rgb(205, 210, 218); canvas.drawRect(L, y + 15f, L + W, y + 15.7f, tinta); y += 18f }
                 val config = SgeConfiguracao.pendencias(grupo.resultados)
                 if (config.isNotEmpty()) {
                     secao("Configuração pendente")
@@ -280,7 +302,7 @@ object SgeRelatorioTabela {
                     estilo(10f)
                     for (t in quebrar("Declaro ter recebido este relatório e estar ciente das pendências registradas no SGE Diário.", W)) { canvas.drawText(t, L, y, tinta); y += 13f }
                     y += 14f
-                    canvas.drawText("Data de recebimento: ____/____/2026        Prazo combinado para regularização: ____/____/2026", L, y, tinta); y += 34f
+                    canvas.drawText("Data de recebimento: ____/____/______        Prazo combinado: ____/____/______", L, y, tinta); y += 34f
                     tinta.color = TEXTO; canvas.drawRect(L, y, L + 330f, y + 0.8f, tinta); y += 12f
                     estilo(9f, cor = CINZA); canvas.drawText(cortar("Assinatura de ciência — ${grupo.titulo}", 400f), L, y, tinta); y += 14f
                     if (responsavel.isNotBlank()) { canvas.drawText(cortar("Entregue por: $responsavel", W), L, y, tinta); y += 12f }

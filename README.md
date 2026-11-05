@@ -49,10 +49,14 @@ Se um período do PEI ou dos planos vier num formato diferente, o app não inven
 - **Filtros salvos:** guarde recortes que você usa com frequência e aplique-os novamente sem remontar o quebra-cabeça.
 - **Mapa da escola e mapa de dias:** encontre padrões por módulo, turma ou professor e abra os detalhes a partir do próprio mapa.
 - **Vínculos docentes:** vínculos ambíguos não são atribuídos automaticamente. Você pode revisar e ajustar vínculos localmente, com a origem indicada.
-- **Fila de coordenação:** acompanhe o progresso, pause ou retome a consulta e tente novamente apenas as turmas que falharam.
-- **Histórico semanal:** confira consultas recentes e compare dados completos no próprio aparelho.
-- **Relatórios:** compartilhe resumo em texto ou PDF; na coordenação há exportações em lote e arquivos de apoio para impressão.
+- **Fila de coordenação:** acompanhe o progresso, pause ou retome a consulta e tente novamente apenas as turmas que falharam. Se uma consulta noturna falhar, o app tenta novamente pela manhã quando houver rede, sem substituir filas pausadas.
+- **Histórico e ranking semanal:** compare, por turma ou pelos vínculos docentes atuais, as últimas consultas completas de duas janelas de sete dias. O histórico local retém até quatro semanas e não guarda detalhes de alunos.
+- **Lembrete diário:** escolha o horário; o aviso usa somente resultados locais da última consulta e só aparece quando há pendências confirmadas. Itens não verificados não viram zero.
+- **SGE Web:** alterne entre visualização de celular e computador na própria tela; PDFs e relatórios baixados do host oficial vão para Downloads.
+- **Relatórios:** compartilhe resumo em texto ou PDF. No agrupamento por professor, o app prepara uma mensagem curta para WhatsApp. O relatório PDF de coordenação inclui campos para unidade/professor/componente/prazo, marcação “Feito” e destaque de prioridades; a exportação semanal continua iniciada pela pessoa usuária.
 - **Seis widgets:** resumo do diário, minhas turmas, por componente, coordenação, por professor e cartão em foco. Cada widget pode ter seu recorte e agrupamento.
+- **Atalho Meu diário:** disponível no toque longo do ícone e como bloco fixável no Painel rápido do Android.
+- **Tablets:** a interface já usa painel lado a lado em telas largas e pode ser redimensionada em janela.
 - **Aparência renovada na 2.2.1:** tema verde-menta, tipografia Plus Jakarta Sans, filtros e cartões mais claros, detalhes com mapa de dias e ações rápidas.
 
 ## Como o app conversa com o SGE
@@ -92,9 +96,9 @@ gradle testDebugUnitTest assembleDebug
 
 O GitHub Actions executa os testes e compila o APK de teste. A mudança em `release/versao.txt` aciona o workflow que testa e publica o APK estável assinado. A chave de assinatura e suas credenciais ficam fora do repositório — não as coloque em commits, issues ou prints.
 
-## Ideias para depois — sugestões, não promessas
+## Itens que ainda precisam de validação com o SGE
 
-Algumas ideias que podem entrar numa conversa futura: favoritos e ordenação por antiguidade, alertas locais opcionais por módulo, um widget da aula atual/próxima e uma camada monocromática para o ícone. Nada disso tem data ou compromisso de lançamento.
+O seletor de ano letivo, o atalho que abre exatamente a turma/data do SGE e o widget “Hoje” dependem de confirmar os campos e URLs reais da agenda/diário do SGE. O parser atual ainda não preserva o dia e o horário da aula, então o app não deve inventar esse recorte. Para gerar ou enviar um PDF semanal automaticamente, também é preciso definir destinatário e canal; por privacidade, a branch não envia relatórios externos sem ação explícita da pessoa usuária.
 
 ## Licença
 
