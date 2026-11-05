@@ -1,11 +1,23 @@
-SGE Diário 2.4
+SGE Diário 2.5
 
-### SGE Web em versão de computador
-- O SGE Web agora abre na versão de computador, com a barra superior completa (incluindo o seletor de ano letivo). Use zoom com dois dedos para ampliar.
+### Diário no SGE Web
+- Alterne entre os modos celular e computador diretamente no app.
+- Baixe arquivos servidos pelo domínio oficial do SGE; links externos não recebem os cookies da sessão.
 
-### Android 17 e aparelhos antigos
-- App atualizado para o Android 17 (API 37), com tela ocupando toda a área e respeitando as barras do sistema e o teclado.
-- Agora também instala em Android 8.0 ou mais novo.
-- Gesto de voltar atualizado e conexões somente por HTTPS.
+### Acompanhamento de pendências
+- Lembrete local em horário escolhido, somente quando a consulta confirmou pendências.
+- Nova tentativa matinal das consultas noturnas que falharam, quando houver conexão.
+- Tela Saúde informa a última leitura com contagens e explica falhas em linguagem simples.
 
-Versão estável assinada com a chave do app principal; pode instalar por cima da versão anterior. O app continua somente leitura no SGE.
+### Coordenação
+- Mensagem de pendências pronta para compartilhar com cada professor.
+- Comparação semanal por turma e professor, com avisos quando os dados não permitem uma comparação segura.
+- Relatório PDF baseado no modelo encaminhado, com marcação “Feito”, observações e destaque de pendências antigas.
+- Atalho “Meu diário” no Painel rápido do Android.
+
+### Privacidade e limites
+- O app permanece somente leitura no SGE e não envia alterações ao sistema.
+- Os relatórios são gerados localmente e compartilhados manualmente; não há envio automático.
+- Esta versão ainda não inclui seletor integrado de ano letivo, atalho direto para turma/data nem widget “Hoje”.
+
+Versão estável assinada com a chave do app principal. Pode ser instalada por cima da versão estável anterior; a versão de teste usa um pacote separado.
