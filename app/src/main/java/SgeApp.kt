@@ -219,7 +219,12 @@ fun AppDiario(
                                     { if (rota.fonte == FontePainel.COORDENACAO) aoVerificarTurmas(g.turmaIds.toList()) else aoSincronizarPessoal() },
                                     { detalhe = null; pagina = null; aba = 2 }, { vincular = it }, { aoCompartilhar(g, recorte) }, { aoPdf(g, rota.fonte, recorte) }, moduloDetalhe,
                                     mudancas = if (rota.fonte == FontePainel.COORDENACAO) coord.mudancas else painel.mudancas,
-                                    aoAtalhoSge = { r, modulo -> detalhe = null; pagina = null; aba = 2; aoAtalhoSge(r.turma.id, r.turma.nome, r.turma.disciplina, modulo) })
+                                    aoAtalhoSge = { r, modulo ->
+                                        detalhe = null; pagina = null; aba = 2
+                                        val mod = r.modulos.getOrNull(modulo)
+                                        val datas = Regex("""\\b(\\d{2}/\\d{2})\\b""").findAll(mod?.detalhe.orEmpty()).map { it.value }.distinct().toList()
+                                        val horario = if (modulo==1) Regex("""(\\d{2}:\\d{2})""").find(mod?.detalhe.orEmpty())?.value.orEmpty() else ""
+                                        aoAtalhoSge(r.turma.id, r.turma.nome, r.turma.disciplina, modulo, datas, horario) })
                             }
                             if (largo) Row(Modifier.fillMaxSize()) {
                                 Box(Modifier.weight(.43f).fillMaxHeight()) { lista() }

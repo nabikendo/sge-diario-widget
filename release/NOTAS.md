@@ -1,9 +1,8 @@
-SGE Diário 2.5.3
+SGE Diário 2.5.4
 
-### Atalhos: conteúdo e chamada certeiros
-- Os atalhos agora leem as ações do contexto da turma ao vivo e chamam a mesma função JavaScript que o SGE usa internamente (CarregarPaginaAjaxComLoading). O resultado é o mesmo de tocar manualmente no botão da turma.
-- Chamada usa a Frequência Diária quando disponível, com o componente já escolhido.
-- Planos e PEI abrem o planejamento da turma com tipo e componente escolhidos e pesquisa feita.
-- Nenhum atalho toca em botões que salvam ou geram dados em lote.
+### Atalhos: vai direto no que você precisa fazer
+- **Registrar aula (conteúdo):** abre a tela e clica no dia vermelho mais antigo pendente, pronto para lançar.
+- **Concluir chamada:** abre a Frequência Diária, seleciona o horário da aula e clica em Gerar. Só falta você confirmar as presenças e salvar.
+- **Planos e PEI:** abre o planejamento com tipo e componente escolhidos e pesquisa feita.
 
-Instala por cima da versão anterior.
+Nenhum atalho salva nem lança dados. Instala por cima da versão anterior.

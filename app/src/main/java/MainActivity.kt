@@ -237,7 +237,7 @@ class MainActivity : FragmentActivity() {
                     },
                     modoComputador = modoComputadorWeb.value,
                     aoModoComputador = { alterarModoWeb(it) },
-                    aoAtalhoSge = { id, turma, componente, modulo -> abrirAtalhoSge(id, turma, componente, modulo) })
+                    aoAtalhoSge = { id, turma, componente, modulo, datas, horario -> abrirAtalhoSge(id, turma, componente, modulo, datas, horario) })
                 AtualizacoesDialog(atualizador) { lifecycleScope.launch {
                     try { val arquivo = atualizador.prepararInstalacao(); lifecycle.withResumed { if(atualizador.aberto) atualizador.instalar(arquivo) } }
                     catch (e: CancellationException) { throw e }

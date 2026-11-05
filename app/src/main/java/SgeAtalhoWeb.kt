@@ -4,7 +4,11 @@ import android.webkit.WebView
 import org.json.JSONObject
 import java.text.Normalizer
 
-data class AtalhoSge(val turmaId: String, val turma: String, val componente: String, val modulo: Int)
+data class AtalhoSge(val turmaId: String, val turma: String, val componente: String, val modulo: Int,
+    /** Datas pendentes no formato dd/MM, extraídas do detalhe do módulo (vazio = abre sem data). */
+    val datasPendentes: List<String> = emptyList(),
+    /** Horário preferencial para a chamada, ex.: "07:00" (vazio = mais antigo disponível). */
+    val horarioPref: String = "")
 
 /**
  * Leva o SGE Web exatamente ao que a pessoa quer fazer, reproduzindo o mesmo caminho da mão:
@@ -84,7 +88,8 @@ object SgeAtalhoWeb {
         var cfg={turmaId:${q(a.turmaId)},turma:${q(a.turma)},comp:norm(${q(a.componente)}),rotulo:${q(rotulo(a.modulo))},
           modulo:${a.modulo},padroes:${lista(padroesOnclick(a.modulo))},marcador:${q(marcador(a.modulo))},
           selComp:${q(filtroComponente(a.modulo))},pesquisar:${q(botaoPesquisar(a.modulo).orEmpty())},
-          tipo:${q(tipoRegistro(a.modulo).orEmpty())}};
+          tipo:${q(tipoRegistro(a.modulo).orEmpty())},
+          datas:${lista(a.datasPendentes)},horarioPref:${q(a.horarioPref)}};
         aviso('Abrindo '+cfg.rotulo+' de '+cfg.turma+'…');
         // 1) turma no contexto do SGE
         var ctx=await esperar(function(){return document.getElementById('TurmaContextoId');},10000);
@@ -125,6 +130,34 @@ object SgeAtalhoWeb {
         }
         // 4) botão que só pesquisa (nunca salva nem gera dados em lote)
         if(feito&&cfg.pesquisar){await dorme(400);var b=document.querySelector(cfg.pesquisar);if(b&&b.id!=='btn-submit-procedimento-lote'&&!b.id.startsWith('btnGerarFrequencia'))b.click();}
-        aviso(feito?cfg.rotulo+' de '+cfg.turma+' — pronto.':'Turma pronta. Escolha o componente '+${q(a.componente)}+'.');
+        // 5) Conteúdo: vai direto ao formulário da data pendente mais antiga
+        if(feito&&cfg.modulo===0&&cfg.datas.length>0){
+          var alvoData=cfg.datas[0];
+          // Mapeia "dd/MM" para o título do dia no calendário do SGE e procura o dia vermelho correspondente
+          await dorme(400);
+          var clicou=await esperar(function(){
+            var dias=[].slice.call(document.querySelectorAll('.calendario .semana .vermelho'));
+            var d=dias.find(function(el){var t=el.getAttribute('data-original-title')||el.getAttribute('title')||'';return t.indexOf(alvoData.split('/')[0])>=0&&t.indexOf(alvoData.split('/')[1])>=0;});
+            if(!d)return false;
+            // O ícone fa-plus-circle abre o formulário de lançamento; fa-edit edita o existente
+            var btn=d.closest('[data-content]')?null:null;
+            var popup=Jsoup?null:null;
+            // Clica no botão de adicionar conteúdo dentro do popup do dia
+            var inner=d.querySelector('a,button');if(inner){inner.click();return true;}
+            d.click();return true;},8000);
+          if(clicou)aviso('Abrindo lançamento de '+cfg.rotulo+' para '+alvoData+'…');
+          else aviso(cfg.rotulo+' de '+cfg.turma+' pronto. Clique no dia '+alvoData+' (marcado em vermelho) para lançar.');
+        }
+        // 5) Chamada: seleciona o horário mais antigo pendente e clica em Lançar
+        else if(feito&&cfg.modulo===1){
+          await dorme(600);
+          var horarios=[].slice.call(document.querySelectorAll('#_ListaDeHorariosTurma button,[id^=check_ativo_]'));
+          var alvoH=cfg.horarioPref;
+          var btn=horarios.find(function(b){return alvoH&&(b.textContent||'').indexOf(alvoH)>=0;})||horarios[0];
+          if(btn){btn.click();await dorme(600);var gerarBtn=document.getElementById('btnGerar');if(gerarBtn)gerarBtn.click();aviso('Chamada de '+cfg.turma+': horário selecionado. Confira e salve.');}
+          else aviso('Chamada de '+cfg.turma+' pronta. Selecione o horário e toque em Gerar.');
+        }
+        else if(!feito)aviso('Turma pronta. Escolha o componente '+${q(a.componente)}+'.');
+        else if(cfg.modulo>1)aviso(cfg.rotulo+' de '+cfg.turma+' — pronto.');
         })()"""
 }
