@@ -112,7 +112,7 @@ fun AppDiario(
         pagina == "historico" -> "Histórico"; pagina == "widgets" -> "Widgets"; pagina == "sobre" -> "Sobre"; detalhe != null && !largo -> "Pendências por módulo"; aba == 2 -> "SGE Web"; else -> "Diário"
     }
     val cabecalhoNaTela = pagina == null && detalhe == null && aba != 2
-    Box(Modifier.fillMaxSize()) {
+    Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).windowInsetsPadding(WindowInsets.safeDrawing)) {
         // Com a introdução aberta, o app por trás fica desfocado (Android 12+).
         Row(Modifier.fillMaxSize().then(if (intro && Build.VERSION.SDK_INT >= 31) Modifier.blur(22.dp) else Modifier)) {
         if (largo) RailDiario(aba, visiveis) { focus.clearFocus(); pagina = null; detalhe = null; aba = it }

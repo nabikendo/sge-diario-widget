@@ -9,6 +9,7 @@ import android.os.Build
 import android.os.Environment
 import android.provider.Settings
 import androidx.core.content.FileProvider
+import androidx.core.content.pm.PackageInfoCompat
 import androidx.compose.runtime.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -47,7 +48,16 @@ object PoliticaAtualizacao {
 }
 
 object SgeValidadorApk {
-    fun validar(ctx: Context, arquivo: File, o: OfertaAtualizacao, atual: android.content.pm.PackageInfo = ctx.packageManager.getPackageInfo(ctx.packageName, PackageManager.GET_SIGNING_CERTIFICATES)) {
+    /** API 28+ expõe a cadeia de rotação (SigningInfo); no Android 8.x só existe o conjunto de certificados. */
+    @Suppress("DEPRECATION")
+    fun flagsAssinatura(): Int = if (Build.VERSION.SDK_INT >= 28) PackageManager.GET_SIGNING_CERTIFICATES or PackageManager.GET_SIGNATURES else PackageManager.GET_SIGNATURES
+    private fun certs(s: Array<android.content.pm.Signature>?): Set<String> = s.orEmpty().map { it.toCharsString() }.toSet()
+    /** Retorna (certificados atuais, certificados + histórico de rotação). */
+    fun assinaturas(p: android.content.pm.PackageInfo): Pair<Set<String>, Set<String>> {
+        if (Build.VERSION.SDK_INT >= 28) { val s = p.signingInfo; return certs(s?.apkContentsSigners) to certs(s?.signingCertificateHistory) }
+        @Suppress("DEPRECATION") val c = certs(p.signatures); return c to c
+    }
+    fun validar(ctx: Context, arquivo: File, o: OfertaAtualizacao, atual: android.content.pm.PackageInfo = ctx.packageManager.getPackageInfo(ctx.packageName, flagsAssinatura())) {
         require(arquivo.length() == o.tamanho) { "Tamanho do APK inválido." }
         val digest = MessageDigest.getInstance("SHA-256")
         arquivo.inputStream().use { entrada -> val buffer = ByteArray(32768); while(true) { val n=entrada.read(buffer);if(n<0)break;digest.update(buffer,0,n) } }
@@ -55,18 +65,18 @@ object SgeValidadorApk {
         // Android 10 só coleta certificados do arquivo quando GET_SIGNATURES também está ligado.
         // A comparação continua usando SigningInfo (inclusive a cadeia autorizada de rotação).
         @Suppress("DEPRECATION")
-        val flags = PackageManager.GET_SIGNING_CERTIFICATES or PackageManager.GET_SIGNATURES
+        val flags = flagsAssinatura()
         val novo = ctx.packageManager.getPackageArchiveInfo(arquivo.absolutePath,flags) ?: error("APK inválido.")
-        require(novo.packageName == ctx.packageName && novo.packageName == o.pacote && novo.longVersionCode == o.codigo && novo.longVersionCode > atual.longVersionCode && (novo.applicationInfo?.minSdkVersion ?: Int.MAX_VALUE) <= Build.VERSION.SDK_INT) { "APK incompatível com este aplicativo." }
-        fun certs(s: Array<android.content.pm.Signature>?): Set<String> = s.orEmpty().map { it.toCharsString() }.toSet()
-        require(PoliticaAtualizacao.assinaturaPermitida(certs(atual.signingInfo?.apkContentsSigners),certs(novo.signingInfo?.apkContentsSigners),certs(novo.signingInfo?.signingCertificateHistory))) { "A assinatura não corresponde ao aplicativo instalado." }
+        require(novo.packageName == ctx.packageName && novo.packageName == o.pacote && PackageInfoCompat.getLongVersionCode(novo) == o.codigo && PackageInfoCompat.getLongVersionCode(novo) > PackageInfoCompat.getLongVersionCode(atual) && (novo.applicationInfo?.minSdkVersion ?: Int.MAX_VALUE) <= Build.VERSION.SDK_INT) { "APK incompatível com este aplicativo." }
+        val (atuais, _) = assinaturas(atual); val (novas, historicoNovo) = assinaturas(novo)
+        require(PoliticaAtualizacao.assinaturaPermitida(atuais,novas,historicoNovo)) { "A assinatura não corresponde ao aplicativo instalado." }
     }
 }
 
 class SgeAtualizador(private val ctx: Context) {
     private val prefs = ctx.getSharedPreferences("sge_atualizacoes", 0)
     private val dm = ctx.getSystemService(DownloadManager::class.java)
-    private val info get() = ctx.packageManager.getPackageInfo(ctx.packageName, PackageManager.GET_SIGNING_CERTIFICATES)
+    private val info get() = ctx.packageManager.getPackageInfo(ctx.packageName, SgeValidadorApk.flagsAssinatura())
     var aberto by mutableStateOf(false)
     var oferta by mutableStateOf<OfertaAtualizacao?>(null); private set
     var mensagem by mutableStateOf(""); private set
@@ -79,7 +89,7 @@ class SgeAtualizador(private val ctx: Context) {
     fun wifi(v: Boolean) { wifi = v; prefs.edit().putBoolean("wifi",v).apply() }
     fun automatico(v: Boolean) { automatico = v; prefs.edit().putBoolean("automatico",v).apply() }
     init {
-        oferta = runCatching { val j = JSONObject(prefs.getString("oferta", "")!!); PoliticaAtualizacao.ler(j,ctx.packageName,info.longVersionCode,Build.VERSION.SDK_INT,j.getString("url"),j.optString("notas")) }.getOrNull()
+        oferta = runCatching { val j = JSONObject(prefs.getString("oferta", "")!!); PoliticaAtualizacao.ler(j,ctx.packageName,PackageInfoCompat.getLongVersionCode(info),Build.VERSION.SDK_INT,j.getString("url"),j.optString("notas")) }.getOrNull()
         if (oferta == null) { cancelar(); prefs.edit().remove("oferta").apply() }
     }
     suspend fun verificar(manual: Boolean) {
@@ -98,10 +108,10 @@ class SgeAtualizador(private val ctx: Context) {
                 val meta = lista.firstOrNull { it.getString("name") == if (teste) "atualizacao-teste.json" else "atualizacao.json" } ?: return@withContext null
                 val metaUrl = meta.getString("browser_download_url"); require(PoliticaAtualizacao.urlAsset(metaUrl))
                 val j = JSONObject(baixarJson(metaUrl))
-                if (j.getLong("codigo") <= info.longVersionCode) return@withContext null
+                if (j.getLong("codigo") <= PackageInfoCompat.getLongVersionCode(info)) return@withContext null
                 val asset = lista.single { it.getString("name") == j.getString("arquivo") }
                 require(asset.getLong("size") == j.getLong("tamanho"))
-                PoliticaAtualizacao.ler(j,ctx.packageName,info.longVersionCode,Build.VERSION.SDK_INT,asset.getString("browser_download_url"),release.optString("body"))
+                PoliticaAtualizacao.ler(j,ctx.packageName,PackageInfoCompat.getLongVersionCode(info),Build.VERSION.SDK_INT,asset.getString("browser_download_url"),release.optString("body"))
             }
             prefs.edit().putLong("consulta",System.currentTimeMillis()).apply()
             oferta = nova; mensagem = if (nova == null) "Você está com a versão mais recente disponível para este canal." else "Nova versão disponível: ${nova.versao}"

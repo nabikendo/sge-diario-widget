@@ -37,7 +37,7 @@ jobs:
           java-version: '17'
       - uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: '8.7'
+          gradle-version: '9.5.0'
       - name: Restaurar chave de assinatura
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}

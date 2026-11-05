@@ -14,6 +14,7 @@ import android.webkit.CookieManager
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Toast
+import androidx.activity.enableEdgeToEdge
 import androidx.fragment.app.FragmentActivity
 import androidx.core.content.FileProvider
 import androidx.lifecycle.withResumed
@@ -67,6 +68,7 @@ class MainActivity : FragmentActivity() {
     private val pedirNotificacao = registerForActivityResult(ActivityResultContracts.RequestPermission()) { ok -> definirLembrete(ok) }
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
+        enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         protecao = CoordProtecao(this)
         atualizador = SgeAtualizador(this)
@@ -79,11 +81,17 @@ class MainActivity : FragmentActivity() {
         web = WebView(this).apply {
             settings.javaScriptEnabled = true
             settings.domStorageEnabled = true
+            settings.allowFileAccess = false
+            settings.allowContentAccess = false
+            // Versão de computador: a barra superior do SGE (ano letivo) só aparece nesse layout.
+            SgeWebComputador.aplicar(settings)
             CookieManager.getInstance().setAcceptCookie(true)
             CookieManager.getInstance().setAcceptThirdPartyCookies(this, false)
             prefs.edit().putString("web_user_agent", settings.userAgentString).apply()
             webViewClient = object : WebViewClient() {
+                override fun onPageCommitVisible(view: WebView?, url: String?) { SgeWebComputador.viewport(view) }
                 override fun onPageFinished(view: WebView?, url: String?) {
+                    SgeWebComputador.viewport(view)
                     if (url?.contains("/Acesso/Entrar", true) == true) SgeSessaoStore.salvar(this@MainActivity, PerfilSge.EXPIRADO)
                     CookieManager.getInstance().flush(); verificarSessao(); extrairEscola(); instalarHook()
                 }
@@ -150,7 +158,6 @@ class MainActivity : FragmentActivity() {
             SgeTema(tema, cor) {
                 val scheme = MaterialTheme.colorScheme
                 SideEffect {
-                    window.statusBarColor = scheme.background.toArgb(); window.navigationBarColor = scheme.background.toArgb()
                     WindowCompat.getInsetsController(window, window.decorView).apply {
                         isAppearanceLightStatusBars = scheme.background.luminance() > .5f
                         isAppearanceLightNavigationBars = scheme.background.luminance() > .5f
