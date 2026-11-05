@@ -282,9 +282,10 @@ class MainActivity : FragmentActivity() {
             aviso("Download iniciado. O arquivo ficará em Downloads (nº $id).")
         }.onFailure { aviso("Não foi possível iniciar o download. Confira a conexão e o espaço disponível.") }
     }
-    private fun abrirAtalhoSge(turmaId: String, turma: String, componente: String, modulo: Int) {
+    private fun abrirAtalhoSge(turmaId: String, turma: String, componente: String, modulo: Int,
+            datas: List<String> = emptyList(), horario: String = "") {
         if (!::web.isInitialized) return
-        SgeAtalhoWeb.abrir(web, SgeSyncWorker.BASE, AtalhoSge(turmaId, turma, componente, modulo))
+        SgeAtalhoWeb.abrir(web, SgeSyncWorker.BASE, AtalhoSge(turmaId, turma, componente, modulo, datas, horario))
     }
     private fun alterarModoWeb(computador: Boolean) {
         if (!::web.isInitialized || modoComputadorWeb.value == computador) return
