@@ -6,13 +6,13 @@ O SGE Diário Widget acompanha pendências do **SGE 3.0 da Seduc-TO** por turma 
 
 > O app é somente leitura: não altera registros no SGE. Para corrigir uma pendência, é só abrir o SGE e resolver por lá.
 
-[![Versão estável 2.2.1](https://img.shields.io/badge/est%C3%A1vel-2.2.1-168B75)](https://github.com/nabikendo/sge-diario-widget/releases/tag/v2.2.1)
+[![Versão estável 2.5.4](https://img.shields.io/badge/est%C3%A1vel-2.5.4-168B75)](https://github.com/nabikendo/sge-diario-widget/releases/tag/v2.5.4)
 [![Canal de testes](https://img.shields.io/badge/testes-latest-7466D8)](https://github.com/nabikendo/sge-diario-widget/releases/tag/latest)
 [![Licença MIT](https://img.shields.io/badge/licen%C3%A7a-MIT-2D7A46)](LICENSE)
 
 ## Baixe e comece
 
-- **Uso diário:** [baixar o APK estável 2.2.1](https://github.com/nabikendo/sge-diario-widget/releases/download/v2.2.1/SGE-Diario-2.2.1.apk) ou [ver a release](https://github.com/nabikendo/sge-diario-widget/releases/tag/v2.2.1).
+- **Uso diário:** [baixar o APK estável 2.5.4](https://github.com/nabikendo/sge-diario-widget/releases/download/v2.5.4/SGE-Diario-2.5.4.apk) ou [ver a release](https://github.com/nabikendo/sge-diario-widget/releases/tag/v2.5.4).
 - **Quer experimentar antes?** [abrir o canal de testes `latest`](https://github.com/nabikendo/sge-diario-widget/releases/tag/latest) e baixar `SGE-Diario-teste.apk` nos Assets.
 
 Para instalar a versão estável, permita a instalação de apps baixados dessa fonte quando o Android perguntar. Depois, abra o app, siga a introdução e entre no SGE pela aba **SGE Web**. Volte a **Meu diário** e toque em atualizar. Pronto: o painel começa a montar o mapa das pendências.
@@ -57,7 +57,8 @@ Se um período do PEI ou dos planos vier num formato diferente, o app não inven
 - **Seis widgets:** resumo do diário, minhas turmas, por componente, coordenação, por professor e cartão em foco. Cada widget pode ter seu recorte e agrupamento.
 - **Atalho Meu diário:** disponível no toque longo do ícone e como bloco fixável no Painel rápido do Android.
 - **Tablets:** a interface já usa painel lado a lado em telas largas e pode ser redimensionada em janela.
-- **Aparência renovada na 2.2.1:** tema verde-menta, tipografia Plus Jakarta Sans, filtros e cartões mais claros, detalhes com mapa de dias e ações rápidas.
+- **Atalhos do detalhe:** abrem Conteúdo Aplicado, Frequência Diária e Planejamento pelo contexto da turma no SGE Web. Confira turma, componente, data e horário na tela do SGE antes de prosseguir. A seleção automática de data e horário da versão 2.5.4 ainda precisa de correção e validação em aparelho.
+- **Aparência:** tema verde-menta, tipografia Plus Jakarta Sans, filtros e cartões com mapa de dias e ações rápidas.
 
 ## Como o app conversa com o SGE
 
@@ -86,7 +87,7 @@ Quando o SGE muda sua estrutura, uma etapa de leitura pode falhar. O app tenta a
 
 ## Para quem desenvolve
 
-O projeto usa Kotlin, Jetpack Compose, Material 3, Jetpack Glance, WorkManager e Jsoup. Requer Android 10 (API 29) ou superior e JDK 17.
+O projeto usa Kotlin, Jetpack Compose, Material 3, Jetpack Glance, WorkManager e Jsoup. O `minSdk` atual é 26 (Android 8.0), o `targetSdk` é 37 (Android 17) e o build requer JDK 17. A validação das telas no emulador não roda no workflow da branch `main`; teste os atalhos no SGE real antes de depender deles.
 
 Para rodar os testes unitários e compilar a variante de teste, com Gradle e Android SDK instalados:
 
@@ -98,7 +99,7 @@ O GitHub Actions executa os testes e compila o APK de teste. A mudança em `rele
 
 ## Itens que ainda precisam de validação com o SGE
 
-O seletor de ano letivo, o atalho que abre exatamente a turma/data do SGE e o widget “Hoje” dependem de confirmar os campos e URLs reais da agenda/diário do SGE. O parser atual ainda não preserva o dia e o horário da aula, então o app não deve inventar esse recorte. Para gerar ou enviar um PDF semanal automaticamente, também é preciso definir destinatário e canal; por privacidade, a branch não envia relatórios externos sem ação explícita da pessoa usuária.
+O seletor de ano letivo e o widget “Hoje” dependem de confirmar os campos reais da agenda/diário do SGE. O parser conta dias pendentes, mas não preserva o horário de cada aula. Na 2.5.4, a extração de `dd/MM` e `HH:mm` no atalho está incorreta; a tentativa de abrir automaticamente um dia de conteúdo também falha por uma referência JavaScript indefinida. Na Frequência Diária, a seleção automática de horário não está validada e deve ser conferida manualmente. O atalho ainda aceita nomes parciais de turma/componente, que podem ser ambíguos. Para gerar ou enviar um PDF semanal automaticamente, é preciso definir destinatário e canal; o app não envia relatórios externos sem ação da pessoa usuária.
 
 ## Licença
 
