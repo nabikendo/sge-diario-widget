@@ -1,6 +1,7 @@
 package br.to.seduc.sgediariowidget
 
 import androidx.compose.animation.core.LinearEasing
+import br.to.seduc.sgediariowidget.data.contarSge
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
