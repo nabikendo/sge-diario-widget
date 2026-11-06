@@ -72,7 +72,13 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          gradle testDebugUnitTest assembleRelease "-Pversao=$SGE_VERSAO" -Pcodigo=${{ github.run_number }} --no-daemon --stacktrace --info 2>&1 | tee build.log
+          set +e
+          gradle testDebugUnitTest assembleRelease "-Pversao=$SGE_VERSAO" -Pcodigo=${{ github.run_number }} --no-daemon --stacktrace 2>&1 | tee build.log
+          EXIT=${PIPESTATUS[0]}
+          # R8 escreve o erro real em stderr antes de propagar; busca no log
+          grep -E "Missing class|ERROR|error:|Compilation failed|R8:" build.log | head -40 || true
+          find app/build -name "*.txt" -newer build.log 2>/dev/null | head -5 | while read f; do echo "=== $f ==="; cat "$f" | head -50; done || true
+          exit $EXIT
       - name: Resumo dos erros
         if: failure()
         run: |
