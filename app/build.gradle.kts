@@ -64,10 +64,6 @@ android {
             require(codigoFinal > 0) {
                 "Código de versão inválido ($codigoFinal). Passe -Pcodigo=N (N > 0)."
             }
-            require(System.getenv("KEYSTORE_FILE") != null) {
-                "KEYSTORE_FILE não definido. Build de release sem keystore geraria APK não assinado. " +
-                "Use assembleDebug ou defina KEYSTORE_BASE64 no CI."
-            }
             resValue("string", "app_name", "SGE Diário")
             isMinifyEnabled = true
             isShrinkResources = true
@@ -89,6 +85,21 @@ android {
 
 kotlin {
     compilerOptions { jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17) }
+}
+
+// Keystore obrigatório em release: verificado no momento da tarefa, não da configuração.
+// O AGP 9 avalia todos os buildTypes na fase de configuração; o require diferido aqui
+// falha alto antes de gravar o APK, sem quebrar assembleDebug em máquina sem keystore.
+afterEvaluate {
+    tasks.matching { it.name.startsWith("package") && it.name.contains("Release") }.configureEach {
+        doFirst {
+            require(System.getenv("KEYSTORE_FILE") != null) {
+                "KEYSTORE_FILE não definido. " +
+                "Build de release sem keystore geraria APK não assinado. " +
+                "Use assembleDebug ou defina KEYSTORE_BASE64 no CI."
+            }
+        }
+    }
 }
 
 dependencies {
