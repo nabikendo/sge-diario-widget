@@ -77,15 +77,19 @@ jobs:
       - name: Resumo dos erros
         if: failure()
         run: |
-          (grep -E '^e: |^e: file|error:' build.log | head -25; grep -A14 'What went wrong' build.log | head -30) | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}' > erros.txt
-          # Incluir erros do R8 que ficam no arquivo de log separado
-          R8LOG="app/build/outputs/mapping/release/configuration.txt"
-          [ -f "$R8LOG" ] && grep -i "error\|warning\|missing" "$R8LOG" | head -20 | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}' >> erros.txt || true
-          find app/build -name "*.txt" -path "*/mapping/*" | xargs grep -l "error" 2>/dev/null | head -3 | while read f; do
-            echo "--- $f ---" | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}' >> erros.txt
-            grep -i "error" "$f" | head -10 | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}' >> erros.txt
-          done
-          echo "::error title=Erros do build::$(cat erros.txt)"
+          grep -A30 'What went wrong' build.log | head -40 > erros.txt || true
+          grep -E 'Missing class|ERROR|error:|Compilation failed|R8:' build.log | head -40 >> erros.txt || true
+          cat erros.txt | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}' > erros_fmt.txt
+          echo "::error title=Erros do build::$(cat erros_fmt.txt)"
+      - name: Upload log de erros
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log-erro
+          path: |
+            build.log
+            erros.txt
+          retention-days: 3
       - uses: actions/download-artifact@v4
         with:
           name: desktop-estavel
