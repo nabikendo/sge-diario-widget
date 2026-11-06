@@ -72,12 +72,21 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          gradle testDebugUnitTest assembleRelease "-Pversao=$SGE_VERSAO" -Pcodigo=${{ github.run_number }} --no-daemon --stacktrace 2>&1 | tee build.log
+          gradle testDebugUnitTest assembleRelease "-Pversao=$SGE_VERSAO" -Pcodigo=${{ github.run_number }} --no-daemon --stacktrace --info 2>&1 | tee build.log
       - name: Resumo dos erros
         if: failure()
         run: |
           (grep -E '^e: |^e: file|error:' build.log | head -25; grep -A14 'What went wrong' build.log | head -30) | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}' > erros.txt
+          # Incluir erros do R8 que ficam no arquivo de log separado
+          R8LOG="app/build/outputs/mapping/release/configuration.txt"
+          [ -f "$R8LOG" ] && grep -i "error\|warning\|missing" "$R8LOG" | head -20 | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}' >> erros.txt || true
+          find app/build -name "*.txt" -path "*/mapping/*" | xargs grep -l "error" 2>/dev/null | head -3 | while read f; do
+            echo "--- $f ---" | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}' >> erros.txt
+            grep -i "error" "$f" | head -10 | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}' >> erros.txt
+          done
           echo "::error title=Erros do build::$(cat erros.txt)"
+          # R8: log detalhado vai para stdout para diagnóstico
+          grep -i "r8\|missing class\|missing method\|unresolved" build.log | head -30 || true
       - uses: actions/download-artifact@v4
         with:
           name: desktop-estavel
