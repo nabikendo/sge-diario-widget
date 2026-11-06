@@ -1,11 +1,10 @@
-SGE Diário 2.5.6
+SGE Diário 2.5.7
 
-### Build mais seguro
-- Versão obrigatória: o build falha com mensagem clara se -Pversao não for passado nem release/versao.txt existir.
-- Keystore obrigatório: assembleRelease sem KEYSTORE_FILE aborta antes de gravar o APK.
-- R8 ligado: APK de release com minificação e remoção de código e recursos não usados.
-
-### Dependências de teste
-- Truth e MockK disponíveis para testes unitários.
+### Novo visual (estilo Poddi)
+- Fundo preto puro OLED no tema escuro, cartões em cinza profundo e rótulos em cinza suave.
+- Resumo de turmas virou um Hero Card verde-menta: total de pendências em destaque, tag de status, barra de turmas em dia e botão circular para sincronizar.
+- Navegação inferior flutuante em pílula, só com ícones e indicador circular no item ativo.
+- Cartões com cantos mais arredondados (32 dp) e espaçamento interno maior.
+- Esqueleto com efeito shimmer na primeira consulta ao SGE.
 
 Instala por cima da versão anterior.
