@@ -103,6 +103,9 @@ jobs:
         run: |
           cp app/build/outputs/apk/release/app-release.apk "SGE-Diario-$SGE_VERSAO.apk"
           python scripts/metadata-atualizacao.py "SGE-Diario-$SGE_VERSAO.apk" atualizacao.json
+          # O nome do .exe vem do package.json do desktop; renomeia para a versão da release
+          EXE=$(ls SGE-Diario-Desktop-*.exe 2>/dev/null | head -1)
+          [ -n "$EXE" ] && mv "$EXE" "SGE-Diario-Desktop-$SGE_VERSAO.exe" || true
           gh release create "v$SGE_VERSAO" "SGE-Diario-$SGE_VERSAO.apk" "SGE-Diario-Desktop-$SGE_VERSAO.exe" atualizacao.json --latest --target "$GITHUB_SHA" \
             --title "SGE Diário $SGE_VERSAO" \
             --notes-file release/NOTAS.md
