@@ -41,15 +41,14 @@ android {
         }
         create("release") {
             val arquivo = System.getenv("KEYSTORE_FILE")
-            require(arquivo != null) {
-                "KEYSTORE_FILE não definido. Use assembleDebug ou defina KEYSTORE_BASE64 no CI."
+            if (arquivo != null) {
+                storeFile = file(arquivo)
+                storePassword = System.getenv("KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("KEY_ALIAS")
+                keyPassword = System.getenv("KEY_PASSWORD")
+                    ?.takeIf { it.isNotBlank() }
+                    ?: System.getenv("KEYSTORE_PASSWORD")
             }
-            storeFile = file(arquivo)
-            storePassword = System.getenv("KEYSTORE_PASSWORD")
-            keyAlias = System.getenv("KEY_ALIAS")
-            keyPassword = System.getenv("KEY_PASSWORD")
-                ?.takeIf { it.isNotBlank() }
-                ?: System.getenv("KEYSTORE_PASSWORD")
         }
     }
 
@@ -64,6 +63,10 @@ android {
             }
             require(codigoFinal > 0) {
                 "Código de versão inválido ($codigoFinal). Passe -Pcodigo=N (N > 0)."
+            }
+            require(System.getenv("KEYSTORE_FILE") != null) {
+                "KEYSTORE_FILE não definido. Build de release sem keystore geraria APK não assinado. " +
+                "Use assembleDebug ou defina KEYSTORE_BASE64 no CI."
             }
             resValue("string", "app_name", "SGE Diário")
             isMinifyEnabled = true
