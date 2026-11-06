@@ -2,6 +2,7 @@
 package br.to.seduc.sgediariowidget
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.Crossfade
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -81,11 +82,11 @@ fun CartaoGrupo(grupo: GrupoPendencias, por: Agrupamento, selecionado: Boolean =
         append(". Toque para ver detalhes.")
     }
     Surface(onClick = abrir, modifier = Modifier.semantics(mergeDescendants = true) { contentDescription = descricao },
-        color = MaterialTheme.colorScheme.surface, shape = MaterialTheme.shapes.large,
-        border = BorderStroke(if (selecionado) 1.5.dp else .6.dp, if (selecionado) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant), shadowElevation = .5.dp) {
-        Column(Modifier.fillMaxWidth().padding(19.dp), verticalArrangement = Arrangement.spacedBy(13.dp)) {
+        color = MaterialTheme.colorScheme.surface, shape = RoundedCornerShape(RaioCartao),
+        border = BorderStroke(if (selecionado) 1.5.dp else 1.dp, if (selecionado) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant), shadowElevation = .5.dp) {
+        Column(Modifier.fillMaxWidth().padding(22.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(13.dp)) {
-                Surface(color = MaterialTheme.colorScheme.surfaceVariant, shape = RoundedCornerShape(18.dp)) {
+                Surface(color = MaterialTheme.colorScheme.surfaceVariant, shape = RoundedCornerShape(22.dp)) {
                     Box(Modifier.size(56.dp), contentAlignment = Alignment.Center) {
                         if (por == Agrupamento.TURMA) Text(tituloV.substringBefore(' ').take(6), style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.ExtraBold),
                             color = MaterialTheme.colorScheme.primary, maxLines = 1)
@@ -93,7 +94,7 @@ fun CartaoGrupo(grupo: GrupoPendencias, por: Agrupamento, selecionado: Boolean =
                     }
                 }
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                    Text(tituloV, style = MaterialTheme.typography.titleLarge, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    Text(tituloV, style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.ExtraBold, letterSpacing = (-0.5).sp), maxLines = 2, overflow = TextOverflow.Ellipsis)
                     Text(subtituloVisivel(grupo), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 2, overflow = TextOverflow.Ellipsis)
                 }
@@ -119,7 +120,7 @@ fun CartaoGrupo(grupo: GrupoPendencias, por: Agrupamento, selecionado: Boolean =
                         modulosVisiveis.take(2).forEach { m ->
                             val variacao = mudancasVisiveis.firstOrNull { it.indice == m.indice }
                             val corModulo = if ((m.quantidade ?: 0) <= 0) MaterialTheme.colorScheme.tertiary else if (m.indice == 1) MaterialTheme.colorScheme.error else corAlerta()
-                            Surface(Modifier.weight(1f), color = MaterialTheme.colorScheme.surfaceVariant, shape = RoundedCornerShape(18.dp)) {
+                            Surface(Modifier.weight(1f), color = MaterialTheme.colorScheme.surfaceVariant, shape = RoundedCornerShape(22.dp)) {
                                 Column(Modifier.padding(13.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                         Box(Modifier.size(8.dp).background(corModulo, CircleShape))
@@ -160,49 +161,12 @@ fun CartaoGrupo(grupo: GrupoPendencias, por: Agrupamento, selecionado: Boolean =
 
 @Composable
 fun MensagemVazia(titulo: String, texto: String, acao: String? = null, aoAgir: () -> Unit = {}) {
-    Surface(color = MaterialTheme.colorScheme.surface, shape = MaterialTheme.shapes.large) {
+    Surface(color = MaterialTheme.colorScheme.surface, shape = RoundedCornerShape(RaioCartao)) {
         Column(Modifier.fillMaxWidth().padding(26.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Icon(SgeIcons.Cards, null, Modifier.size(34.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
             Text(titulo, style = MaterialTheme.typography.titleMedium)
             Text(texto, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             if (acao != null) Button(onClick = aoAgir) { Text(acao) }
-        }
-    }
-}
-
-/** Cartão de destaque em verde-menta, no estilo do novo design. */
-@Composable
-fun HeroResumo(pendentes: Int, conferir: Int, consultadas: Int, coberturaParcial: Boolean) {
-    Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp))
-        .background(Brush.linearGradient(listOf(MentaClaro, MentaMedio), start = Offset(0f, 0f), end = Offset(900f, 700f)))) {
-        Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text("RESUMO DE TURMAS", Modifier.weight(1f), style = MaterialTheme.typography.labelMedium, color = TintaMentaSuave, letterSpacing = 1.2.sp)
-                Surface(color = TintaMenta.copy(alpha = .1f), shape = CircleShape) {
-                    Text("$consultadas consultada${if (consultadas == 1) "" else "s"}${if (coberturaParcial) " (*)" else ""}",
-                        Modifier.padding(horizontal = 11.dp, vertical = 5.dp), style = MaterialTheme.typography.labelSmall, color = TintaMenta)
-                }
-            }
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                CelulaHero(pendentes, if (pendentes == 1) "Turma com pendências" else "Turmas com pendências",
-                    if (pendentes > 0) "Atenção" else "Em dia", if (pendentes > 0) StatusAlertaMenta else StatusRegularMenta, Color.White.copy(alpha = .75f), Modifier.weight(1f))
-                CelulaHero(conferir, if (conferir == 1) "Turma a conferir" else "Turmas a conferir",
-                    if (conferir > 0) "Conferir" else "Em dia", if (conferir > 0) StatusAlertaMenta else StatusRegularMenta, Color.White.copy(alpha = .55f), Modifier.weight(1f))
-            }
-            Text(if (coberturaParcial) "* Há consultas com cobertura parcial: um zero parcial não confirma ausência de pendências."
-                else "Todas as consultas desta lista têm cobertura completa.", style = MaterialTheme.typography.bodySmall, color = TintaMentaSuave)
-        }
-    }
-}
-
-@Composable private fun CelulaHero(numero: Int, titulo: String, selo: String, corSelo: Color, fundo: Color, modifier: Modifier) {
-    Surface(modifier, color = fundo, shape = RoundedCornerShape(20.dp)) {
-        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(numero.toString(), style = MaterialTheme.typography.displaySmall.copy(fontWeight = FontWeight.ExtraBold), color = TintaMenta)
-            Text(titulo, style = MaterialTheme.typography.bodySmall, color = TintaMentaSuave)
-            Surface(color = corSelo.copy(alpha = .14f), shape = CircleShape) {
-                Text(selo, Modifier.padding(horizontal = 9.dp, vertical = 3.dp), style = MaterialTheme.typography.labelSmall, color = corSelo)
-            }
         }
     }
 }
@@ -254,6 +218,9 @@ fun TelaCartoes(
     val pendentes = porTurma.count { it.estado == EstadoGrupo.PENDENTE }
     val coberturaParcial = remember(resultados) { resultados.any { r -> r.modulos.any { !it.coberturaCompleta && !it.naoConfigurado } } }
     val conferir = porTurma.count { it.exigeConferencia } + if (escola) conhecidas.count { (id, _) -> porTurma.none { id in it.turmaIds } } else 0
+    val totalPendencias = remember(porTurma) { porTurma.sumOf { g -> g.modulos.sumOf { (it.quantidade ?: 0).coerceAtLeast(0) } } }
+    val emDia = porTurma.count { it.estado == EstadoGrupo.EM_DIA }
+    val naoConsultadas = if (escola) conhecidas.count { (id, _) -> porTurma.none { id in it.turmaIds } } else 0
     val nomesProf = remember(docentes) { SgeBusca.indiceProfessores(docentes.vinculos, docentes.locais) }
     val sgeMudou = remember(resultados) { SgeSaude.sgeMudou(resultados) }
     val semVinculo = remember(coord.turmas, docentes) { coord.turmas.flatMap { it.disciplinas }.filter { SgeOrganizacao.professores(it, docentes).isEmpty() } }
@@ -269,7 +236,10 @@ fun TelaCartoes(
         .any { mensagemStatus.startsWith(it, ignoreCase = true) } || mensagemStatus.startsWith("Fila concluída:") ||
         mensagemStatus.contains("não verificada", ignoreCase = true) || mensagemStatus.contains("cobertura parcial", ignoreCase = true)
     val mostrarResumo = mudancas.isNotEmpty() && !falhaRecente
-    LazyVerticalGrid(columns = GridCells.Adaptive(285.dp), contentPadding = PaddingValues(20.dp, 10.dp, 20.dp, 26.dp),
+    // Esqueleto só na primeira consulta (sem nenhum dado para mostrar); nas atualizações os cartões permanecem.
+    val mostrarEsqueleto = carregando && resultados.isEmpty() && (!escola || conhecidas.isEmpty())
+    Crossfade(targetState = mostrarEsqueleto, animationSpec = tween(SgeMotion.duration(220)), label = "esqueletoPainel") { esqueleto ->
+    if (esqueleto) DashboardSkeleton() else LazyVerticalGrid(columns = GridCells.Adaptive(285.dp), contentPadding = PaddingValues(20.dp, 10.dp, 20.dp, 26.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
         item(span = { GridItemSpan(maxLineSpan) }) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -279,15 +249,13 @@ fun TelaCartoes(
                     Text(if (escola) "Uma escola inteira, em recortes mais claros." else "O que precisa de atenção, em um só lugar",
                         style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                BotaoQuadrado(if (escola) "Verificar turmas" else "Atualizar diário", aoSincronizar,
-                    enabled = if (escola) conhecidas.isNotEmpty() else !carregando) {
-                    if (carregando) CircularProgressIndicator(Modifier.size(20.dp).semantics { contentDescription = if (escola) "Verificação em andamento. Toque para pausar" else "Atualizando o diário" }, strokeWidth = 2.dp)
-                    else Icon(SgeIcons.Refresh, null, Modifier.size(22.dp), tint = MaterialTheme.colorScheme.primary)
-                }
             }
         }
         item(span = { GridItemSpan(maxLineSpan) }) {
-            HeroResumo(pendentes, conferir, porTurma.size, coberturaParcial)
+            HeroResumo(totalPendencias, pendentes, conferir, emDia, porTurma.size + naoConsultadas, porTurma.size, coberturaParcial, escola, carregando,
+                podeAtualizar = if (escola) conhecidas.isNotEmpty() else !carregando,
+                descricaoAcao = if (carregando) (if (escola) "Verificação em andamento" else "Atualizando o diário") else if (escola) "Verificar turmas" else "Atualizar diário",
+                aoAtualizar = aoSincronizar)
         }
         item(span = { GridItemSpan(maxLineSpan) }) {
             Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
@@ -482,6 +450,7 @@ fun TelaCartoes(
             Text("As contagens se referem à última consulta. Aguardando avaliação aparece nos detalhes e não conta como pendência do professor.",
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
+    }
     }
     if (mostrarMensagem) AlertDialog(onDismissRequest = { mostrarMensagem = false }, title = { Text("Última atualização") },
         text = { Text(if (escola) coord.mensagem else painel.mensagem) },

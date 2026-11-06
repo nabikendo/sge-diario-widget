@@ -103,7 +103,10 @@ class MainActivity : FragmentActivity() {
     }
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
-        enableEdgeToEdge()
+        enableEdgeToEdge(
+            statusBarStyle = androidx.activity.SystemBarStyle.auto(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT),
+            navigationBarStyle = androidx.activity.SystemBarStyle.auto(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT))
+        if (Build.VERSION.SDK_INT >= 29) window.isNavigationBarContrastEnforced = false
         super.onCreate(savedInstanceState)
         handoffAba = intent.getIntExtra("handoff_aba", -1)
         if (Build.VERSION.SDK_INT >= 37) setHandoffEnabled(true, null)

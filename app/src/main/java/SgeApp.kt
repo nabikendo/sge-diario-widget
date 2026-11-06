@@ -17,6 +17,8 @@ import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
@@ -300,23 +302,23 @@ fun AppDiario(
     }
 }
 
+/** Navegação inferior flutuante em pílula: só ícones (rótulos ficam na acessibilidade) e indicador circular no item ativo. */
 @Composable private fun DockDiario(aba: Int, visiveis: Set<Int>, escolher: (Int) -> Unit) {
-    Surface(Modifier.padding(horizontal = 18.dp, vertical = 9.dp).fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surface.copy(alpha = .96f),
-        shadowElevation = 8.dp, border = BorderStroke(.6.dp, MaterialTheme.colorScheme.outlineVariant)) {
-        Row(Modifier.padding(6.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            listOf("Meu diário", "Coordenação", "SGE Web").forEachIndexed { i, label ->
-            if (i !in visiveis) return@forEachIndexed
-                val ativa = i == aba
-                val fundo by animateColorAsState(if (ativa) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
-                    tween(SgeMotion.duration(160)), label = "fundoAba$i")
-                val corConteudo by animateColorAsState(if (ativa) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                    tween(SgeMotion.duration(160)), label = "conteudoAba$i")
-                Surface(Modifier.weight(1f), shape = RoundedCornerShape(24.dp), color = fundo) {
-                    Column(Modifier.selectable(i == aba, role = Role.Tab, onClick = { escolher(i) }).padding(vertical = 10.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Icon(listOf(SgeIcons.Cards, SgeIcons.People, SgeIcons.Globe)[i], null, Modifier.size(21.dp), tint = corConteudo)
-                        Text(label, style = MaterialTheme.typography.labelSmall, color = corConteudo, maxLines = 1)
+    val escuro = MaterialTheme.colorScheme.background.luminance() < .5f
+    Box(Modifier.fillMaxWidth().padding(horizontal = 32.dp, vertical = 24.dp), contentAlignment = Alignment.Center) {
+        Surface(shape = RoundedCornerShape(50), color = (if (escuro) PilulaNavOled else MaterialTheme.colorScheme.surface).copy(alpha = .92f),
+            border = BorderStroke(1.dp, if (escuro) PilulaNavBorda else MaterialTheme.colorScheme.outlineVariant)) {
+            Row(Modifier.padding(6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                listOf("Meu diário", "Coordenação", "SGE Web").forEachIndexed { i, label ->
+                    if (i !in visiveis) return@forEachIndexed
+                    val ativa = i == aba
+                    val fundo by animateColorAsState(if (ativa) (if (escuro) PilulaNavBorda else MaterialTheme.colorScheme.primaryContainer) else Color.Transparent,
+                        tween(SgeMotion.duration(160)), label = "fundoAba$i")
+                    val corIcone by animateColorAsState(if (ativa) (if (escuro) Color.White else MaterialTheme.colorScheme.primary) else MaterialTheme.colorScheme.onSurfaceVariant,
+                        tween(SgeMotion.duration(160)), label = "iconeAba$i")
+                    Box(Modifier.size(52.dp).clip(CircleShape).background(fundo)
+                        .selectable(ativa, role = Role.Tab, onClick = { escolher(i) }), contentAlignment = Alignment.Center) {
+                        Icon(listOf(SgeIcons.Cards, SgeIcons.People, SgeIcons.Globe)[i], label, Modifier.size(24.dp), tint = corIcone)
                     }
                 }
             }

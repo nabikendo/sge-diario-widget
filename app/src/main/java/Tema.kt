@@ -37,17 +37,17 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 // Tokens compartilhados do design: identidades menta e estados legíveis também em fundos fixos.
-internal val MentaClaro = Color(0xFFD8F8C8)
-internal val MentaMedio = Color(0xFFB7EB9E)
-internal val TintaMenta = Color(0xFF0F1711)
-internal val TintaMentaSuave = Color(0xFF243828)
+internal val MentaClaro = Color(0xFFD8F5D1)
+internal val MentaMedio = Color(0xFFB2E3AA)
+internal val TintaMenta = Color(0xFF0B1F0E)
+internal val TintaMentaSuave = Color(0xFF2A4A2E)
 internal val StatusAlertaMenta = Color(0xFF78350F)
 internal val StatusRegularMenta = Color(0xFF047857)
 internal val StatusPendenteMenta = Color(0xFF9F1239)
 private val AlertaClaro = Color(0xFF92651E)
 private val AlertaEscuro = Color(0xFFFBBF24)
 
-// Design "Dark + verde-menta": fundo quase preto, cartões #161917 e destaque #B7EB9E.
+// Design "OLED + verde-menta": preto puro #000000, cartões #141414/#1C1C1E e destaque menta (ver PoddiUi.kt).
 private val NeutroClaro = lightColorScheme(
     primary = Color(0xFF2F7A4B), onPrimary = Color.White,
     primaryContainer = MentaClaro, onPrimaryContainer = TintaMenta,
@@ -65,31 +65,30 @@ private val NeutroClaro = lightColorScheme(
     surfaceContainerHigh = Color(0xFFEDF2ED), surfaceContainerHighest = Color(0xFFE7EDE7)
 )
 private val NeutroEscuro = darkColorScheme(
-    primary = MentaMedio, onPrimary = Color(0xFF0F1210),
-    primaryContainer = Color(0xFF263226), onPrimaryContainer = MentaClaro,
-    secondary = Color(0xFF9CA3AF), onSecondary = Color(0xFF0F1210),
-    secondaryContainer = Color(0xFF1E2320), onSecondaryContainer = Color(0xFFF4F6F5),
-    background = Color(0xFF0B0D0C), onBackground = Color(0xFFF4F6F5),
-    surface = Color(0xFF161917), onSurface = Color(0xFFF4F6F5),
-    surfaceVariant = Color(0xFF1E2320), onSurfaceVariant = Color(0xFF9CA3AF),
-    outline = Color(0xFF333836), outlineVariant = Color(0xFF262927),
+    primary = MentaMedio, onPrimary = TintaMenta,
+    primaryContainer = Color(0xFF1B2A1D), onPrimaryContainer = MentaClaro,
+    secondary = RotuloCinza, onSecondary = PretoOled,
+    secondaryContainer = CartaoOledAlto, onSecondaryContainer = Color(0xFFF4F6F5),
+    background = PretoOled, onBackground = Color(0xFFF4F6F5),
+    surface = CartaoOled, onSurface = Color(0xFFF4F6F5),
+    surfaceVariant = CartaoOledAlto, onSurfaceVariant = RotuloCinza,
+    outline = PilulaNavBorda, outlineVariant = BordaOled,
     error = Color(0xFFF43F5E), onError = Color.White,
     errorContainer = Color(0xFF371F24), onErrorContainer = Color(0xFFFDA4AF),
-    tertiary = MentaMedio, tertiaryContainer = Color(0xFF263226),
+    tertiary = MentaMedio, tertiaryContainer = Color(0xFF1B2A1D),
     onTertiaryContainer = MentaClaro, surfaceTint = Color.Transparent,
-    surfaceContainerLowest = Color(0xFF0B0D0C), surfaceContainerLow = Color(0xFF121513), surfaceContainer = Color(0xFF161917),
-    surfaceContainerHigh = Color(0xFF1C201E), surfaceContainerHighest = Color(0xFF222624)
+    surfaceContainerLowest = PretoOled, surfaceContainerLow = Color(0xFF0C0C0C), surfaceContainer = CartaoOled,
+    surfaceContainerHigh = CartaoOledAlto, surfaceContainerHighest = BordaOled
 )
 @OptIn(ExperimentalTextApi::class)
-private val Jakarta = FontFamily(listOf(400, 500, 600, 700, 800).map { w ->
+private val Jakarta = FontFamily(listOf(400, 500, 600, 700, 800, 900).map { w ->
     Font(R.font.plus_jakarta_sans, FontWeight(w), variationSettings = FontVariation.Settings(FontVariation.weight(w)))
 })
-private fun tipo(size: Int, height: Int, weight: FontWeight = FontWeight.Normal) = TextStyle(
-    fontFamily = Jakarta, fontSize = size.sp, lineHeight = height.sp, fontWeight = weight,
-    letterSpacing = if (size >= 22) (-0.6).sp else 0.sp
+private fun tipo(size: Int, height: Int, weight: FontWeight = FontWeight.Normal, tracking: Float = if (size >= 22) -0.6f else 0f) = TextStyle(
+    fontFamily = Jakarta, fontSize = size.sp, lineHeight = height.sp, fontWeight = weight, letterSpacing = tracking.sp
 )
 private val TipografiaNeutra = Typography(
-    displaySmall = tipo(34, 40, FontWeight.ExtraBold), headlineMedium = tipo(30, 36, FontWeight.ExtraBold),
+    displaySmall = tipo(34, 40, FontWeight.Black, -1f), headlineMedium = tipo(30, 36, FontWeight.Black, -1f),
     headlineSmall = tipo(24, 30, FontWeight.Bold), titleLarge = tipo(21, 27, FontWeight.Bold),
     titleMedium = tipo(17, 23, FontWeight.Bold), titleSmall = tipo(15, 21, FontWeight.SemiBold),
     bodyLarge = tipo(16, 24, FontWeight.Medium), bodyMedium = tipo(14, 21, FontWeight.Medium), bodySmall = tipo(12, 18, FontWeight.Medium),
@@ -113,7 +112,7 @@ fun SgeTema(tema: Int, estilo: Int = 0, content: @Composable () -> Unit) {
     CompositionLocalProvider(LocalDensity provides Density(dens.density, dens.fontScale * (if (SgeUi.fonteGrande) 1.3f else 1f))) {
         MaterialTheme(colorScheme = finalEsquema, typography = TipografiaNeutra,
             shapes = Shapes(extraSmall = RoundedCornerShape(8.dp), small = RoundedCornerShape(14.dp),
-                medium = RoundedCornerShape(20.dp), large = RoundedCornerShape(26.dp), extraLarge = RoundedCornerShape(28.dp))) {
+                medium = RoundedCornerShape(22.dp), large = RoundedCornerShape(RaioCartao), extraLarge = RoundedCornerShape(RaioHero))) {
             Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background, content = content)
         }
     }
