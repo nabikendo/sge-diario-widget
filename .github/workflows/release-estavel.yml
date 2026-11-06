@@ -72,13 +72,8 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          set +e
+          set -o pipefail
           gradle testDebugUnitTest assembleRelease "-Pversao=$SGE_VERSAO" -Pcodigo=${{ github.run_number }} --no-daemon --stacktrace 2>&1 | tee build.log
-          EXIT=${PIPESTATUS[0]}
-          # R8 escreve o erro real em stderr antes de propagar; busca no log
-          grep -E "Missing class|ERROR|error:|Compilation failed|R8:" build.log | head -40 || true
-          find app/build -name "*.txt" -newer build.log 2>/dev/null | head -5 | while read f; do echo "=== $f ==="; cat "$f" | head -50; done || true
-          exit $EXIT
       - name: Resumo dos erros
         if: failure()
         run: |
@@ -91,8 +86,6 @@ jobs:
             grep -i "error" "$f" | head -10 | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}' >> erros.txt
           done
           echo "::error title=Erros do build::$(cat erros.txt)"
-          # R8: log detalhado vai para stdout para diagnóstico
-          grep -i "r8\|missing class\|missing method\|unresolved" build.log | head -30 || true
       - uses: actions/download-artifact@v4
         with:
           name: desktop-estavel

@@ -65,12 +65,9 @@ android {
                 "Código de versão inválido ($codigoFinal). Passe -Pcodigo=N (N > 0)."
             }
             resValue("string", "app_name", "SGE Diário")
-            isMinifyEnabled = true
-            isShrinkResources = true
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
-            )
+            // R8 temporariamente desabilitado para diagnóstico — REATIVAR em breve
+            isMinifyEnabled = false
+            isShrinkResources = false
             signingConfig = signingConfigs.getByName("release")
         }
     }
