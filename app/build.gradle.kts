@@ -4,6 +4,18 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
+// ── Versão obrigatória em release ────────────────────────────────────────────
+val versaoArquivo: String? by lazy {
+    val f = rootProject.file("release/versao.txt")
+    if (f.exists()) f.readText().trim().takeIf { it.isNotBlank() } else null
+}
+val versaoFinal: String = (findProperty("versao") as String?)
+    ?: versaoArquivo
+    ?: ""
+val codigoFinal: Int = (findProperty("codigo") as String?)?.toIntOrNull()
+    ?: versaoFinal.replace(Regex("[^0-9]"), "").take(6).toIntOrNull()
+    ?: 0
+
 android {
     namespace = "br.to.seduc.sgediariowidget"
     compileSdk = 37
@@ -13,8 +25,8 @@ android {
         minSdk = 26
         targetSdk = 37
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        versionCode = (findProperty("codigo") as String?)?.toIntOrNull() ?: 3
-        versionName = (findProperty("versao") as String?) ?: "1.2"
+        versionCode = codigoFinal
+        versionName = versaoFinal
     }
 
     sourceSets["main"].manifest.srcFile("../AndroidManifest.xml")
@@ -29,24 +41,37 @@ android {
         }
         create("release") {
             val arquivo = System.getenv("KEYSTORE_FILE")
-            if (arquivo != null) {
-                storeFile = file(arquivo)
-                storePassword = System.getenv("KEYSTORE_PASSWORD")
-                keyAlias = System.getenv("KEY_ALIAS")
-                keyPassword = System.getenv("KEY_PASSWORD")?.takeIf { it.isNotBlank() } ?: System.getenv("KEYSTORE_PASSWORD")
+            require(arquivo != null) {
+                "KEYSTORE_FILE não definido. Use assembleDebug ou defina KEYSTORE_BASE64 no CI."
             }
+            storeFile = file(arquivo)
+            storePassword = System.getenv("KEYSTORE_PASSWORD")
+            keyAlias = System.getenv("KEY_ALIAS")
+            keyPassword = System.getenv("KEY_PASSWORD")
+                ?.takeIf { it.isNotBlank() }
+                ?: System.getenv("KEYSTORE_PASSWORD")
         }
     }
 
-    // Canal de testes (debug, sufixo .teste) e canal estável (release, chave própria) coexistem no aparelho.
     buildTypes {
         debug {
             applicationIdSuffix = ".teste"
             resValue("string", "app_name", "SGE Diário (teste)")
         }
         release {
+            require(versaoFinal.isNotBlank()) {
+                "Versão não definida. Passe -Pversao=X.Y ou crie release/versao.txt."
+            }
+            require(codigoFinal > 0) {
+                "Código de versão inválido ($codigoFinal). Passe -Pcodigo=N (N > 0)."
+            }
             resValue("string", "app_name", "SGE Diário")
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
             signingConfig = signingConfigs.getByName("release")
         }
     }
@@ -79,11 +104,15 @@ dependencies {
     implementation("androidx.glance:glance-material3:1.1.0")
     implementation("androidx.work:work-runtime-ktx:2.9.0")
     implementation("org.jsoup:jsoup:1.17.2")
+
     androidTestImplementation(platform("androidx.compose:compose-bom:2024.12.01"))
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
     androidTestImplementation("androidx.test:runner:1.6.2")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
+
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.json:json:20240303")
+    testImplementation("com.google.truth:truth:1.4.4")
+    testImplementation("io.mockk:mockk:1.13.12")
 }
