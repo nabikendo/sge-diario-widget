@@ -1,8 +1,9 @@
-SGE Diário 2.5.9
+SGE Diário 2.5.10
 
 ### Novidades
-- Bimestre do painel: escolha Atual, 1º, 2º, 3º ou 4º em Ajustes. Conteúdos e Frequência passam a considerar só o bimestre escolhido. Por padrão, o bimestre atual. Toque em atualizar depois de trocar.
-- O cabeçalho do Hero mostra o bimestre aplicado.
-- Coordenação: no grupo de um professor, sincronizar verifica só as disciplinas dele; as demais turmas e disciplinas mantêm o último resultado.
+- Seletor de bimestre na tela inicial, na coordenação e no diário: Atual, 1º, 2º, 3º ou 4º. Ao trocar, o painel sincroniza sozinho e mostra as pendências do bimestre escolhido.
+- Conteúdos e Frequência consideram só o bimestre escolhido. O bimestre aplicado aparece no cabeçalho do painel.
+- O PDF exportado traz o bimestre no cabeçalho.
+- Coordenação: no grupo de um professor, sincronizar verifica só as disciplinas dele; as demais turmas mantêm o último resultado.
 
 Instala por cima da versão anterior.
