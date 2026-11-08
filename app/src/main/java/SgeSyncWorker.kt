@@ -172,7 +172,7 @@ class SgeSyncWorker(private val ctx: Context, params: WorkerParameters) : Corout
     private suspend fun sincronizarCoordenacao(client: SgeReadClient, alvo: String): Result {
         val prefs = ctx.getSharedPreferences(SgePainelStore.PREFS_NAME, Context.MODE_PRIVATE)
         val lista = runCatching { JSONArray(prefs.getString("turmas_escola", "[]")) }.getOrDefault(JSONArray())
-        val o = (0 until lista.length()).map { lista.getJSONObject(it) }.firstOrNull { it.getString("v") == alvo }
+        val o = (0 until lista.length()).map { lista.getJSONObject(it) }.firstOrNull { it.getString("v") == alvo && SgeEscopo.permitida(ctx, it.optString("t")) }
         var painel = SgeCoordStore.ler(ctx)
         if (o == null) {
             registrarErroCoord(alvo, "Turma não encontrada na lista atual do SGE.")

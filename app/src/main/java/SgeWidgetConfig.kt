@@ -44,7 +44,8 @@ object SgeWidgetStore {
 
     fun conhecidas(context: Context): List<Pair<String, String>> = runCatching {
         val a = JSONArray(context.getSharedPreferences(SgePainelStore.PREFS_NAME, Context.MODE_PRIVATE).getString("turmas_escola", "[]"))
-        (0 until a.length()).map { a.getJSONObject(it).let { o -> o.getString("v") to o.getString("t") } }.distinctBy { it.first }
+        (0 until a.length()).map { a.getJSONObject(it) }.filter { SgeEscopo.permitida(context, it.optString("t")) }
+            .map { o -> o.getString("v") to o.getString("t") }.distinctBy { it.first }
     }.getOrDefault(emptyList())
 
     fun grupos(context: Context, config: ConfigWidget): List<GrupoPendencias> {

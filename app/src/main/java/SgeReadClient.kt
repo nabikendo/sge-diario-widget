@@ -252,9 +252,10 @@ class SgeReadClient(cookies: String, private val userAgent: String, private val 
     }
     fun planos(t: TurmaMonitorada, tipoNome: String): ResultadoModulo = consulta {
         val page = Jsoup.parse(request("/planejamentoturma", mapOf("turmaId" to t.id)))
-        val tipo = page.select("#TipoDeRegistroPedagogicoId option").singleOrNull {
-            it.text().trim().equals(tipoNome, true)
-        }?.attr("value") ?: return@consulta ResultadoModulo(null, "Tipo de planejamento não encontrado no seletor do SGE: $tipoNome. Confira a turma e o diagnóstico.", coberturaCompleta = false)
+        val opcoesTipo = page.select("#TipoDeRegistroPedagogicoId option")
+        // Nome exato primeiro; depois prefixo (o SGE mostra "PEI - Plano de Ensino Individualizado").
+        val tipo = (opcoesTipo.singleOrNull { it.text().trim().equals(tipoNome, true) }
+            ?: opcoesTipo.singleOrNull { it.text().trim().startsWith(tipoNome, true) })?.attr("value") ?: return@consulta ResultadoModulo(null, "Tipo de planejamento não encontrado no seletor do SGE: $tipoNome. Confira a turma e o diagnóstico.", coberturaCompleta = false)
         val response = JSONObject(request("/PlanejamentoTurma/PartialPlanejamentos", mapOf(
             "TurmaId" to t.id, "TipoDeRegistroPedagogicoId" to tipo, "GradeEscolarId" to grade(t),
             "AtividadeDeAEEId" to "", "ModuloUnidadeCurricularId" to "", "Situacao" to "", "Periodos" to "[]")))
@@ -542,6 +543,11 @@ object SgeEscopo {
         if (prefs(context).getBoolean(CHAVE_AEE, false)) add("AEE")
     }
     fun ativa(context: android.content.Context, categoria: String): Boolean = categoria in incluidas(context)
+    /** Turma pelo nome: entra nas listas de coordenação e de vínculos só se a categoria estiver permitida. */
+    fun permitida(context: android.content.Context, nome: String): Boolean {
+        val c = categoriaTurma(nome)
+        return c == "ESCOLARIZACAO" || c in incluidas(context)
+    }
     fun salvar(context: android.content.Context, categoria: String, valor: Boolean) {
         val chave = if (categoria == "AEE") CHAVE_AEE else CHAVE_DIVERSIFICADA
         prefs(context).edit().putBoolean(chave, valor).apply()

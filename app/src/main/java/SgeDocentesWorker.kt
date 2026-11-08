@@ -43,7 +43,8 @@ class SgeDocentesWorker(private val ctx: Context, params: WorkerParameters) : Co
                 reqs.drop(1).forEach { chain = chain.then(it) }; SgeSessaoStore.gravarSeAtual(ctx) { chain.enqueue() }
             } else {
                 val a = JSONArray(prefs.getString("turmas_escola", "[]"))
-                val turmas = (0 until a.length()).map { a.getJSONObject(it).let { o -> o.getString("v") to o.getString("t") } }
+                val turmas = (0 until a.length()).map { a.getJSONObject(it) }.filter { SgeEscopo.permitida(ctx, it.optString("t")) }
+                    .map { o -> o.getString("v") to o.getString("t") }
                 check(turmas.isNotEmpty()) { "Carregue as turmas da escola antes de atualizar os vínculos." }
                 val professor = DocenteRef(id, inputData.getString("professor_nome").orEmpty())
                 val leitura = withContext(Dispatchers.IO) { withTimeout(90_000L) { client.analisarVinculosDocente(professor, turmas) } }
