@@ -1,9 +1,7 @@
-SGE Diário 2.5.13
+SGE Diário 2.5.14
 
-### Correções e ajustes
-- Categorias de turma pelo nome: Escolarização (1 ou 2 dígitos), Diversificada (3 dígitos) e AEE (4 dígitos).
-- Por padrão, só Escolarização entra na verificação. Diversificadas e AEE têm interruptores próprios em Ajustes; ao ativar, o app busca e sincroniza essas turmas.
-- Bimestre "Todos" mostra o ano inteiro.
-- README e tela Sobre reorganizados.
+### Correções
+- Turmas diversificadas e AEE não são mais sincronizadas sem você pedir. A lista de turmas da coordenação, a lista de turmas conhecidas (usada pelo seletor de bimestre e pelo sync noturno) e a análise de vínculos dos professores passam a respeitar as categorias ativas em Ajustes.
+- Plano de Ensino Individualizado (PEI) é encontrado no seletor do SGE, mesmo quando o nome aparece com a descrição completa.
 
 Instala por cima da versão anterior.
