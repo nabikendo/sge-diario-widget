@@ -23,6 +23,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -84,6 +85,8 @@ fun AppDiario(
     val rsCoord = coord.turmas.flatMap { it.disciplinas }
     val focus = LocalFocusManager.current
     val largo = LocalConfiguration.current.screenWidthDp >= 840
+    // Com o teclado aberto (login no SGE Web) a pílula sai de cena para não espremer a página.
+    val tecladoAberto = WindowInsets.ime.getBottom(LocalDensity.current) > 0
     val saveable = rememberSaveableStateHolder()
     fun grupos(fonte: FontePainel, por: Agrupamento): List<GrupoPendencias> {
         val rs = if (fonte == FontePainel.PESSOAL) painel.turmas else coord.turmas.flatMap { it.disciplinas }
@@ -256,7 +259,7 @@ fun AppDiario(
                 }
                 } }
             }
-            if (!largo && pagina == null && detalhe == null) DockDiario(aba, visiveis) { focus.clearFocus(); aba = it }
+            if (!largo && !tecladoAberto && pagina == null && detalhe == null) DockDiario(aba, visiveis) { focus.clearFocus(); aba = it }
         }
         }
         if (intro) TelaIntroducao { abrirSge ->
@@ -305,10 +308,11 @@ fun AppDiario(
 /** Navegação inferior flutuante em pílula: só ícones (rótulos ficam na acessibilidade) e indicador circular no item ativo. */
 @Composable private fun DockDiario(aba: Int, visiveis: Set<Int>, escolher: (Int) -> Unit) {
     val escuro = MaterialTheme.colorScheme.background.luminance() < .5f
-    Box(Modifier.fillMaxWidth().padding(horizontal = 32.dp, vertical = 24.dp), contentAlignment = Alignment.Center) {
+    val baixa = LocalConfiguration.current.screenHeightDp < 480
+    Box(Modifier.fillMaxWidth().padding(horizontal = 32.dp, vertical = if (baixa) 6.dp else 24.dp), contentAlignment = Alignment.Center) {
         Surface(shape = RoundedCornerShape(50), color = (if (escuro) PilulaNavOled else MaterialTheme.colorScheme.surface).copy(alpha = .92f),
             border = BorderStroke(1.dp, if (escuro) PilulaNavBorda else MaterialTheme.colorScheme.outlineVariant)) {
-            Row(Modifier.padding(6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row(Modifier.padding(if (baixa) 4.dp else 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 listOf("Meu diário", "Coordenação", "SGE Web").forEachIndexed { i, label ->
                     if (i !in visiveis) return@forEachIndexed
                     val ativa = i == aba
@@ -316,7 +320,7 @@ fun AppDiario(
                         tween(SgeMotion.duration(160)), label = "fundoAba$i")
                     val corIcone by animateColorAsState(if (ativa) (if (escuro) Color.White else MaterialTheme.colorScheme.primary) else MaterialTheme.colorScheme.onSurfaceVariant,
                         tween(SgeMotion.duration(160)), label = "iconeAba$i")
-                    Box(Modifier.size(52.dp).clip(CircleShape).background(fundo)
+                    Box(Modifier.size(if (baixa) 44.dp else 52.dp).clip(CircleShape).background(fundo)
                         .selectable(ativa, role = Role.Tab, onClick = { escolher(i) }), contentAlignment = Alignment.Center) {
                         Icon(listOf(SgeIcons.Cards, SgeIcons.People, SgeIcons.Globe)[i], label, Modifier.size(24.dp), tint = corIcone)
                     }
