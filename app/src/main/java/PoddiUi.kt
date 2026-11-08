@@ -37,6 +37,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalContext
+import br.to.seduc.sgediariowidget.data.SgeBimestre
 
 // Tokens OLED + menta (estética "Poddi"): fundo preto puro, cartões cinza profundo, rótulos #8E8E93.
 internal val PretoOled = Color(0xFF000000)
@@ -105,12 +107,15 @@ fun HeroResumo(
     descricaoAcao: String, aoAtualizar: () -> Unit
 ) {
     val semDados = consultadas == 0
+    // Mostra o bimestre aplicado no cálculo (o escolhido em Ajustes, ou o atual por padrão).
+    val escolhido = SgeBimestre.ler(LocalContext.current)
+    val rotuloBimestre = if (escolhido in 1..4) "$escolhido° BIMESTRE" else "BIMESTRE ATUAL"
     val progresso = if (totalTurmas > 0) emDia.toFloat() / totalTurmas else 0f
     Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(RaioHero))
         .background(Brush.verticalGradient(listOf(MentaClaro, MentaMedio)))) {
         Column(Modifier.fillMaxWidth().padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             Surface(color = Color.White.copy(alpha = .6f), shape = CircleShape) {
-                Text(if (escola) "STATUS DA ESCOLA" else "STATUS DO DIÁRIO", Modifier.padding(horizontal = 14.dp, vertical = 7.dp),
+                Text("${if (escola) "STATUS DA ESCOLA" else "STATUS DO DIÁRIO"} · $rotuloBimestre", Modifier.padding(horizontal = 14.dp, vertical = 7.dp),
                     style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp), color = TintaMenta)
             }
             Column {
