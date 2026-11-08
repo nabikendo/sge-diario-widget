@@ -497,7 +497,7 @@ fun SeletorBimestre(fonte: FontePainel, turmasIds: List<String>) {
     val ctx = androidx.compose.ui.platform.LocalContext.current
     var escolhido by remember { mutableStateOf(br.to.seduc.sgediariowidget.data.SgeBimestre.ler(ctx)) }
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-        listOf(0 to "Atual", 1 to "1º", 2 to "2º", 3 to "3º", 4 to "4º").forEach { (valor, rotulo) ->
+        listOf(0 to "Atual", 1 to "1º", 2 to "2º", 3 to "3º", 4 to "4º", 5 to "Todos").forEach { (valor, rotulo) ->
             FilterChip(selected = escolhido == valor, onClick = {
                 if (escolhido != valor) {
                     escolhido = valor

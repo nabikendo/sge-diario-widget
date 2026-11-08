@@ -8,7 +8,7 @@ import java.time.format.DateTimeFormatter
 import java.time.YearMonth
 import org.jsoup.nodes.Document
 
-data class TurmaMonitorada(val id: String, val nome: String, val escola: String, val disciplina: String)
+data class TurmaMonitorada(val id: String, val nome: String, val escola: String, val disciplina: String, val tipo: String = "")
 
 class SessaoExpirada : IllegalStateException("Sessão expirada. Entre novamente no SGE.")
 
@@ -116,7 +116,7 @@ class SgeReadClient(cookies: String, private val userAgent: String, private val 
         return SgeDocentesParsing.analisarVinculos(json.getString("html"), professor, turmas)
     }
 
-    fun turmas(): List<TurmaMonitorada> {
+    fun turmas(incluirOutras: Boolean = false): List<TurmaMonitorada> {
         val home = Jsoup.parse(request("/", ajax = false))
         // O SGE carrega esta tela em #content por AJAX. O GET direto da rota
         // retorna a página de entrada sem o formulário/identidade do professor.
@@ -179,15 +179,17 @@ class SgeReadClient(cookies: String, private val userAgent: String, private val 
                 val exatas = opcoes.filter { it.desc == alvo }
                 val matches = exatas.ifEmpty { opcoes.filter { it.desc.isNotEmpty() && (it.desc.startsWith(alvo) || alvo.startsWith(it.desc)) } }
                 val escolarizacao = matches.filter { it.tipo == "0" || it.tipo.isBlank() }
+                // Padrão: só Escolarização. Diversificadas e AEE entram só se o usuário pediu.
+                val escolhidas = if (escolarizacao.isNotEmpty() || !incluirOutras) escolarizacao else matches
                 if (matches.isEmpty()) {
                     throw IllegalStateException("Turma \"$nome\" do quadro não encontrada na lista de turmas do SGE")
-                } else if (escolarizacao.isEmpty()) {
+                } else if (escolhidas.isEmpty()) {
                     historico.add("Turma ignorada (tipo não suportado): " + matches.joinToString { "tipo=" + it.tipo })
                     null
                 } else {
-                    val ids = escolarizacao.map { it.valor.substringBefore('_') }.distinct()
-                    check(ids.size == 1) { "Identificação ambígua da turma $nome: " + escolarizacao.joinToString { "valor=" + it.valor } }
-                    TurmaMonitorada(ids.single(), nome, escolarizacao.first().escola, cells[1].text().trim())
+                    val ids = escolhidas.map { it.valor.substringBefore('_') }.distinct()
+                    check(ids.size == 1) { "Identificação ambígua da turma $nome: " + escolhidas.joinToString { "valor=" + it.valor } }
+                    TurmaMonitorada(ids.single(), nome, escolhidas.first().escola, cells[1].text().trim(), escolhidas.first().tipo)
                 }
             }
         }.distinct()
@@ -344,6 +346,7 @@ class SgeReadClient(cookies: String, private val userAgent: String, private val 
     private val janelasBim = mutableMapOf<String, Pair<LocalDate, LocalDate>?>()
     /** Datas do bimestre do filtro, lidas do próprio SGE. Null = sem recorte (ano inteiro). */
     fun janelaDoFiltro(turmaId: String): Pair<LocalDate, LocalDate>? {
+        if (bimestreFiltro == 5) return null
         val hoje = LocalDate.now()
         val zero = bimestreZero ?: (janelaDoBimestre("0", turmaId) != null).also { bimestreZero = it }
         fun janelaN(n: Int) = janelasBim.getOrPut("$turmaId|$n") { janelaDoBimestre((if (zero) n - 1 else n).toString(), turmaId) }
@@ -509,9 +512,19 @@ object SgeParsing {
 object SgeBimestre {
     const val CHAVE = "bimestre_filtro"
     fun ler(context: android.content.Context): Int =
-        context.getSharedPreferences(SgePainelStore.PREFS_NAME, android.content.Context.MODE_PRIVATE).getInt(CHAVE, 0).coerceIn(0, 4)
-    fun rotulo(valor: Int): String = if (valor in 1..4) "$valor° bimestre" else "bimestre atual"
+        context.getSharedPreferences(SgePainelStore.PREFS_NAME, android.content.Context.MODE_PRIVATE).getInt(CHAVE, 0).coerceIn(0, 5)
+    fun rotulo(valor: Int): String = when (valor) { in 1..4 -> "$valor° bimestre"; 5 -> "todos os bimestres"; else -> "bimestre atual" }
     fun salvar(context: android.content.Context, valor: Int) {
-        context.getSharedPreferences(SgePainelStore.PREFS_NAME, android.content.Context.MODE_PRIVATE).edit().putInt(CHAVE, valor.coerceIn(0, 4)).apply()
+        context.getSharedPreferences(SgePainelStore.PREFS_NAME, android.content.Context.MODE_PRIVATE).edit().putInt(CHAVE, valor.coerceIn(0, 5)).apply()
+    }
+}
+
+/** Escopo de turmas: diversificadas e AEE ficam fora da busca, a não ser que o usuário peça. */
+object SgeEscopo {
+    const val CHAVE = "incluir_outras_turmas"
+    fun incluirOutras(context: android.content.Context): Boolean =
+        context.getSharedPreferences(SgePainelStore.PREFS_NAME, android.content.Context.MODE_PRIVATE).getBoolean(CHAVE, false)
+    fun salvar(context: android.content.Context, valor: Boolean) {
+        context.getSharedPreferences(SgePainelStore.PREFS_NAME, android.content.Context.MODE_PRIVATE).edit().putBoolean(CHAVE, valor).apply()
     }
 }

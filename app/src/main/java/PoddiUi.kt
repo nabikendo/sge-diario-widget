@@ -109,7 +109,7 @@ fun HeroResumo(
     val semDados = consultadas == 0
     // Mostra o bimestre aplicado no cálculo (o escolhido em Ajustes, ou o atual por padrão).
     val escolhido = SgeBimestre.ler(LocalContext.current)
-    val rotuloBimestre = if (escolhido in 1..4) "$escolhido° BIMESTRE" else "BIMESTRE ATUAL"
+    val rotuloBimestre = when (escolhido) { in 1..4 -> "$escolhido° BIMESTRE"; 5 -> "TODOS OS BIMESTRES"; else -> "BIMESTRE ATUAL" }
     val progresso = if (totalTurmas > 0) emDia.toFloat() / totalTurmas else 0f
     Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(RaioHero))
         .background(Brush.verticalGradient(listOf(MentaClaro, MentaMedio)))) {

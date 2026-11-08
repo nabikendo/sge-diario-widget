@@ -191,11 +191,27 @@ fun TelaAjustes(tema: Int, cor: Int, versao: String, aoTema: (Int) -> Unit, aoCo
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
         Text("Do seu jeito.", style = MaterialTheme.typography.displaySmall)
         Surface(color = MaterialTheme.colorScheme.surface, shape = MaterialTheme.shapes.large) {
+            val ctxTurmas = androidx.compose.ui.platform.LocalContext.current
+            var outras by remember { mutableStateOf(br.to.seduc.sgediariowidget.data.SgeEscopo.incluirOutras(ctxTurmas)) }
+            Row(Modifier.padding(19.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("Turmas diversificadas e AEE", style = MaterialTheme.typography.titleMedium)
+                    Text("Ficam fora da verificação por padrão. Ative para buscar e sincronizar essas turmas também.", style = MaterialTheme.typography.bodySmall)
+                }
+                Switch(checked = outras, onCheckedChange = {
+                    outras = it
+                    br.to.seduc.sgediariowidget.data.SgeEscopo.salvar(ctxTurmas, it)
+                    br.to.seduc.sgediariowidget.worker.SgeSyncWorker.sincronizarAgora(ctxTurmas)
+                })
+            }
+        }
+        Spacer(Modifier.height(12.dp))
+        Surface(color = MaterialTheme.colorScheme.surface, shape = MaterialTheme.shapes.large) {
             Column(Modifier.padding(19.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 Text("Bimestre do painel", style = MaterialTheme.typography.titleMedium)
                 Text("Conteúdos e Frequência mostram só o bimestre escolhido. Por padrão, o bimestre atual. Depois de trocar, toque em atualizar.", style = MaterialTheme.typography.bodySmall)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf(0 to "Atual", 1 to "1º", 2 to "2º", 3 to "3º", 4 to "4º").forEach { (valor, rotulo) ->
+                    listOf(0 to "Atual", 1 to "1º", 2 to "2º", 3 to "3º", 4 to "4º", 5 to "Todos").forEach { (valor, rotulo) ->
                         FilterChip(selected = bimestreEscolhido == valor, onClick = {
                             bimestreEscolhido = valor; aoBimestre(valor)
                             android.widget.Toast.makeText(ctxUi, "Bimestre: $rotulo. Toque em atualizar para carregar.", android.widget.Toast.LENGTH_SHORT).show()
