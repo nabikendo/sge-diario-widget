@@ -1,7 +1,9 @@
-SGE Diário 2.5.12
+SGE Diário 2.5.13
 
-### Correção
-- Turmas diversificadas são reconhecidas pelo nome: 3 ou 4 dígitos antes do ponto (ex.: 115.09, 1111.01). Por padrão ficam fora da verificação; ative "Turmas diversificadas e AEE" em Ajustes para incluí-las.
-- Turmas de Escolarização (1 ou 2 dígitos, ex.: 13.01) continuam na verificação padrão.
+### Correções e ajustes
+- Categorias de turma pelo nome: Escolarização (1 ou 2 dígitos), Diversificada (3 dígitos) e AEE (4 dígitos).
+- Por padrão, só Escolarização entra na verificação. Diversificadas e AEE têm interruptores próprios em Ajustes; ao ativar, o app busca e sincroniza essas turmas.
+- Bimestre "Todos" mostra o ano inteiro.
+- README e tela Sobre reorganizados.
 
 Instala por cima da versão anterior.
