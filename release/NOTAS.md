@@ -1,7 +1,8 @@
-SGE Diário 2.5.8
+SGE Diário 2.5.9
 
-### Correções de layout
-- A barra de navegação em pílula some enquanto o teclado está aberto, deixando a página do SGE Web com todo o espaço no login.
-- Em janelas baixas (celular na horizontal, tela dividida), a barra fica compacta e o conteúdo ganha espaço.
+### Novidades
+- Bimestre do painel: escolha Atual, 1º, 2º, 3º ou 4º em Ajustes. Conteúdos e Frequência passam a considerar só o bimestre escolhido. Por padrão, o bimestre atual. Toque em atualizar depois de trocar.
+- O cabeçalho do Hero mostra o bimestre aplicado.
+- Coordenação: no grupo de um professor, sincronizar verifica só as disciplinas dele; as demais turmas e disciplinas mantêm o último resultado.
 
 Instala por cima da versão anterior.
