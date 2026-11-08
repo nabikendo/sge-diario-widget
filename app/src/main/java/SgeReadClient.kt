@@ -213,7 +213,7 @@ class SgeReadClient(cookies: String, private val userAgent: String, private val 
             "StatusConteudoAplicado" to "", "DataInicio" to "", "DataFinal" to "")))
         val html = j.getString("html")
         conteudosHtml[t.id + "/" + t.disciplina] = html
-        SgeParsing.conteudos(html, t.disciplina, LocalDate.now())
+        SgeParsing.conteudos(html, t.disciplina, LocalDate.now(), janelaDoFiltro(t.id))
     }
     fun frequencia(t: TurmaMonitorada): ResultadoModulo = consulta {
         val j = JSONObject(request("/NotasFaltas/ObtenhaInicioFimParametros", mapOf("turmaId" to t.id, "bimestre" to "", "mes" to "")))
@@ -221,9 +221,14 @@ class SgeReadClient(cookies: String, private val userAgent: String, private val 
         val inicio = LocalDate.parse(j.getString("dataInicio"), format)
         val fim = minOf(LocalDate.now(), LocalDate.parse(j.getString("dataFim"), format))
         if (fim < inicio) return@consulta ResultadoModulo(0, "Período letivo ainda não iniciado.", coberturaCompleta = true)
+        // Recorte pelo bimestre escolhido (ou o atual): consulta só o intervalo dele.
+        val janela = janelaDoFiltro(t.id)
+        val ini = janela?.let { maxOf(it.first, inicio) } ?: inicio
+        val fimJanela = janela?.let { minOf(it.second, fim) } ?: fim
+        if (fimJanela < ini) return@consulta ResultadoModulo(0, "Ainda não há aulas neste bimestre até hoje.", coberturaCompleta = true)
         val response = JSONObject(request("/NotasFaltas/ListarFrequencia", mapOf(
             "turmaId" to t.id, "gradeEscolarId" to grade(t), "bimestre" to "", "mes" to "",
-            "dataInicial" to inicio.format(format), "dataFinal" to fim.format(format), "frequenciaNaoConcluida" to "true"), true))
+            "dataInicial" to ini.format(format), "dataFinal" to fimJanela.format(format), "frequenciaNaoConcluida" to "true"), true))
         val htmlFreq = response.optString("html")
         if (htmlFreq.isBlank()) {
             // Sem tabela: o SGE pode estar informando que não há registros, ou uma falha.
@@ -235,7 +240,7 @@ class SgeReadClient(cookies: String, private val userAgent: String, private val 
             error("O SGE respondeu sem a tabela de frequência (campos: ${response.keys().asSequence().joinToString(",")}" +
                 (msg?.let { "; mensagem: ${it.take(120)}" } ?: "") + ")")
         }
-        SgeParsing.frequencia(htmlFreq, fim)
+        SgeParsing.frequencia(htmlFreq, fimJanela)
     }
     fun planos(t: TurmaMonitorada, tipoNome: String): ResultadoModulo = consulta {
         val page = Jsoup.parse(request("/planejamentoturma", mapOf("turmaId" to t.id)))
@@ -334,6 +339,17 @@ class SgeReadClient(cookies: String, private val userAgent: String, private val 
         return ausentes to semDatas
     }
     private var bimestreZero: Boolean? = null
+    /** 0 = bimestre atual (pela data de hoje); 1 a 4 = bimestre escolhido pelo usuário. */
+    var bimestreFiltro: Int = 0
+    private val janelasBim = mutableMapOf<String, Pair<LocalDate, LocalDate>?>()
+    /** Datas do bimestre do filtro, lidas do próprio SGE. Null = sem recorte (ano inteiro). */
+    fun janelaDoFiltro(turmaId: String): Pair<LocalDate, LocalDate>? {
+        val hoje = LocalDate.now()
+        val zero = bimestreZero ?: (janelaDoBimestre("0", turmaId) != null).also { bimestreZero = it }
+        fun janelaN(n: Int) = janelasBim.getOrPut("$turmaId|$n") { janelaDoBimestre((if (zero) n - 1 else n).toString(), turmaId) }
+        if (bimestreFiltro in 1..4) return janelaN(bimestreFiltro) ?: error("Não encontrei as datas do ${bimestreFiltro}º bimestre no SGE")
+        return (1..4).asSequence().map { janelaN(it) }.firstOrNull { it != null && !hoje.isBefore(it.first) && !hoje.isAfter(it.second) }
+    }
     private fun janelaDoBimestre(param: String, turmaId: String): Pair<LocalDate, LocalDate>? = runCatching {
         val j = JSONObject(request("/NotasFaltas/ObtenhaInicioFimParametros", mapOf("turmaId" to turmaId, "bimestre" to param, "mes" to "")))
         val f = DateTimeFormatter.ofPattern("dd/MM/uuuu")
@@ -430,7 +446,9 @@ object SgeParsing {
     private val curto = DateTimeFormatter.ofPattern("dd/MM")
     private fun listaDatas(l: List<LocalDate>) =
         if (l.isEmpty()) "." else ": " + l.take(15).joinToString(", ") { it.format(curto) } + if (l.size > 15) "…" else ""
-    fun conteudos(html: String, disciplina: String, hoje: LocalDate): ResultadoModulo {
+    fun conteudos(html: String, disciplina: String, hojeReal: LocalDate, janela: Pair<LocalDate, LocalDate>? = null): ResultadoModulo {
+        val hoje = janela?.let { minOf(it.second, hojeReal) } ?: hojeReal
+        val desde = janela?.first ?: LocalDate.MIN
         val doc = Jsoup.parse(html)
         check(doc.select(".calendario .semana").isNotEmpty()) { "Calendário ausente" }
         val pendentes = doc.select(".calendario .semana .vermelho").mapNotNull { day ->
@@ -439,7 +457,7 @@ object SgeParsing {
             check(popup.select("tr td:first-child").isNotEmpty()) { "Componente ausente no detalhe" }
             val linhas = popup.select("tr").asSequence()
                 .filter { it.selectFirst("td")?.text()?.trim().equals(disciplina, true) }.toList()
-            if (d.isAfter(hoje) || linhas.isEmpty()) null else {
+            if (d.isAfter(hoje) || d.isBefore(desde) || linhas.isEmpty()) null else {
                 // Janela do dia: ícone de editar = aula já lançada. Com o filtro do componente, dia vermelho
                 // com alguma aula da disciplina sem esse ícone = conteúdo ainda não registrado.
                 if (linhas.any { it.select("i.fa-edit").isEmpty() }) d else null
@@ -484,5 +502,15 @@ object SgeParsing {
         val approved = statuses.count { it.equals("Aprovado", true) }
         return ResultadoModulo(pending, "${statuses.size} registros: $waiting aguardando avaliação; $approved aprovados. " +
             "* Somente registros existentes; planos e PEIs ainda não criados precisam de conferência de cobertura.", waiting, approved)
+    }
+}
+
+/** Bimestre escolhido no Ajustes: 0 = atual (padrão), 1 a 4 = bimestre específico. */
+object SgeBimestre {
+    const val CHAVE = "bimestre_filtro"
+    fun ler(context: android.content.Context): Int =
+        context.getSharedPreferences(SgePainelStore.PREFS_NAME, android.content.Context.MODE_PRIVATE).getInt(CHAVE, 0).coerceIn(0, 4)
+    fun salvar(context: android.content.Context, valor: Int) {
+        context.getSharedPreferences(SgePainelStore.PREFS_NAME, android.content.Context.MODE_PRIVATE).edit().putInt(CHAVE, valor.coerceIn(0, 4)).apply()
     }
 }

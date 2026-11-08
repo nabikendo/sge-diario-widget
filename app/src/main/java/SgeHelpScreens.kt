@@ -182,12 +182,28 @@ fun TelaAjustes(tema: Int, cor: Int, versao: String, aoTema: (Int) -> Unit, aoCo
     aoSobre: () -> Unit, aoSair: () -> Unit, aoLimpar: () -> Unit,
     aoHistorico: () -> Unit = {}, bloqueio: Boolean = false, aoBloqueio: (Boolean) -> Unit = {},
     noturna: Boolean = false, aoNoturna: (Boolean) -> Unit = {}, statusNoturno: String = "", aoEconomia: ()->Unit = {}, aoBackup: ()->Unit = {}, aoAtualizacoes: ()->Unit = {},
-    horarioLembrete: String = "17:00", aoEscolherHorarioLembrete: () -> Unit = {}) {
+    horarioLembrete: String = "17:00", aoEscolherHorarioLembrete: () -> Unit = {},
+    bimestre: Int = 0, aoBimestre: (Int) -> Unit = {}) {
     var confirmar by remember { mutableStateOf(0) }
+    var bimestreEscolhido by remember { mutableStateOf(bimestre) }
     var saude by remember { mutableStateOf(false) }
     val ctxUi = LocalContext.current
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
         Text("Do seu jeito.", style = MaterialTheme.typography.displaySmall)
+        Surface(color = MaterialTheme.colorScheme.surface, shape = MaterialTheme.shapes.large) {
+            Column(Modifier.padding(19.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                Text("Bimestre do painel", style = MaterialTheme.typography.titleMedium)
+                Text("Conteúdos e Frequência mostram só o bimestre escolhido. Por padrão, o bimestre atual. Depois de trocar, toque em atualizar.", style = MaterialTheme.typography.bodySmall)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf(0 to "Atual", 1 to "1º", 2 to "2º", 3 to "3º", 4 to "4º").forEach { (valor, rotulo) ->
+                        FilterChip(selected = bimestreEscolhido == valor, onClick = {
+                            bimestreEscolhido = valor; aoBimestre(valor)
+                            android.widget.Toast.makeText(ctxUi, "Bimestre: $rotulo. Toque em atualizar para carregar.", android.widget.Toast.LENGTH_SHORT).show()
+                        }, label = { Text(rotulo) })
+                    }
+                }
+            }
+        }
         Surface(color = MaterialTheme.colorScheme.surface, shape = MaterialTheme.shapes.large) {
             Column(Modifier.padding(19.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {

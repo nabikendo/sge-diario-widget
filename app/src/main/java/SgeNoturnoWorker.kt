@@ -31,6 +31,7 @@ class SgeNoturnoWorker(private val ctx: Context, params: WorkerParameters) : Cor
             if (cookie.isNullOrBlank()) throw SessaoExpirada()
             val agent = prefs.getString("web_user_agent", null) ?: return Result.success()
             val client = SgeReadClient(cookie, agent, prefs.getString("turmas_contexto", null)) { cookiesAtualizados.add(it) }
+            client.bimestreFiltro = SgeBimestre.ler(ctx)
             val escola = withContext(Dispatchers.IO) { withTimeout(40_000L) { client.ehPerfilEscola() } }
             SgeSessaoStore.salvar(ctx, client.perfilObservado)
             if (!escola) { status("Verificação noturna: mantenha uma sessão Unidade escolar para consultar a escola."); return Result.success() }
