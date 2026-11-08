@@ -65,7 +65,7 @@ class SgeSyncWorker(private val ctx: Context, params: WorkerParameters) : Corout
             }
 
             val turmas = withTimeout(90_000L) {
-                withContext(Dispatchers.IO) { client.turmas(SgeEscopo.incluirOutras(ctx)) }
+                withContext(Dispatchers.IO) { client.turmas(SgeEscopo.incluidas(ctx)) }
             }
             val todosIds = turmas.map { chaveVinculo(it.id, it.disciplina) }.toSet()
             // Continuar segue de onde parou; qualquer outra consulta recomeça do zero.

@@ -32,15 +32,15 @@ fun TelaSobre(versao: String, abrir: (String) -> Unit) {
         }
         Surface(color = MaterialTheme.colorScheme.surface, shape = MaterialTheme.shapes.large) {
             Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text("CRIAÇÃO", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("AUTORIA", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text("Criado por ${Creditos.AUTOR}", style = MaterialTheme.typography.titleMedium)
-                Text("Ideia, testes e manutenção. Desenvolvimento assistido por Claude, da Anthropic.",
+                Text("Ideia, testes e manutenção por ${Creditos.AUTOR}. Código desenvolvido com apoio do Claude, da Anthropic.",
                     style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
         Surface(color = MaterialTheme.colorScheme.surface, shape = MaterialTheme.shapes.large) {
             Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text("PRIVACIDADE E AVISOS", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("PRIVACIDADE", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text("O app só lê dados do SGE e nunca grava nada nele. A senha fica na página de login do SGE; o app não a lê nem a guarda. Os painéis ficam apenas neste aparelho, sem anúncios nem estatísticas de uso.",
                     style = MaterialTheme.typography.bodyMedium)
                 Text("Aplicativo independente e não oficial: não tem vínculo com a Seduc-TO nem com a Ponto iD. SGE e os demais nomes pertencem aos seus titulares.",
@@ -49,7 +49,7 @@ fun TelaSobre(versao: String, abrir: (String) -> Unit) {
         }
         Surface(color = MaterialTheme.colorScheme.surface, shape = MaterialTheme.shapes.large) {
             Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text("CÓDIGO ABERTO", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("CÓDIGO ABERTO E LICENÇA", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text("Licença ${Creditos.LICENCA}. Usa Jetpack Compose, Glance e WorkManager (Apache 2.0) e Jsoup (MIT).",
                     style = MaterialTheme.typography.bodyMedium)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

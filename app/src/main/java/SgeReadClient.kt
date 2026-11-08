@@ -116,7 +116,7 @@ class SgeReadClient(cookies: String, private val userAgent: String, private val 
         return SgeDocentesParsing.analisarVinculos(json.getString("html"), professor, turmas)
     }
 
-    fun turmas(incluirOutras: Boolean = false): List<TurmaMonitorada> {
+    fun turmas(incluir: Set<String> = emptySet()): List<TurmaMonitorada> {
         val home = Jsoup.parse(request("/", ajax = false))
         // O SGE carrega esta tela em #content por AJAX. O GET direto da rota
         // retorna a página de entrada sem o formulário/identidade do professor.
@@ -178,11 +178,15 @@ class SgeReadClient(cookies: String, private val userAgent: String, private val 
                 val alvo = norm(nome)
                 val exatas = opcoes.filter { it.desc == alvo }
                 val matches = exatas.ifEmpty { opcoes.filter { it.desc.isNotEmpty() && (it.desc.startsWith(alvo) || alvo.startsWith(it.desc)) } }
-                // Diversificadas: 3 ou 4 dígitos antes do ponto (ex.: 115.09, 1111.01). Escolarização: 1 ou 2 (ex.: 13.01).
-                val diversificada = Regex("^\\d{3,4}\\.").containsMatchIn(nome)
-                val escolarizacao = matches.filter { (it.tipo == "0" || it.tipo.isBlank()) && !diversificada }
-                // Padrão: só Escolarização. Diversificadas e AEE entram só se o usuário pediu.
-                val escolhidas = if (escolarizacao.isNotEmpty() || !incluirOutras) escolarizacao else matches
+                // Categoria pelo nome: 1–2 dígitos = Escolarização; 3 = Diversificada; 4 = AEE.
+                val categoria = categoriaTurma(nome)
+                val escolarizacao = matches.filter { it.tipo == "0" || it.tipo.isBlank() }
+                // Padrão: só Escolarização. Diversificada e AEE entram só quando o usuário ativa a categoria em Ajustes.
+                val escolhidas = when {
+                    categoria == "ESCOLARIZACAO" -> escolarizacao
+                    categoria in incluir -> matches
+                    else -> emptyList()
+                }
                 if (matches.isEmpty()) {
                     throw IllegalStateException("Turma \"$nome\" do quadro não encontrada na lista de turmas do SGE")
                 } else if (escolhidas.isEmpty()) {
@@ -521,12 +525,25 @@ object SgeBimestre {
     }
 }
 
-/** Escopo de turmas: diversificadas e AEE ficam fora da busca, a não ser que o usuário peça. */
+/** Categoria da turma pelo nome: 3 dígitos antes do ponto = diversificada; 4 = AEE; demais = escolarização. */
+fun categoriaTurma(nome: String): String {
+    val digitos = Regex("^(\\d+)\\.").find(nome.trim())?.groupValues?.get(1)?.length ?: 0
+    return when (digitos) { 3 -> "DIVERSIFICADA"; 4 -> "AEE"; else -> "ESCOLARIZACAO" }
+}
+
+/** Categorias incluídas na busca de turmas. Padrão: nenhuma (só Escolarização). */
 object SgeEscopo {
-    const val CHAVE = "incluir_outras_turmas"
-    fun incluirOutras(context: android.content.Context): Boolean =
-        context.getSharedPreferences(SgePainelStore.PREFS_NAME, android.content.Context.MODE_PRIVATE).getBoolean(CHAVE, false)
-    fun salvar(context: android.content.Context, valor: Boolean) {
-        context.getSharedPreferences(SgePainelStore.PREFS_NAME, android.content.Context.MODE_PRIVATE).edit().putBoolean(CHAVE, valor).apply()
+    const val CHAVE_DIVERSIFICADA = "incluir_diversificada"
+    const val CHAVE_AEE = "incluir_aee"
+    private fun prefs(context: android.content.Context) =
+        context.getSharedPreferences(SgePainelStore.PREFS_NAME, android.content.Context.MODE_PRIVATE)
+    fun incluidas(context: android.content.Context): Set<String> = buildSet {
+        if (prefs(context).getBoolean(CHAVE_DIVERSIFICADA, false)) add("DIVERSIFICADA")
+        if (prefs(context).getBoolean(CHAVE_AEE, false)) add("AEE")
+    }
+    fun ativa(context: android.content.Context, categoria: String): Boolean = categoria in incluidas(context)
+    fun salvar(context: android.content.Context, categoria: String, valor: Boolean) {
+        val chave = if (categoria == "AEE") CHAVE_AEE else CHAVE_DIVERSIFICADA
+        prefs(context).edit().putBoolean(chave, valor).apply()
     }
 }

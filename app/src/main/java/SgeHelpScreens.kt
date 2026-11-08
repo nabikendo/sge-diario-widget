@@ -192,17 +192,20 @@ fun TelaAjustes(tema: Int, cor: Int, versao: String, aoTema: (Int) -> Unit, aoCo
         Text("Do seu jeito.", style = MaterialTheme.typography.displaySmall)
         Surface(color = MaterialTheme.colorScheme.surface, shape = MaterialTheme.shapes.large) {
             val ctxTurmas = androidx.compose.ui.platform.LocalContext.current
-            var outras by remember { mutableStateOf(br.to.seduc.sgediariowidget.data.SgeEscopo.incluirOutras(ctxTurmas)) }
-            Row(Modifier.padding(19.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text("Turmas diversificadas e AEE", style = MaterialTheme.typography.titleMedium)
-                    Text("Ficam fora da verificação por padrão. Ative para buscar e sincronizar essas turmas também.", style = MaterialTheme.typography.bodySmall)
+            Column(Modifier.padding(19.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                Text("Outras turmas", style = MaterialTheme.typography.titleMedium)
+                Text("Escolarização (1 ou 2 dígitos, ex.: 13.01) fica sempre na verificação. As demais ficam de fora até você ativar.", style = MaterialTheme.typography.bodySmall)
+                listOf("DIVERSIFICADA" to "Diversificadas (3 dígitos, ex.: 115.09)", "AEE" to "AEE (4 dígitos, ex.: 1111.01)").forEach { (categoria, titulo) ->
+                    var ativa by remember { mutableStateOf(br.to.seduc.sgediariowidget.data.SgeEscopo.ativa(ctxTurmas, categoria)) }
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text(titulo, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                        Switch(checked = ativa, onCheckedChange = {
+                            ativa = it
+                            br.to.seduc.sgediariowidget.data.SgeEscopo.salvar(ctxTurmas, categoria, it)
+                            br.to.seduc.sgediariowidget.worker.SgeSyncWorker.sincronizarAgora(ctxTurmas)
+                        })
+                    }
                 }
-                Switch(checked = outras, onCheckedChange = {
-                    outras = it
-                    br.to.seduc.sgediariowidget.data.SgeEscopo.salvar(ctxTurmas, it)
-                    br.to.seduc.sgediariowidget.worker.SgeSyncWorker.sincronizarAgora(ctxTurmas)
-                })
             }
         }
         Spacer(Modifier.height(12.dp))
