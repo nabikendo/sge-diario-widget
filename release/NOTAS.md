@@ -1,9 +1,8 @@
-SGE Diário 2.5.10
+SGE Diário 2.5.11
 
 ### Novidades
-- Seletor de bimestre na tela inicial, na coordenação e no diário: Atual, 1º, 2º, 3º ou 4º. Ao trocar, o painel sincroniza sozinho e mostra as pendências do bimestre escolhido.
-- Conteúdos e Frequência consideram só o bimestre escolhido. O bimestre aplicado aparece no cabeçalho do painel.
-- O PDF exportado traz o bimestre no cabeçalho.
-- Coordenação: no grupo de um professor, sincronizar verifica só as disciplinas dele; as demais turmas mantêm o último resultado.
+- Bimestre: nova opção "Todos", que mostra o ano inteiro. Vale para a tela inicial e para Ajustes.
+- Escopo de turmas: por padrão, a verificação considera só turmas de Escolarização. Turmas diversificadas e AEE entram quando você ativa "Turmas diversificadas e AEE" em Ajustes; o app então busca e sincroniza essas turmas também.
+- O bimestre aplicado aparece no cabeçalho do painel, inclusive em "Todos os bimestres".
 
 Instala por cima da versão anterior.
