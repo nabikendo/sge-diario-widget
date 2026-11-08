@@ -178,7 +178,9 @@ class SgeReadClient(cookies: String, private val userAgent: String, private val 
                 val alvo = norm(nome)
                 val exatas = opcoes.filter { it.desc == alvo }
                 val matches = exatas.ifEmpty { opcoes.filter { it.desc.isNotEmpty() && (it.desc.startsWith(alvo) || alvo.startsWith(it.desc)) } }
-                val escolarizacao = matches.filter { it.tipo == "0" || it.tipo.isBlank() }
+                // Diversificadas: 3 ou 4 dígitos antes do ponto (ex.: 115.09, 1111.01). Escolarização: 1 ou 2 (ex.: 13.01).
+                val diversificada = Regex("^\\d{3,4}\\.").containsMatchIn(nome)
+                val escolarizacao = matches.filter { (it.tipo == "0" || it.tipo.isBlank()) && !diversificada }
                 // Padrão: só Escolarização. Diversificadas e AEE entram só se o usuário pediu.
                 val escolhidas = if (escolarizacao.isNotEmpty() || !incluirOutras) escolarizacao else matches
                 if (matches.isEmpty()) {
