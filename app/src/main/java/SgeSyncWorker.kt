@@ -189,7 +189,13 @@ class SgeSyncWorker(private val ctx: Context, params: WorkerParameters) : Corout
         }
         val anterior = painel.turmas.firstOrNull { it.id == alvo } ?: CoordTurma(alvo, nome)
         gravar(anterior.copy(erro = null), "Lendo as disciplinas de $nome…", true)
-        val nomes = withTimeout(60_000L) { withContext(Dispatchers.IO) { client.disciplinasDaTurma(alvo) } }
+        // Sincronização por professor: só as disciplinas dele; as demais continuam como estavam.
+        val escolhidos = inputData.getString("coord_componentes")?.let { s ->
+            JSONArray(s).let { a -> (0 until a.length()).map { normalizarSge(a.getString(it)) }.toSet() }
+        }
+        val todas = withTimeout(60_000L) { withContext(Dispatchers.IO) { client.disciplinasDaTurma(alvo) } }
+        val nomes = if (escolhidos == null) todas else todas.filter { normalizarSge(it) in escolhidos }
+        val mantidas = if (escolhidos == null) emptyList() else anterior.disciplinas.filter { normalizarSge(it.turma.disciplina) !in escolhidos }
         val feitas = mutableListOf<ResultadoTurma>()
         for ((i, d) in nomes.withIndex()) {
             gravar(CoordTurma(alvo, nome, SgeDashboard.progresso(anterior.disciplinas, feitas, nomes.map { chaveVinculo(alvo, it) }.toSet()), null, anterior.atualizado, anterior.atualizadoMs),
@@ -203,9 +209,9 @@ class SgeSyncWorker(private val ctx: Context, params: WorkerParameters) : Corout
             feitas.add(ResultadoTurma(t, modulos, agora()))
         }
         val temModuloFalho = feitas.any { r -> r.modulos.any { it.quantidade == null } }
-        val fimTurma = CoordTurma(alvo, nome, feitas,
+        val fimTurma = CoordTurma(alvo, nome, mantidas + feitas,
             if (temModuloFalho) "Uma ou mais consultas de módulo não foram verificadas." else null, agora(), System.currentTimeMillis())
-        val mudancas = SgeComparacao.calcular(anterior.disciplinas, feitas)
+        val mudancas = SgeComparacao.calcular(if (escolhidos == null) anterior.disciplinas else anterior.disciplinas.filterNot { it in mantidas }, feitas)
         val restaTurma = SgeFila.ler(ctx)?.ids.orEmpty().any { it != alvo }
         val mensagem = if (temModuloFalho) "$nome consultada com falhas. ${feitas.size} disciplina(s) lida(s); algumas consultas precisam ser repetidas."
             else "$nome verificada: ${feitas.size} disciplina(s)."
@@ -306,6 +312,15 @@ class SgeSyncWorker(private val ctx: Context, params: WorkerParameters) : Corout
         private fun enfileirar(context: Context, ids: List<String>, substituir: Boolean, automatica: Boolean) {
             val reqs = ids.map { OneTimeWorkRequestBuilder<SgeSyncWorker>().setConstraints(if (automatica) SgeEconomia.restricoes(context) else rede()).setInputData(workDataOf("coord_alvo" to it, "auto" to automatica)).build() }
             var c = WorkManager.getInstance(context).beginUniqueWork("sge_coord", if (substituir) ExistingWorkPolicy.REPLACE else ExistingWorkPolicy.KEEP, reqs.first())
+            reqs.drop(1).forEach { c = c.then(it) }
+            SgeSessaoStore.gravarSeAtual(context) { c.enqueue() }
+        }
+        /** Sincroniza só as disciplinas indicadas: turmaId → componentes. */
+        fun verificarComponentes(context: Context, pares: Map<String, Set<String>>) {
+            if (pares.isEmpty()) return
+            val reqs = pares.map { (turma, comps) -> OneTimeWorkRequestBuilder<SgeSyncWorker>().setConstraints(rede())
+                .setInputData(workDataOf("coord_alvo" to turma, "coord_componentes" to JSONArray(comps.toList()).toString(), "auto" to false, "manual" to true)).build() }
+            var c = WorkManager.getInstance(context).beginUniqueWork("sge_coord", ExistingWorkPolicy.REPLACE, reqs.first())
             reqs.drop(1).forEach { c = c.then(it) }
             SgeSessaoStore.gravarSeAtual(context) { c.enqueue() }
         }

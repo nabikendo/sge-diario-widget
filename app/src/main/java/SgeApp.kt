@@ -23,6 +23,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.semantics.Role
@@ -37,6 +38,11 @@ import br.to.seduc.sgediariowidget.widget.TipoWidget
 
 data class PedidoWidget(val fonte: FontePainel, val por: Agrupamento, val grupo: String, val evento: Long = System.nanoTime())
 private data class RotaSge(val aba: Int, val pagina: String?, val grupo: GrupoPendencias?, val fonte: FontePainel)
+
+/** Turma → disciplinas em que o professor do grupo leciona (vínculos já lidos do horário). */
+fun paresDoProfessor(g: GrupoPendencias, docentes: PainelDocentes): Map<String, Set<String>> =
+    docentes.vinculos.filter { it.docente.id in g.professorIds && it.turmaId in g.turmaIds }
+        .groupBy({ it.turmaId }, { it.componente }).mapValues { it.value.toSet() }
 
 @Composable
 fun AppDiario(
@@ -85,6 +91,7 @@ fun AppDiario(
     val rsCoord = coord.turmas.flatMap { it.disciplinas }
     val focus = LocalFocusManager.current
     val largo = LocalConfiguration.current.screenWidthDp >= 840
+    val ctxApp = LocalContext.current
     // Com o teclado aberto (login no SGE Web) a pílula sai de cena para não espremer a página.
     val tecladoAberto = WindowInsets.ime.getBottom(LocalDensity.current) > 0
     val saveable = rememberSaveableStateHolder()
@@ -226,7 +233,12 @@ fun AppDiario(
                                 val filtroAtual = if (rota.fonte == FontePainel.COORDENACAO) filtroCoord else filtroPessoal
                                 val recorte = if (filtroAtual.ativo) descreverFiltro(filtroAtual, docentes) else ""
                                 TelaDetalhes(g, rota.fonte, docentes,
-                                    { if (rota.fonte == FontePainel.COORDENACAO) aoVerificarTurmas(g.turmaIds.toList()) else aoSincronizarPessoal() },
+                                    { if (rota.fonte == FontePainel.COORDENACAO) {
+                                        // Grupo de um professor: sincroniza só as disciplinas dele.
+                                        val pares = if (g.professorIds.size == 1) paresDoProfessor(g, docentes) else emptyMap()
+                                        if (pares.isNotEmpty()) br.to.seduc.sgediariowidget.worker.SgeSyncWorker.verificarComponentes(ctxApp, pares)
+                                        else aoVerificarTurmas(g.turmaIds.toList())
+                                    } else aoSincronizarPessoal() },
                                     { detalhe = null; pagina = null; aba = 2 }, { vincular = it }, { aoCompartilhar(g, recorte) }, { aoPdf(g, rota.fonte, recorte) }, { aoPdfContato(g, rota.fonte, recorte) }, moduloDetalhe,
                                     mudancas = if (rota.fonte == FontePainel.COORDENACAO) coord.mudancas else painel.mudancas,
                                     aoAtalhoSge = { r, modulo ->
