@@ -418,7 +418,7 @@ class MainActivity : FragmentActivity() {
         val iniciar = {
             lifecycleScope.launch {
                 try {
-                    val arquivo = withContext(Dispatchers.IO) { SgeRelatorioPdf.criar(File(cacheDir, "relatorios"), g, fonte, recorte) }
+                    val arquivo = withContext(Dispatchers.IO) { SgeRelatorioPdf.criar(File(cacheDir, "relatorios"), g, fonte, recorte, SgeBimestre.ler(this@MainActivity)) }
                     if (!lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED) || (fonte == FontePainel.COORDENACAO && SgeSessaoStore.protegida(this@MainActivity) && !coordDesbloqueada.value)) return@launch
                     val uri = FileProvider.getUriForFile(this@MainActivity, "$packageName.arquivos", arquivo)
                     if (escolherContato) {

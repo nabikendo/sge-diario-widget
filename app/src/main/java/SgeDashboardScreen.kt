@@ -252,6 +252,9 @@ fun TelaCartoes(
             }
         }
         item(span = { GridItemSpan(maxLineSpan) }) {
+            SeletorBimestre(fonte, conhecidas.map { it.first })
+        }
+        item(span = { GridItemSpan(maxLineSpan) }) {
             HeroResumo(totalPendencias, pendentes, conferir, emDia, porTurma.size + naoConsultadas, porTurma.size, coberturaParcial, escola, carregando,
                 podeAtualizar = if (escola) conhecidas.isNotEmpty() else !carregando,
                 descricaoAcao = if (carregando) (if (escola) "Verificação em andamento" else "Atualizando o diário") else if (escola) "Verificar turmas" else "Atualizar diário",
@@ -483,4 +486,26 @@ fun TelaCartoes(
             mostrarSalvarFiltro = false
         }, enabled = nomeFiltro.isNotBlank()) { Text("Salvar") } },
         dismissButton = { TextButton(onClick = { mostrarSalvarFiltro = false }) { Text("Cancelar") } })
+}
+
+/**
+ * Seletor de bimestre na tela inicial (coordenação e diário). Ao trocar, grava a escolha e
+ * sincroniza sozinho: a coordenação verifica as turmas conhecidas; o diário, a sincronização pessoal.
+ */
+@Composable
+fun SeletorBimestre(fonte: FontePainel, turmasIds: List<String>) {
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    var escolhido by remember { mutableStateOf(br.to.seduc.sgediariowidget.data.SgeBimestre.ler(ctx)) }
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+        listOf(0 to "Atual", 1 to "1º", 2 to "2º", 3 to "3º", 4 to "4º").forEach { (valor, rotulo) ->
+            FilterChip(selected = escolhido == valor, onClick = {
+                if (escolhido != valor) {
+                    escolhido = valor
+                    br.to.seduc.sgediariowidget.data.SgeBimestre.salvar(ctx, valor)
+                    if (fonte == FontePainel.COORDENACAO) br.to.seduc.sgediariowidget.worker.SgeSyncWorker.verificarTurmas(ctx, turmasIds)
+                    else br.to.seduc.sgediariowidget.worker.SgeSyncWorker.sincronizarAgora(ctx)
+                }
+            }, label = { Text(rotulo) })
+        }
+    }
 }

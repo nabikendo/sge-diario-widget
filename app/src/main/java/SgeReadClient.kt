@@ -510,6 +510,7 @@ object SgeBimestre {
     const val CHAVE = "bimestre_filtro"
     fun ler(context: android.content.Context): Int =
         context.getSharedPreferences(SgePainelStore.PREFS_NAME, android.content.Context.MODE_PRIVATE).getInt(CHAVE, 0).coerceIn(0, 4)
+    fun rotulo(valor: Int): String = if (valor in 1..4) "$valor° bimestre" else "bimestre atual"
     fun salvar(context: android.content.Context, valor: Int) {
         context.getSharedPreferences(SgePainelStore.PREFS_NAME, android.content.Context.MODE_PRIVATE).edit().putInt(CHAVE, valor.coerceIn(0, 4)).apply()
     }

@@ -1,5 +1,6 @@
 package br.to.seduc.sgediariowidget
 
+import br.to.seduc.sgediariowidget.data.SgeBimestre
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
@@ -13,16 +14,19 @@ import java.time.format.DateTimeFormatter
 
 /** PDF A4 paginado, sem nomes de alunos nem credenciais e sem dependências de rede. */
 object SgeRelatorioPdf {
-    fun criar(diretorio: File, grupo: GrupoPendencias, fonte: FontePainel, recorte: String = ""): File {
+    fun criar(diretorio: File, grupo: GrupoPendencias, fonte: FontePainel, recorte: String = "", bimestreSalvo: Int = 0): File {
         diretorio.mkdirs()
         diretorio.listFiles()?.filter { it.name.startsWith("SGE-") && it.lastModified() < System.currentTimeMillis() - 86_400_000L }?.forEach { it.delete() }
         val arquivo = File.createTempFile("SGE-relatorio-", ".pdf", diretorio)
+        bimestreAtual = bimestreSalvo
         try { arquivo.outputStream().use { escreverGrupos(it, listOf(grupo), fonte, recorte = recorte) }; return arquivo }
         catch (e: Exception) { arquivo.delete(); throw e }
     }
     fun escrever(saida: OutputStream, grupo: GrupoPendencias, fonte: FontePainel, agora: LocalDateTime = LocalDateTime.now()) {
         escreverGrupos(saida, listOf(grupo), fonte, agora)
     }
+    /** Bimestre aplicado ao relatório; definido por criar() a partir do seletor salvo. */
+    @Volatile var bimestreAtual = 0
     fun escreverGrupos(saida: OutputStream, grupos: List<GrupoPendencias>, fonte: FontePainel, agora: LocalDateTime = LocalDateTime.now(), recibos: Boolean = false, comRecibo: Boolean = false, escola: String = "", responsavel: String = "", recorte: String = "") {
         require(grupos.isNotEmpty())
         if (!recibos) { SgeRelatorioTabela.escrever(saida, grupos, fonte, agora, comRecibo, escola, responsavel, recorte); return }
@@ -81,6 +85,7 @@ object SgeRelatorioPdf {
             linha(grupo.titulo, 22f, true); linha(grupo.subtitulo, 12f)
             if (escola.isNotBlank()) linha("Escola: $escola", 11f)
             if (recorte.isNotBlank()) linha("Recorte: $recorte", 10f)
+            linha("Bimestre: ${SgeBimestre.rotulo(bimestreAtual)}. Conteúdos e Frequência consideram só este bimestre.", 10f, true)
             linha("Gerado em ${agora.format(DateTimeFormatter.ofPattern("dd/MM/uuuu HH:mm"))}. Dados da última consulta de cada turma.", 9f)
             y += 8f
             if (grupo.compartilhado) linha("Docência compartilhada: cada turma/componente aparece uma vez. O relatório não atribui autoria individual de registros.", 10f)
