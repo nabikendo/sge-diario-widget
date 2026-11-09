@@ -505,13 +505,9 @@ object SgeParsing {
         val table = Jsoup.parse(html).selectFirst("#gridFrequencia") ?: error("Grade de frequência ausente")
         val dates = table.select("thead .cabecalhoMes").map { date(it.attr("title")) }
             .filter { !it.isAfter(ate) && (desde == null || !it.isBefore(desde)) }.distinct().sorted()
-        // O dia de hoje pode ainda estar sendo lançado no SGE: fica fora da contagem e aparece à parte.
-        val hoje = LocalDate.now()
-        val pendentes = dates.filter { it != hoje }
-        val nota = if (dates.any { it == hoje }) " Hoje (${hoje.format(format)}) não entra na contagem: o lançamento pode ainda não ter sido feito." else ""
-        return ResultadoModulo(pendentes.size,
-            "Dias do filtro oficial Somente Frequência Não Concluída até ${ate.format(format)}." + nota + listaDatas(pendentes), coberturaCompleta = true,
-            datas = DatasModulo(desde, ate, pendentes))
+        return ResultadoModulo(dates.size,
+            "Dias do filtro oficial Somente Frequência Não Concluída até ${ate.format(format)}" + listaDatas(dates), coberturaCompleta = true,
+            datas = DatasModulo(desde, ate, dates))
     }
     fun planos(html: String): ResultadoModulo {
         val table = Jsoup.parse(html).selectFirst("#tabela_planejamentos") ?: error("Grade de planos ausente")
