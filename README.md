@@ -80,6 +80,21 @@ Uma turma só aparece **em dia** quando os cinco módulos foram conferidos por c
 
 ---
 
+## Em breve — Auditoria Curricular
+
+Recurso **em desenvolvimento**, independente dos cinco módulos atuais. O app exibirá um botão próprio para verificar **habilidades e objetos de conhecimento** por escola, professor, turma, componente, série e bimestre.
+
+**Fluxo planejado:** a coordenação conversa com os professores na reunião presencial, registra em uma ficha quais habilidades e objetos serão trabalhados, e depois compara as escolhas com os lançamentos e vínculos efetivamente consultáveis no SGE. O texto de um conteúdo não comprova que uma habilidade foi vinculada. Se o SGE não fornecer evidência suficiente, o resultado será **Não verificado**, não uma ausência presumida.
+
+Matrizes de referência fornecidas: Ciências da Natureza (Ensino Médio), Matemática (Ensino Médio) e Matemática (Anos Finais). A distribuição bimestral só é assumida quando consta no documento ou é registrada no planejamento da reunião.
+
+- [Modelo de ficha para reunião pedagógica](docs/MODELO_REUNIAO_HABILIDADES.md)
+- [Especificação da auditoria curricular](docs/AUDITORIA_CURRICULAR.md)
+
+**Status:** anunciado no aplicativo, mas ainda não implementado como verificador funcional. Não está disponível na versão estável 2.5.13.
+
+---
+
 ## Privacidade
 
 O app é somente leitura. Não guarda senha nem cookie. Os dados ficam no aparelho, e o backup é manual, pelo seletor de arquivos do Android.
