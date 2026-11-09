@@ -326,6 +326,15 @@ fun TelaAjustes(tema: Int, cor: Int, versao: String, aoTema: (Int) -> Unit, aoCo
             Column(Modifier.padding(8.dp)) { LinhaAjuste("Sobre", "Versão, créditos, privacidade e licenças", SgeIcons.User, aoSobre) }
         }
         }
+        GrupoAjustes("Em breve") {
+            Surface(color = MaterialTheme.colorScheme.surface, shape = MaterialTheme.shapes.large) {
+                Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                    Text("Auditoria Curricular", style = MaterialTheme.typography.titleMedium)
+                    Text("Em desenvolvimento · habilidades e objetos de conhecimento por turma e bimestre. A conferência considerará as escolhas feitas na reunião presencial e os registros do SGE.",
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        }
         GrupoAjustes("Atualizações") {
             LinhaAjuste("Atualizações do app", "Verificar e instalar novas versões", SgeIcons.Refresh, aoAtualizacoes)
         }
