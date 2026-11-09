@@ -283,7 +283,7 @@ open class SgeBaseWidget(private val tipo: TipoWidget) : GlanceAppWidget(R.layou
         for ((indice, nome) in listOf(0 to "Cont.", 1 to "Freq.", 4 to "PEI")) {
             val acao = abrir(context, config, grupo?.chave ?: config.grupo, indice)
             if (modulos != null) ValorWidget(nome, modulos[indice], c, acao)
-            else Text(nome, GlanceModifier.defaultWeight().clickable(acao).padding(vertical = 4.dp),
+            else Text(nome, GlanceModifier.defaultWeight().clickable(acao).padding(top = 4.dp, bottom = 4.dp),
                 style = TextStyle(color = ColorProvider(c.acento), fontSize = 10.sp, fontWeight = FontWeight.Bold), maxLines = 1)
         }
     }

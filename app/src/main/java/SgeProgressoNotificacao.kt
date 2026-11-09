@@ -7,6 +7,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import android.text.SpannableStringBuilder
 import br.to.seduc.sgediariowidget.MainActivity
 import br.to.seduc.sgediariowidget.R
 
@@ -15,6 +16,7 @@ internal class SgeProgressoNotificacao(private val ctx: Context, private val tag
     private val manager = ctx.getSystemService(NotificationManager::class.java)
 
     fun mostrar(feitas: Int, total: Int) {
+        val manager = manager ?: return
         if (!manager.areNotificationsEnabled()) return
         val titulo = if (coordenacao) "Verificando turmas" else "Atualizando meu diário"
         val percentual = if (total > 0) (100 * feitas.toLong() / total).toInt().coerceIn(0, 100) else 0
@@ -38,17 +40,19 @@ internal class SgeProgressoNotificacao(private val ctx: Context, private val tag
                 .setTimeoutAfter(4 * 60_000L)
                 .setProgress(100, percentual, total == 0)
             if (Build.VERSION.SDK_INT >= 37 && total > 0 && manager.canPostPromotedNotifications()) {
-                builder.setRequestPromotedOngoing(true)
+                val textoInformativo = SpannableStringBuilder()
+                    .append("$feitas de $total", Notification.createSemanticStyleAnnotation(Notification.SEMANTIC_STYLE_INFO), 0)
+                    .append(" consultas processadas")
+                builder.setContentText(textoInformativo)
+                    .setRequestPromotedOngoing(true)
                     .setShortCriticalText("$percentual%")
-                    .setStyle(Notification.ProgressStyle()
-                        .setProgressSegments(listOf(Notification.ProgressStyle.Segment(100)))
-                        .setProgress(percentual))
+                    .setStyle(Notification.ProgressStyle().setProgress(percentual))
             }
             manager.notify(tag, ID, builder.build())
         }
     }
 
-    fun encerrar() = manager.cancel(tag, ID)
+    fun encerrar() { manager?.cancel(tag, ID) }
 
     private companion object {
         const val CANAL = "progresso_consulta"

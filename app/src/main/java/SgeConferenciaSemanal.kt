@@ -104,15 +104,25 @@ object SgeConferenciaSemanal {
                 }
             }
         }
-        val semConsulta = conhecidas.toMap() + coord.turmas.filter { it.erro != null }.associate { it.id to it.nome }
-        val porTurma = resultados.map { it.turma.id }.toSet()
+        val todasTurmas = conhecidas.toMap() + coord.turmas.associate { it.id to it.nome }
+        val chavesConsultadas = resultados.map(::chaveResultado).toSet()
+        val turmasConsultadas = resultados.map { it.turma.id }.toSet()
         val falhas = coord.turmas.filter { it.erro != null }.map { it.id }.toSet()
-        semConsulta.filterKeys { it !in porTurma || it in falhas }.forEach { (id, turma) ->
-            val vinculos = docentes.vinculos.filter { it.turmaId == id }.distinctBy { chaveVinculo(id, it.componente) to it.docente.id }
-            val naoConsultados = vinculos.filter { v -> resultados.none { chaveResultado(it) == chaveVinculo(id, v.componente) } }
-            if (naoConsultados.isEmpty()) linhas += null to LinhaSemanal(turma, "", "Consulta da turma", SituacaoSemanal.INCOMPLETA, null, "Há dados da turma sem verificação.")
-            naoConsultados.forEach { v ->
-                linhas += v.docente to LinhaSemanal(turma, v.componente, "Consulta da turma", SituacaoSemanal.INCOMPLETA, null, "Componente sem consulta nesta turma.")
+        val vinculosPorTurma = docentes.vinculos.groupBy { it.turmaId }
+        todasTurmas.forEach { (id, turma) ->
+            val vinculos = vinculosPorTurma[id].orEmpty().groupBy { chaveVinculo(id, it.componente) }
+            val naoConsultados = vinculos.filterKeys { it !in chavesConsultadas }
+            if (naoConsultados.isEmpty() && (id !in turmasConsultadas || id in falhas)) {
+                linhas += null to LinhaSemanal(turma, "", "Consulta da turma", SituacaoSemanal.INCOMPLETA, null,
+                    "Há dados da turma sem verificação.")
+            }
+            naoConsultados.forEach { (chave, porComponente) ->
+                val professores: List<DocenteRef?> = (docentes.locais[chave] ?: porComponente.map { it.docente })
+                    .distinctBy { it.id }.ifEmpty { listOf(null) }
+                professores.forEach { professor ->
+                    linhas += professor to LinhaSemanal(turma, porComponente.first().componente, "Consulta da turma",
+                        SituacaoSemanal.INCOMPLETA, null, "Componente sem consulta salva.")
+                }
             }
         }
         return linhas.groupBy({ it.first }, { it.second }).map { (prof, linhas) ->

@@ -3,7 +3,7 @@
 set +e
 if [[ "${SGE_UI_SMOKE:-false}" == true ]]; then
     classe=br.to.seduc.sgediariowidget.SgeUiSmokeTest
-    casos="$classe#handoffRespeitaProtecaoDaCoordenacao,$classe#widgetsCompactosRenderizamDadosConhecidos,$classe#widgetDaCoordenacaoOcultaDadosQuandoProtegido"
+    casos="$classe#handoffRespeitaProtecaoDaCoordenacao,$classe#widgetsCompactosRenderizamDadosConhecidos,$classe#widgetDaCoordenacaoOcultaDadosQuandoProtegido,br.to.seduc.sgediariowidget.SgeWidgetAtalhosTest"
     set -- "$@" "-Pandroid.testInstrumentationRunnerArguments.class=$casos"
 fi
 gradle connectedDebugAndroidTest "$@" --no-daemon --stacktrace

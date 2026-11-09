@@ -45,9 +45,8 @@ class SgeSyncWorker(private val ctx: Context, params: WorkerParameters) : Corout
         val notificacao = if (manual) SgeProgressoNotificacao(ctx, id.toString(), coordenacao) else null
         val inicioWorker = System.currentTimeMillis()
         val retomando = inputData.getBoolean("retomar", false) || runAttemptCount > 0
+        if (!coordenacao && !manual && SgePausaPessoal.ler(ctx)?.pausada == true) return Result.success()
         if (!coordenacao && !retomando) {
-            // A pausa pedida pelo usuário vale também para consultas automáticas; atualizar manualmente recomeça do zero.
-            if (!inputData.getBoolean("manual", false) && SgePausaPessoal.ler(ctx)?.pausada == true) return Result.success()
             SgePausaPessoal.limpar(ctx)
         }
         if (!coordenacao) mostrar(antigo.copy(sincronizando = true, inicioConsulta = System.currentTimeMillis(), mensagem = "Consultando o horário do professor…"))
@@ -212,12 +211,13 @@ class SgeSyncWorker(private val ctx: Context, params: WorkerParameters) : Corout
         }
         val nome = o.getString("t")
         val agora = { LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd/MM HH:mm")) }
-        suspend fun gravar(t: CoordTurma, msg: String, ocupado: Boolean, mudancas: List<MudancaModulo>? = null) {
+        suspend fun gravar(t: CoordTurma, msg: String, ocupado: Boolean, mudancas: List<MudancaModulo>? = null,
+            atualizarWidget: Boolean = true) {
             val novasMudancas = mudancas?.let { painel.mudancas.filterNot { m -> m.turmaId == alvo } + it } ?: painel.mudancas
             painel = painel.copy(turmas = painel.turmas.filter { it.id != alvo } + t, mensagem = msg, sincronizando = ocupado,
                 inicioConsulta = if (ocupado) System.currentTimeMillis() else 0L, mudancas = novasMudancas)
             SgeCoordStore.salvar(ctx, painel)
-            SgeWidgets.atualizar(ctx)
+            if (atualizarWidget) SgeWidgets.atualizar(ctx)
         }
         val anterior = painel.turmas.firstOrNull { it.id == alvo } ?: CoordTurma(alvo, nome)
         gravar(anterior.copy(erro = null), "Lendo as disciplinas de $nome…", true)
@@ -241,7 +241,8 @@ class SgeSyncWorker(private val ctx: Context, params: WorkerParameters) : Corout
                 withTimeout(180_000L) {
                     consultarModulos(client, t, anterior.disciplinas) { etapa ->
                         val atual = "$nome • $d (${i + 1}/${nomes.size}) • $etapa"
-                        gravar(parcial, SgeFila.ler(ctx)?.let { SgeFila.textoAndamento(it, atual) } ?: atual, true)
+                        gravar(parcial, SgeFila.ler(ctx)?.let { SgeFila.textoAndamento(it, atual) } ?: atual, true,
+                            atualizarWidget = etapa == SgePainelStore.NOMES_MODULOS.first())
                     }.orEmpty()
                 }
             } catch (e: TimeoutCancellationException) { List(5) { ResultadoModulo(detalhe = "Não verificado: tempo esgotado") } }

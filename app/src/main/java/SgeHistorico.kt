@@ -105,6 +105,7 @@ object SgeHistoricoStore {
 enum class TipoVariacaoConsulta(val titulo: String) {
     NOVAS("Novas pendências"),
     RESOLVIDAS("Pendências resolvidas"),
+    SALDO_DOCUMENTOS("Variação em documentos"),
     SEM_VERIFICACAO("Sem verificação comparável")
 }
 
@@ -130,14 +131,11 @@ fun compararConsultas(anterior: DiaHistorico, atual: DiaHistorico): List<Variaca
             fun falta(texto: String) = listOf(linha(TipoVariacaoConsulta.SEM_VERIFICACAO, texto))
             if (m == null || n == null || x == null || y == null || !m.coberturaCompleta || !n.coberturaCompleta)
                 return@modulo falta("Cobertura ausente ou incompleta em uma das consultas.")
-            if (n.atualizadoMs <= m.atualizadoMs)
+            if (m.atualizadoMs <= 0L || n.atualizadoMs <= m.atualizadoMs)
                 return@modulo falta("O registro atual reaproveita a mesma consulta ou não tem data própria.")
             if (i > 1) {
-                return@modulo when {
-                    y > x -> listOf(linha(TipoVariacaoConsulta.NOVAS, "Saldo de documentos subiu de $x para $y."))
-                    y < x -> listOf(linha(TipoVariacaoConsulta.RESOLVIDAS, "Saldo de documentos caiu de $x para $y."))
-                    else -> emptyList()
-                }
+                return@modulo if (y == x) emptyList() else listOf(linha(TipoVariacaoConsulta.SALDO_DOCUMENTOS,
+                    "Saldo de documentos pendentes passou de $x para $y."))
             }
             val d1 = m.datas
             val d2 = n.datas

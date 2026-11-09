@@ -66,13 +66,10 @@ fun AppDiario(
     modoComputador: Boolean = true, aoModoComputador: (Boolean) -> Unit = {},
     aoAtalhoSge: (String, String, String, Int, List<String>, String) -> Unit = { _, _, _, _, _, _ -> },
     pedidoHandoff: PedidoHandoff? = null, aoContextoHandoff: (ContextoHandoff?) -> Unit = {},
-    semana: LocalDate = LocalDate.now(), aoSemana: (LocalDate) -> Unit = {},
-    abaInicial: Int = -1, aoAbaAlterada: (Int) -> Unit = {}
+    semana: LocalDate = LocalDate.now(), aoSemana: (LocalDate) -> Unit = {}
 ) {
     val visiveis = remember(papel) { when (papel) { 1 -> setOf(0, 2); 2 -> setOf(1, 2); else -> setOf(0, 1, 2) } }
     var aba by rememberSaveable { mutableStateOf(if (papel == 2) 1 else 0) }
-    LaunchedEffect(abaInicial) { if (abaInicial in 0..2) aba = abaInicial }
-    LaunchedEffect(aba) { aoAbaAlterada(aba) }
     LaunchedEffect(papel, aba) { if (aba !in visiveis) aba = visiveis.first() }
     var pagina by rememberSaveable { mutableStateOf<String?>(null) }
     var intro by rememberSaveable { mutableStateOf(introduzir) }
