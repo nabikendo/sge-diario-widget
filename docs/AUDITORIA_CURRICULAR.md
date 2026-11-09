@@ -46,3 +46,27 @@ Tabela de divergências com evidências e ação de exportar PDF/CSV, sem grava�
 
 ## Não fazer
 Não usar IA para declarar ausência de vínculo sem consulta estruturada ao SGE; não estimar datas de bimestres; não presumir que cada habilidade consta em todas as aulas; não alterar o SGE em uma auditoria somente leitura.
+
+
+## Decisão funcional: módulo independente e reunião presencial
+
+A Auditoria Curricular aparece como **botão próprio**, fora dos cartões de pendências do diário (conteúdo, frequência, plano de aula, plano de curso e PEI). Não altera os indicadores existentes nem interfere no agendamento de sincronização desses módulos.
+
+### Fluxo real
+1. Professores e coordenação selecionam habilidades em reunião presencial e anotam em papel.
+2. O coordenador registra as escolhas no módulo, por ano, escola, área, componente, série, turma, bimestre e professor; pode anexar foto/PDF da ata ou folha, com confirmação manual dos códigos.
+3. O professor faz os lançamentos posteriormente no SGE.
+4. O módulo compara três conjuntos independentes: **matriz oficial**, **seleção da reunião** e **vínculos efetivamente consultados no SGE**, além dos textos dos conteúdos aplicados.
+5. O relatório mostra separadamente: planejado e não lançado, lançado fora do planejamento, objeto compatível, divergência de conteúdo e não verificado por indisponibilidade de evidência.
+
+### Regras obrigatórias
+- Não presumir que toda habilidade da matriz oficial deva ser vinculada em todos os bimestres: a seleção presencial determina o escopo auditado.
+- A folha manuscrita não comprova lançamento no SGE; OCR/transcrição, quando houver, exige conferência humana.
+- Uma habilidade selecionada pode atender mais de um objeto de conhecimento e vice-versa; preservar vínculos muitos-para-muitos.
+- Se o SGE não expuser consulta confiável de habilidades vinculadas, marcar **NÃO VERIFICADO**, nunca **NÃO LANÇADO**.
+- Exibir separadamente ausência comprovada e pendência de conferência.
+- Documentos fornecidos: Ciências da Natureza Ensino Médio (51 páginas), Matemática Ensino Médio (107 páginas), Matemática Anos Finais (239 páginas). A matriz dos Anos Finais explicita bimestres; não atribuir bimestre automaticamente aos itens do Ensino Médio quando o PDF não o indica.
+- Backup local inclui escolhas da reunião, evidências, histórico de alterações e matrizes, com importação/exportação validada.
+
+### Navegação proposta
+Botão inicial **Auditoria Curricular** → **Planejamento da reunião**, **Verificar lançamentos**, **Matrizes**, **Relatórios**. Priorizar layout em duas colunas para tablet horizontal, com filtros persistentes e visualização de evidências por habilidade.
