@@ -189,7 +189,27 @@ fun TelaAjustes(tema: Int, cor: Int, versao: String, aoTema: (Int) -> Unit, aoCo
     var saude by remember { mutableStateOf(false) }
     val ctxUi = LocalContext.current
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
-        Text("Do seu jeito.", style = MaterialTheme.typography.displaySmall)
+        Text("Configurações", style = MaterialTheme.typography.headlineMedium)
+        GrupoAjustes("Aparência e acessibilidade") {
+        Surface(color = MaterialTheme.colorScheme.surface, shape = MaterialTheme.shapes.large) {
+            Column(Modifier.padding(19.dp), verticalArrangement = Arrangement.spacedBy(15.dp)) {
+                Text("Aparência", style = MaterialTheme.typography.titleMedium)
+                Text("Tema", style = MaterialTheme.typography.titleSmall)
+                Segmentado(listOf("Sistema", "Claro", "Escuro"), tema, aoTema)
+                Text("Cores", style = MaterialTheme.typography.titleSmall)
+                Segmentado(listOf("Neutras", "Do sistema"), cor, aoCor)
+            }
+        }
+        Surface(color = MaterialTheme.colorScheme.surface, shape = MaterialTheme.shapes.large) {
+            Column(Modifier.padding(8.dp)) {
+                LinhaChave("Fonte maior", "Aumenta os textos do app em cerca de 30%.", SgeUi.fonteGrande) { SgeUi.definir(ctxUi, SgeUi.FONTE_GRANDE, it) }
+                LinhaChave("Alto contraste", "Textos e contornos mais fortes. A situação sempre aparece também em texto e ícone.", SgeUi.altoContraste) { SgeUi.definir(ctxUi, SgeUi.ALTO_CONTRASTE, it) }
+                Text("Teclado (notebook ou tablet): Ctrl+R atualiza · Ctrl+F busca · Ctrl+1 Seu diário · Ctrl+2 Coordenação.",
+                    Modifier.padding(12.dp, 4.dp, 12.dp, 10.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+        }
+        GrupoAjustes("Painel e turmas") {
         Surface(color = MaterialTheme.colorScheme.surface, shape = MaterialTheme.shapes.large) {
             val ctxTurmas = androidx.compose.ui.platform.LocalContext.current
             Column(Modifier.padding(19.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -208,7 +228,6 @@ fun TelaAjustes(tema: Int, cor: Int, versao: String, aoTema: (Int) -> Unit, aoCo
                 }
             }
         }
-        Spacer(Modifier.height(12.dp))
         Surface(color = MaterialTheme.colorScheme.surface, shape = MaterialTheme.shapes.large) {
             Column(Modifier.padding(19.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 Text("Bimestre do painel", style = MaterialTheme.typography.titleMedium)
@@ -223,6 +242,18 @@ fun TelaAjustes(tema: Int, cor: Int, versao: String, aoTema: (Int) -> Unit, aoCo
                 }
             }
         }
+        Surface(color = MaterialTheme.colorScheme.surface, shape = MaterialTheme.shapes.large) {
+            Column(Modifier.padding(19.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text("Como você usa o app", style = MaterialTheme.typography.titleMedium)
+                Segmentado(listOf("Ambos", "Professor", "Coordenação"), papel, aoPapel)
+                Text(when (papel) { 1 -> "Mostra só o seu diário. A aba Coordenação fica oculta."
+                    2 -> "Mostra só a coordenação. O seu diário pessoal fica oculto."
+                    else -> "Mostra o seu diário e a coordenação." },
+                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+        }
+        GrupoAjustes("Sincronização e notificações") {
         Surface(color = MaterialTheme.colorScheme.surface, shape = MaterialTheme.shapes.large) {
             Column(Modifier.padding(19.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -244,25 +275,6 @@ fun TelaAjustes(tema: Int, cor: Int, versao: String, aoTema: (Int) -> Unit, aoCo
             }
         }
         Surface(color = MaterialTheme.colorScheme.surface, shape = MaterialTheme.shapes.large) {
-            Column(Modifier.padding(19.dp), verticalArrangement = Arrangement.spacedBy(15.dp)) {
-                Text("Aparência", style = MaterialTheme.typography.titleMedium)
-                Text("Tema", style = MaterialTheme.typography.titleSmall)
-                Segmentado(listOf("Sistema", "Claro", "Escuro"), tema, aoTema)
-                Text("Cores", style = MaterialTheme.typography.titleSmall)
-                Segmentado(listOf("Neutras", "Do sistema"), cor, aoCor)
-            }
-        }
-        Surface(color = MaterialTheme.colorScheme.surface, shape = MaterialTheme.shapes.large) {
-            Column(Modifier.padding(19.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text("Como você usa o app", style = MaterialTheme.typography.titleMedium)
-                Segmentado(listOf("Ambos", "Professor", "Coordenação"), papel, aoPapel)
-                Text(when (papel) { 1 -> "Mostra só o seu diário. A aba Coordenação fica oculta."
-                    2 -> "Mostra só a coordenação. O seu diário pessoal fica oculto."
-                    else -> "Mostra o seu diário e a coordenação." },
-                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        }
-        Surface(color = MaterialTheme.colorScheme.surface, shape = MaterialTheme.shapes.large) {
             Row(Modifier.padding(19.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                     Text("Lembrete diário", style = MaterialTheme.typography.titleMedium)
@@ -277,6 +289,8 @@ fun TelaAjustes(tema: Int, cor: Int, versao: String, aoTema: (Int) -> Unit, aoCo
                 Switch(checked = lembrete, onCheckedChange = aoLembrete)
             }
         }
+        }
+        GrupoAjustes("Ferramentas e diagnóstico") {
         Surface(color = MaterialTheme.colorScheme.surface, shape = MaterialTheme.shapes.large) {
             Column(Modifier.padding(8.dp)) {
                 LinhaAjuste("Histórico e ranking semanal", "Comparação por módulo nas últimas quatro semanas", SgeIcons.Clock, aoHistorico)
@@ -285,31 +299,35 @@ fun TelaAjustes(tema: Int, cor: Int, versao: String, aoTema: (Int) -> Unit, aoCo
                 LinhaAjuste("Ver introdução", "O funcionamento do app em três passos", SgeIcons.Book, aoIntroducao)
                 LinhaAjuste("Diagnóstico único", "Professor, coordenação, perfil e agendamentos em um só texto", SgeIcons.Settings, aoDiagnostico)
                 LinhaAjuste("Saúde do app", "Última consulta por módulo, falhas recentes e botão reparar", SgeIcons.Info) { saude = true }
-                LinhaAjuste("Sincronização econômica", "Intervalo, rede, bateria e horário noturno", SgeIcons.Refresh, aoEconomia)
-                LinhaAjuste("Backup e restauração", "Salvar e recuperar dados sem senha ou sessão", SgeIcons.Export, aoBackup)
-                LinhaAjuste("Atualizações do app", "Verificar, baixar e instalar por aqui", SgeIcons.Refresh, aoAtualizacoes)
                 Text("Atalho rápido: mantenha pressionado o ícone do app ou adicione “Meu diário” ao Painel rápido do Android.",
                     Modifier.padding(horizontal = 18.dp, vertical = 10.dp), style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
-        Surface(color = MaterialTheme.colorScheme.surface, shape = MaterialTheme.shapes.large) {
-            Column(Modifier.padding(8.dp)) {
-                LinhaChave("Modo privacidade", "Esconde o app na tela de recentes, bloqueia capturas de tela e mostra professores só com iniciais.", SgeUi.privacidade) { SgeUi.definir(ctxUi, SgeUi.PRIVACIDADE, it) }
-                LinhaChave("Fonte maior", "Aumenta os textos do app em cerca de 30%.", SgeUi.fonteGrande) { SgeUi.definir(ctxUi, SgeUi.FONTE_GRANDE, it) }
-                LinhaChave("Alto contraste", "Textos e contornos mais fortes. A situação sempre aparece também em texto e ícone.", SgeUi.altoContraste) { SgeUi.definir(ctxUi, SgeUi.ALTO_CONTRASTE, it) }
-                Text("Teclado (notebook ou tablet): Ctrl+R atualiza · Ctrl+F busca · Ctrl+1 Seu diário · Ctrl+2 Coordenação.",
-                    Modifier.padding(12.dp, 4.dp, 12.dp, 10.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
         }
+        GrupoAjustes("Segurança e privacidade") {
         Surface(color = MaterialTheme.colorScheme.surface, shape = MaterialTheme.shapes.large) {
             Column(Modifier.padding(8.dp)) {
+                LinhaChave("Modo privacidade", "Oculta dados em recentes e bloqueia capturas.", SgeUi.privacidade) { SgeUi.definir(ctxUi, SgeUi.PRIVACIDADE, it) }
                 LinhaAjuste("Sair do SGE", "Encerra a sessão neste aparelho", SgeIcons.Globe) { confirmar = 1 }
                 LinhaAjuste("Apagar dados locais", "Painéis, histórico, vínculos e diagnósticos guardados aqui", SgeIcons.Close) { confirmar = 2 }
             }
         }
+        }
+        GrupoAjustes("Backups") {
+            Surface(color = MaterialTheme.colorScheme.surface, shape = MaterialTheme.shapes.large) {
+                Column(Modifier.padding(8.dp)) {
+                    LinhaAjuste("Backup e restauração", "Salvar e recuperar dados locais", SgeIcons.Export, aoBackup)
+                }
+            }
+        }
+        GrupoAjustes("Sobre") {
         Surface(color = MaterialTheme.colorScheme.surface, shape = MaterialTheme.shapes.large) {
             Column(Modifier.padding(8.dp)) { LinhaAjuste("Sobre", "Versão, créditos, privacidade e licenças", SgeIcons.User, aoSobre) }
+        }
+        }
+        GrupoAjustes("Atualizações") {
+            LinhaAjuste("Atualizações do app", "Verificar e instalar novas versões", SgeIcons.Refresh, aoAtualizacoes)
         }
         Text("SGE Diário · $versao", style = MaterialTheme.typography.labelLarge)
         Text("O aplicativo consulta os dados do SGE. Lançamentos e correções são feitos pelo usuário no próprio SGE.",
@@ -322,6 +340,24 @@ fun TelaAjustes(tema: Int, cor: Int, versao: String, aoTema: (Int) -> Unit, aoCo
             else "Os painéis, histórico e vínculos guardados neste aparelho serão apagados. Suas preferências são mantidas. O SGE não é alterado.") },
         confirmButton = { Button(onClick = { if (confirmar == 1) aoSair() else aoLimpar(); confirmar = 0 }) { Text(if (confirmar == 1) "Sair" else "Apagar") } },
         dismissButton = { TextButton(onClick = { confirmar = 0 }) { Text("Cancelar") } })
+}
+
+
+@Composable
+private fun GrupoAjustes(titulo: String, conteudo: @Composable () -> Unit) {
+    var aberto by remember { mutableStateOf(false) }
+    Surface(color = MaterialTheme.colorScheme.surface, shape = MaterialTheme.shapes.large) {
+        Column {
+            TextButton(onClick = { aberto = !aberto }, modifier = Modifier.fillMaxWidth(),
+                contentPadding = PaddingValues(horizontal = 18.dp, vertical = 16.dp)) {
+                Text(titulo, style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
+                Icon(SgeIcons.Chevron, null, Modifier.size(18.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            if (aberto) Column(verticalArrangement = Arrangement.spacedBy(10.dp)) { conteudo() }
+        }
+    }
 }
 
 @Composable private fun LinhaChave(titulo: String, texto: String, marcado: Boolean, aoMudar: (Boolean) -> Unit) {
