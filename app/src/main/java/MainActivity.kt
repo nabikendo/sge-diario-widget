@@ -127,7 +127,7 @@ class MainActivity : FragmentActivity() {
             settings.domStorageEnabled = true
             settings.allowFileAccess = false
             settings.allowContentAccess = false
-            val agenteCelular = prefs.getString("web_user_agent_celular", null) ?: settings.userAgentString.orEmpty()
+            val agenteCelular = settings.userAgentString.orEmpty()
             prefs.edit().putString("web_user_agent_celular", agenteCelular).apply()
             modoComputadorWeb.value = prefs.getBoolean("web_computador", true)
             SgeWebComputador.aplicar(settings, modoComputadorWeb.value, agenteCelular)
