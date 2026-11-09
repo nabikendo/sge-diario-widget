@@ -48,9 +48,12 @@ object SgeWidgetStore {
             .map { o -> o.getString("v") to o.getString("t") }.distinctBy { it.first }
     }.getOrDefault(emptyList())
 
-    fun grupos(context: Context, config: ConfigWidget): List<GrupoPendencias> {
-        val resultados = if (config.fonte == FontePainel.PESSOAL) SgePainelStore.ler(context).turmas
+    fun grupos(
+        context: Context,
+        config: ConfigWidget,
+        resultados: List<ResultadoTurma> = if (config.fonte == FontePainel.PESSOAL) SgePainelStore.ler(context).turmas
             else SgeCoordStore.ler(context).turmas.flatMap { it.disciplinas }
+    ): List<GrupoPendencias> {
         val docentes = SgeDocentesStore.ler(context)
         val gs = SgeDashboard.agrupar(resultados, config.agrupamento, docentes.vinculos, docentes.locais)
         return gs.filter { (config.grupo.isBlank() || it.chave == config.grupo) && (!config.soAtencao || it.estado != EstadoGrupo.EM_DIA) }

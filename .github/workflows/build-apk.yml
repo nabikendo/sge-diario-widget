@@ -3,6 +3,9 @@ name: Build SGE Widget APK
 on:
   push:
     branches: [ main, master, feat/ios-inspired-neutral-ui, feat/tablet-history-coordination, feat/inapp-updates-school-tools, feat/android17-desktop-2-5-5 ]
+  pull_request:
+    branches: [ main ]
+    paths: ['app/**', 'AndroidManifest.xml', '**.gradle.kts', 'gradle.properties', '.github/workflows/build-apk.yml']
   workflow_dispatch:
 
 permissions:
@@ -59,7 +62,7 @@ jobs:
             --notes "APK de teste gerado automaticamente. Baixe SGE-Diario-teste.apk abaixo, em Assets. Para uso diário, prefira a versão estável (tag vX.Y)."
 
   ui-previews:
-    if: startsWith(github.ref, 'refs/heads/feat/')
+    if: startsWith(github.ref, 'refs/heads/feat/') || github.event_name == 'pull_request'
     needs: build
     runs-on: ubuntu-22.04
     timeout-minutes: 25
@@ -71,6 +74,8 @@ jobs:
             api: 29
           - perfil: pixel_c
             api: 34
+          - perfil: pixel_6
+            api: 37
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v5
@@ -90,9 +95,12 @@ jobs:
         with:
           api-level: ${{ matrix.api }}
           arch: x86_64
+          target: google_apis
           profile: ${{ matrix.perfil }}
           disable-animations: true
-          script: bash scripts/verify-ui.sh -Pversao=1.8-preview.${{ github.run_number }} -Pcodigo=${{ github.run_number }}
+          script: bash scripts/verify-ui.sh -Pversao="$(cat release/versao.txt)-preview.$GITHUB_RUN_NUMBER" -Pcodigo="$GITHUB_RUN_NUMBER"
+        env:
+          SGE_UI_SMOKE: ${{ github.event_name == 'pull_request' }}
       - name: Capturas da prévia
         if: always()
         uses: actions/upload-artifact@v4

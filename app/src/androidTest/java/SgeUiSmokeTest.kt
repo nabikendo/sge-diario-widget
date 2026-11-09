@@ -66,6 +66,22 @@ class SgeUiSmokeTest {
             check(bitmap.compress(Bitmap.CompressFormat.PNG, 100, it))
         }
     }
+    @Test fun handoffRespeitaProtecaoDaCoordenacao() {
+        content {
+            val context = LocalContext.current
+            val web = remember { WebView(context) }
+            val pedido = remember { PedidoHandoff(ContextoHandoff(1, semana = LocalDate.of(2026, 11, 9))) }
+            DisposableEffect(web) { onDispose { web.destroy() } }
+            AppDiario(web, PainelSge(rs), coord, docentes, emptyList(), false, null, 1, 0, "teste",
+                aoTema = {}, aoCor = {}, aoIntroduzido = {}, aoSincronizarPessoal = {}, aoVerificarTurmas = {},
+                aoCarregarTurmas = {}, aoAtualizarDocentes = {}, aoCopiarDiagnostico = {}, aoCopiarPagina = {},
+                aoSalvarVinculo = { _, _ -> }, aoAdicionarWidget = {}, aoCompartilhar = { _, _ -> },
+                aoWebVisivel = {}, bloqueioCoord = true, pedidoHandoff = pedido)
+        }
+        compose.onNodeWithText("Coordenação protegida").assertIsDisplayed()
+        compose.onNodeWithText("Docente de exemplo").assertDoesNotExist()
+    }
+
     @Test fun cartaoAbreDetalheDoModulo() {
         content {
             val context = LocalContext.current

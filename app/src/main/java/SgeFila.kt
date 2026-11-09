@@ -5,11 +5,14 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.time.LocalDate
 import java.time.ZoneId
+import java.util.UUID
 import kotlin.math.ceil
 
 /** Fila persistida da verificação da coordenação: permite estimar o tempo e pausar/retomar. */
 data class FilaCoord(val ids: List<String>, val total: Int, val pausada: Boolean, val puladas: Int, val mediaMs: Long,
-    val concluidas: List<String> = emptyList(), val falhas: List<String> = emptyList()) {
+    val concluidas: List<String> = emptyList(), val falhas: List<String> = emptyList(),
+    val rodada: String = UUID.randomUUID().toString(), val bimestre: Int = -1,
+    val componentes: Map<String, Set<String>> = emptyMap()) {
     val resolvidas get() = (puladas + concluidas.size + falhas.size).coerceAtMost(total)
     val progresso get() = if (total <= 0) 0f else (resolvidas.toFloat() / total).coerceIn(0f, 1f)
 }
@@ -53,13 +56,21 @@ object SgeFila {
         val j = JSONObject(prefs(ctx).getString(KEY, null) ?: return null)
         val a = j.getJSONArray("ids")
         val c = j.optJSONArray("concluidas") ?: JSONArray(); val f = j.optJSONArray("falhas") ?: JSONArray()
+        val componentes = j.optJSONObject("componentes") ?: JSONObject()
         FilaCoord((0 until a.length()).map { a.getString(it) }, j.optInt("total"), j.optBoolean("pausada"), j.optInt("puladas"), media(ctx),
-            (0 until c.length()).map { c.getString(it) }, (0 until f.length()).map { f.getString(it) })
+            (0 until c.length()).map { c.getString(it) }, (0 until f.length()).map { f.getString(it) },
+            j.optString("rodada"), j.optInt("bimestre", -1), componentes.keys().asSequence().associateWith { id ->
+                val nomes = componentes.getJSONArray(id)
+                (0 until nomes.length()).map { nomes.getString(it) }.toSet()
+            })
     }.getOrNull()
     fun salvar(ctx: Context, f: FilaCoord?) {
         val e = prefs(ctx).edit()
         if (f == null || (f.ids.isEmpty() && f.falhas.isEmpty())) e.remove(KEY) else e.putString(KEY, JSONObject().put("ids", JSONArray(f.ids)).put("total", f.total)
-            .put("pausada", f.pausada).put("puladas", f.puladas).put("concluidas", JSONArray(f.concluidas)).put("falhas", JSONArray(f.falhas)).toString())
+            .put("pausada", f.pausada).put("puladas", f.puladas).put("concluidas", JSONArray(f.concluidas)).put("falhas", JSONArray(f.falhas))
+            .put("rodada", f.rodada).put("bimestre", f.bimestre).put("componentes", JSONObject().also { j ->
+                f.componentes.forEach { (id, nomes) -> j.put(id, JSONArray(nomes.toList())) }
+            }).toString())
         e.apply()
     }
     fun pausar(ctx: Context) { ler(ctx)?.let { salvar(ctx, it.copy(pausada = true)) } }

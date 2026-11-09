@@ -94,3 +94,10 @@ A correção dos períodos continua adiada por solicitação do usuário; não s
 - [ ] Seletor de ano, atalho turma/data e widget Hoje: aguardam amostra da tela/agenda real do SGE, porque a URL/ano e o dia/horário não estão preservados pelo parser atual.
 - [ ] Envio semanal automático de PDF: aguarda destinatário e canal definidos; os relatórios atuais permanecem locais e são compartilhados pela pessoa usuária.
 - [ ] Build e testes finais no GitHub Actions para esta branch de teste.
+
+## Versão 2.6.0 — conferência Android e compatibilidade Windows
+
+- [x] Preparar navegação Continue On para Android 17 com recorte sem dados escolares.
+- [x] Alinhar o número interno do EXE ao número da release e preservar compatibilidade de backups.
+- [ ] Verificar em GitHub Actions o APK, os testes Android e o EXE.
+- [ ] Publicar e conferir os arquivos da release estável.

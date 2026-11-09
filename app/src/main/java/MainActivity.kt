@@ -38,6 +38,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.CancellationException
 import br.to.seduc.sgediariowidget.worker.SgeNoturnoWorker
 import java.io.File
+import java.time.LocalDate
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.*
 import androidx.compose.ui.graphics.luminance
@@ -55,8 +56,9 @@ import kotlinx.coroutines.launch
 import org.json.JSONTokener
 
 class MainActivity : FragmentActivity() {
-    private var handoffAba by mutableStateOf(-1)
-    private var abaAtual = 0
+    private var handoffRecebido by mutableStateOf<PedidoHandoff?>(null)
+    private var handoffAtual = ContextoHandoff(0)
+    private var semanaSelecionada by mutableStateOf(LocalDate.now())
     private lateinit var atualizador: SgeAtualizador
     private var backupPendente by mutableStateOf<SgeBackup.Validado?>(null)
     private var lotePronto by mutableStateOf<ArquivosLote?>(null)
@@ -96,6 +98,7 @@ class MainActivity : FragmentActivity() {
     private var downloadPendente: WebDownload? = null
     private val pedidoWidget = mutableStateOf<PedidoWidget?>(null)
     private val pedirNotificacao = registerForActivityResult(ActivityResultContracts.RequestPermission()) { ok -> definirLembrete(ok) }
+    private val pedirNotificacaoConsulta = registerForActivityResult(ActivityResultContracts.RequestPermission()) {}
     private val pedirArmazenamento = registerForActivityResult(ActivityResultContracts.RequestPermission()) { ok ->
         val arquivo = downloadPendente
         downloadPendente = null
@@ -108,8 +111,9 @@ class MainActivity : FragmentActivity() {
             navigationBarStyle = androidx.activity.SystemBarStyle.auto(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT))
         if (Build.VERSION.SDK_INT >= 29) window.isNavigationBarContrastEnforced = false
         super.onCreate(savedInstanceState)
-        handoffAba = intent.getIntExtra("handoff_aba", -1)
-        if (Build.VERSION.SDK_INT >= 37) setHandoffEnabled(true, null)
+        semanaSelecionada = lerSemanaHandoff(savedInstanceState?.getString("semana_selecionada"))
+            ?: LocalDate.now()
+        receberHandoff(intent)
         protecao = CoordProtecao(this)
         atualizador = SgeAtualizador(this)
         val prefs = getSharedPreferences(SgePainelStore.PREFS_NAME, MODE_PRIVATE)
@@ -257,7 +261,7 @@ class MainActivity : FragmentActivity() {
                         { SgeSyncWorker.retomar(this@MainActivity) },
                         { SgeSyncWorker.tentarFalhas(this@MainActivity) },
                         pausaDiario = pausaDiario, aoPausarDiario = { SgeSyncWorker.pausarPessoal(this@MainActivity) },
-                        aoRetomarDiario = { SgeSyncWorker.retomarPessoal(this@MainActivity) }),
+                        aoRetomarDiario = { extrairTurmas { SgeSyncWorker.retomarPessoal(this@MainActivity) } }),
                     horarioLembrete = String.format(java.util.Locale.ROOT, "%02d:%02d", lembreteMinuto / 60, lembreteMinuto % 60),
                     aoEscolherHorarioLembrete = {
                         val atual = prefs.getInt("lembrete_minuto", 17 * 60).coerceIn(0, 1439)
@@ -269,7 +273,9 @@ class MainActivity : FragmentActivity() {
                     modoComputador = modoComputadorWeb.value,
                     aoModoComputador = { alterarModoWeb(it) },
                     aoAtalhoSge = { id, turma, componente, modulo, datas, horario -> abrirAtalhoSge(id, turma, componente, modulo, datas, horario) },
-                    abaInicial = handoffAba, aoAbaAlterada = { abaAtual = it })
+                    semana = semanaSelecionada, aoSemana = { semanaSelecionada = it },
+                    pedidoHandoff = handoffRecebido,
+                    aoContextoHandoff = ::atualizarHandoff)
                 AtualizacoesDialog(atualizador) { lifecycleScope.launch {
                     try { val arquivo = atualizador.prepararInstalacao(); lifecycle.withResumed { if(atualizador.aberto) atualizador.instalar(arquivo) } }
                     catch (e: CancellationException) { throw e }
@@ -481,6 +487,14 @@ class MainActivity : FragmentActivity() {
     }
     private fun sairDoSge() {
         cancelarConsultas()
+        SgeFila.salvar(this, null)
+        SgePausaPessoal.limpar(this)
+        val pessoal = SgePainelStore.ler(this)
+        SgePainelStore.salvar(this, pessoal.copy(sincronizando = false, inicioConsulta = 0L, sessaoAtiva = false,
+            mensagem = "Sessão encerrada. Dados abaixo são da última consulta."))
+        val coordenacao = SgeCoordStore.ler(this)
+        SgeCoordStore.salvar(this, coordenacao.copy(sincronizando = false, inicioConsulta = 0L,
+            mensagem = "Sessão encerrada. Dados abaixo são da última consulta."))
         coordDesbloqueada.value = false; SgeSessaoStore.salvar(this, PerfilSge.EXPIRADO)
         CookieManager.getInstance().removeAllCookies { CookieManager.getInstance().flush(); if (!isFinishing && !isDestroyed) web.loadUrl(SgeSyncWorker.BASE + "/") }
         val prefs = getSharedPreferences(SgePainelStore.PREFS_NAME, MODE_PRIVATE)
@@ -497,9 +511,18 @@ class MainActivity : FragmentActivity() {
     }
     private fun abrirUrl(url: String) { runCatching { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) } }
 
+    private fun oferecerNotificacaoConsulta() {
+        if (Build.VERSION.SDK_INT < 33 || checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) return
+        val prefs = getSharedPreferences(SgePainelStore.PREFS_NAME, MODE_PRIVATE)
+        if (prefs.getBoolean("notificacao_consulta_oferecida", false)) return
+        prefs.edit().putBoolean("notificacao_consulta_oferecida", true).apply()
+        pedirNotificacaoConsulta.launch(Manifest.permission.POST_NOTIFICATIONS)
+    }
+
     private fun sincronizarPessoal() {
         val p = SgePainelStore.ler(this)
         if (p.sincronizando) return
+        oferecerNotificacaoConsulta()
         SgePainelStore.salvar(this, p.copy(sincronizando = true, inicioConsulta = System.currentTimeMillis(), mensagem = "Iniciando consulta…"))
         extrairEscola(); extrairTurmas { SgeSyncWorker.sincronizarAgora(this) }
     }
@@ -510,6 +533,7 @@ class MainActivity : FragmentActivity() {
         // Com a fila andando, tocar no botão geral pausa; com a fila pausada, retoma de onde parou.
         if (SgeCoordStore.ler(this).sincronizando) { if (todas) SgeSyncWorker.pausar(this); return }
         if (fila != null && fila.pausada && fila.ids.isNotEmpty() && todas) { SgeSyncWorker.retomar(this); return }
+        oferecerNotificacaoConsulta()
         SgeSyncWorker.verificarTurmas(this, ids.distinct())
     }
     private fun copiarTexto(texto: String, mensagem: String) {
@@ -561,7 +585,8 @@ class MainActivity : FragmentActivity() {
         }
         if (intent?.hasExtra("sge_fonte") != true) return
         runCatching { PedidoWidget(FontePainel.valueOf(intent.getStringExtra("sge_fonte")!!),
-            Agrupamento.valueOf(intent.getStringExtra("sge_por") ?: "TURMA"), intent.getStringExtra("sge_grupo").orEmpty()) }
+            Agrupamento.valueOf(intent.getStringExtra("sge_por") ?: "TURMA"), intent.getStringExtra("sge_grupo").orEmpty(),
+            modulo = intent.getIntExtra("sge_modulo", -1).takeIf { it in SgeDashboard.nomes.indices } ?: -1) }
             .getOrNull()?.let { pedidoWidget.value = it }
     }
     /** Teclado externo (notebook/tablet): Ctrl+R atualiza, Ctrl+F busca, Ctrl+1 e Ctrl+2 trocam de painel. */
@@ -576,11 +601,41 @@ class MainActivity : FragmentActivity() {
         }
         return super.dispatchKeyEvent(e)
     }
-    override fun onNewIntent(intent: Intent) { super.onNewIntent(intent); setIntent(intent); handoffAba = intent.getIntExtra("handoff_aba", -1); receberDestino(intent) }
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        receberHandoff(intent)
+        receberDestino(intent)
+    }
+
+    private fun receberHandoff(intent: Intent) {
+        if (Build.VERSION.SDK_INT < 37) return
+        val aba = intent.getIntExtra("handoff_aba", -1)
+        if (aba !in 0..1) return
+        val modulo = intent.getIntExtra("handoff_modulo", -1).takeIf { it in 0..4 } ?: -1
+        val semana = if (aba == 1) lerSemanaHandoff(intent.getStringExtra("handoff_semana")) else null
+        semana?.let { semanaSelecionada = it }
+        handoffRecebido = PedidoHandoff(ContextoHandoff(aba, modulo, semana))
+        intent.removeExtra("handoff_aba")
+        intent.removeExtra("handoff_modulo")
+        intent.removeExtra("handoff_semana")
+    }
+
+    private fun atualizarHandoff(contexto: ContextoHandoff?) {
+        if (Build.VERSION.SDK_INT < 37) return
+        contexto?.let { handoffAtual = it }
+        val habilitado = contexto != null
+        if (isHandoffEnabled != habilitado) setHandoffEnabled(habilitado, null)
+    }
 
     override fun onHandoffActivityDataRequested(requestInfo: HandoffActivityDataRequestInfo): HandoffActivityData {
         return HandoffActivityData.Builder(ComponentName(this, MainActivity::class.java))
-            .setExtras(PersistableBundle().apply { putInt("handoff_aba", abaAtual) }).build()
+            .setExtras(PersistableBundle().apply {
+                putInt("handoff_aba", handoffAtual.aba)
+                putInt("handoff_modulo", handoffAtual.modulo)
+                handoffAtual.semana?.let { putString("handoff_semana", it.toString()) }
+            })
+            .build()
     }
     /** O SGE monta #TurmaContextoId no navegador; guardamos a lista lida do WebView logado para o Worker. */
     private fun extrairTurmas(depois: () -> Unit) {
@@ -661,6 +716,7 @@ class MainActivity : FragmentActivity() {
     }
     override fun onPause() { CookieManager.getInstance().flush(); super.onPause() }
     override fun onSaveInstanceState(outState: Bundle) {
+        outState.putString("semana_selecionada", semanaSelecionada.toString())
         outState.putBundle("web_state", Bundle().also { web.saveState(it) })
         super.onSaveInstanceState(outState)
     }

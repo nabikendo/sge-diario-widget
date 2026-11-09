@@ -1,6 +1,6 @@
 {
   "name": "sge-diario-desktop",
-  "version": "2.5.15",
+  "version": "2.6.0",
   "private": true,
   "description": "Painel local do SGE Diário para Windows",
   "main": "main.js",
