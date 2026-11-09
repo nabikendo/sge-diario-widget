@@ -217,7 +217,7 @@ class SgeReadClient(cookies: String, private val userAgent: String, private val 
 
     fun conteudos(t: TurmaMonitorada): ResultadoModulo = consulta {
         val j = JSONObject(request("/Conteudo/CarregarDadosConteudoAplicado", mapOf(
-            "TurmaId" to t.id, "TipoDeTurma" to "0", "GradeEscolarId" to grade(t),
+            "TurmaId" to t.id, "TipoDeTurma" to t.tipo.ifBlank { "0" }, "GradeEscolarId" to grade(t),
             "StatusConteudoAplicado" to "", "DataInicio" to "", "DataFinal" to "")))
         val html = j.getString("html")
         conteudosHtml[t.id + "/" + t.disciplina] = html
@@ -279,7 +279,7 @@ class SgeReadClient(cookies: String, private val userAgent: String, private val 
     private fun ausentes(t: TurmaMonitorada, tipo: String, lista: Document): Pair<Int, List<String>> {
         val gradeId = grade(t)
         val form = Jsoup.parse(request("/PlanejamentoTurma/Editar/0", mapOf(
-            "tipoDeTurma" to "0", "tipoDeRegistroPedagogicoId" to tipo, "gradeEscolarId" to gradeId, "turmaId" to t.id)))
+            "tipoDeTurma" to t.tipo.ifBlank { "0" }, "tipoDeRegistroPedagogicoId" to tipo, "gradeEscolarId" to gradeId, "turmaId" to t.id)))
         val configuracao = JSONObject(request("/PlanejamentoTurma/CarregarConfiguracoes", mapOf(
             "gradeEscolarId" to gradeId, "turmaId" to t.id, "tipoDeRegistroPedagogicoId" to tipo, "componentesAssociados" to "[]")))
         check(configuracao.has("exibirPeriodicidade") && !configuracao.getBoolean("exibirPeriodicidade")) {
@@ -313,7 +313,7 @@ class SgeReadClient(cookies: String, private val userAgent: String, private val 
                 Regex("carregarPaginaEditarPlanejamento\\((\\d+)\\)").find(it.attr("onclick"))?.groupValues?.get(1)
             }.distinct()
             for (id in (ids + editLinks).distinct()) {
-                val registro = Jsoup.parse(request("/PlanejamentoTurma/Editar", mapOf("id" to id, "acessoPelaTurma" to "true", "tipoDeTurma" to "0")))
+                val registro = Jsoup.parse(request("/PlanejamentoTurma/Editar", mapOf("id" to id, "acessoPelaTurma" to "true", "tipoDeTurma" to t.tipo.ifBlank { "0" })))
                 val alunos = registro.select("#AlunosTurmaId option[selected]").map { it.attr("value") }.filter { it.isNotBlank() }
                 val periods = registro.select("#Periodo option[selected]").map { it.attr("value") }.ifEmpty {
                     registro.select("input#Periodo[value]").map { it.attr("value") }.filter { it.isNotBlank() }
@@ -347,31 +347,38 @@ class SgeReadClient(cookies: String, private val userAgent: String, private val 
         if (semDatas.isNotEmpty()) historico.add("Períodos sem datas (${t.disciplina}): " + semDatas.joinToString(" | "))
         return ausentes to semDatas
     }
-    private var bimestreZero: Boolean? = null
-    /** 0 = bimestre atual (pela data de hoje); 1 a 4 = bimestre escolhido pelo usuário. */
+    /** 0 = bimestre atual; 1..4 = explícito; 5 = ano inteiro. */
     var bimestreFiltro: Int = 0
-    private val janelasBim = mutableMapOf<String, Pair<LocalDate, LocalDate>?>()
-    /** Datas do bimestre do filtro, lidas do próprio SGE. Null = sem recorte (ano inteiro). */
+    private val janelasBim = mutableMapOf<String, Map<Int, Pair<LocalDate, LocalDate>>>()
+
+    /** Falha de leitura nunca amplia silenciosamente o filtro para o ano inteiro. */
     fun janelaDoFiltro(turmaId: String): Pair<LocalDate, LocalDate>? {
         if (bimestreFiltro == 5) return null
+        val janelas = janelasBim.getOrPut(turmaId) {
+            SgeBimestreJanelas.carregar { parametro -> janelaDoBimestre(parametro, turmaId) }
+        }
+        if (bimestreFiltro in 1..4) {
+            return janelas[bimestreFiltro]
+                ?: error("Não encontrei as datas do ${bimestreFiltro}º bimestre no SGE.")
+        }
         val hoje = LocalDate.now()
-        val zero = bimestreZero ?: (janelaDoBimestre("0", turmaId) != null).also { bimestreZero = it }
-        fun janelaN(n: Int) = janelasBim.getOrPut("$turmaId|$n") { janelaDoBimestre((if (zero) n - 1 else n).toString(), turmaId) }
-        if (bimestreFiltro in 1..4) return janelaN(bimestreFiltro) ?: error("Não encontrei as datas do ${bimestreFiltro}º bimestre no SGE")
-        return (1..4).asSequence().map { janelaN(it) }.firstOrNull { it != null && !hoje.isBefore(it.first) && !hoje.isAfter(it.second) }
+        return janelas.values.singleOrNull { !hoje.isBefore(it.first) && !hoje.isAfter(it.second) }
+            ?: error("Não foi possível identificar o bimestre atual pelas datas do SGE.")
     }
+
     private fun janelaDoBimestre(param: String, turmaId: String): Pair<LocalDate, LocalDate>? = runCatching {
         val j = JSONObject(request("/NotasFaltas/ObtenhaInicioFimParametros", mapOf("turmaId" to turmaId, "bimestre" to param, "mes" to "")))
         val f = DateTimeFormatter.ofPattern("dd/MM/uuuu")
         val a = LocalDate.parse(j.getString("dataInicio"), f); val b = LocalDate.parse(j.getString("dataFim"), f)
         if (!b.isBefore(a) && java.time.temporal.ChronoUnit.DAYS.between(a, b) in 30..140) a to b else null
     }.getOrNull()
-    /** "Primeiro Bimestre" ou "1º bimestre": pede ao próprio SGE as datas do bimestre (numeração detectada uma vez). */
+
+    /** Usa as mesmas janelas já validadas para os planos e os outros módulos. */
     private fun janelaBimestre(descricao: String, turmaId: String): Pair<LocalDate, LocalDate>? {
         val n = SgeParsing.numeroBimestre(descricao) ?: return null
-        if (n !in 1..4) return null
-        val zero = bimestreZero ?: (janelaDoBimestre("0", turmaId) != null).also { bimestreZero = it }
-        return janelaDoBimestre((if (zero) n - 1 else n).toString(), turmaId)
+        return janelasBim.getOrPut(turmaId) {
+            SgeBimestreJanelas.carregar { parametro -> janelaDoBimestre(parametro, turmaId) }
+        }[n]
     }
 }
 
