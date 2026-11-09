@@ -186,15 +186,16 @@ class MainActivity : FragmentActivity() {
                 onDispose { lifecycle.removeObserver(observer) }
             }
             DisposableEffect(prefs) {
-                val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, chave -> runOnUiThread {
+                val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, chave -> if (chave == "turmas_escola") return@OnSharedPreferenceChangeListener; runOnUiThread {
                     if (chave == null || chave == "historico_semanal_v1") historico = SgeHistoricoStore.ler(this@MainActivity)
                     filtros = SgeFiltrosStore.ler(this@MainActivity)
                     filtrosSalvos = SgeFiltrosSalvosStore.ler(this@MainActivity)
                     organizacao = SgeOrganizacao.ler(this@MainActivity); economia = SgeEconomia.ler(this@MainActivity)
                     perfil = SgeSessaoStore.perfil(this@MainActivity); bloqueio = SgeSessaoStore.protegida(this@MainActivity)
                     noturna = prefs.getBoolean("coord_noturna", false); statusNoturno = prefs.getString("coord_noturna_status", "").orEmpty()
-                    painel = SgePainelStore.ler(this@MainActivity)
-                    coord = SgeCoordStore.ler(this@MainActivity)
+                    // Leitura pesada fora da thread principal: a sincronização grava a cada módulo.
+                    if (chave == null || chave == "painel_v2") lifecycleScope.launch(Dispatchers.IO) { val p = SgePainelStore.ler(this@MainActivity); withContext(Dispatchers.Main) { painel = p } }
+                    if (chave == null || chave == "painel_coord_v2") lifecycleScope.launch(Dispatchers.IO) { val c = SgeCoordStore.ler(this@MainActivity); withContext(Dispatchers.Main) { coord = c } }
                     filaCoord = SgeFila.ler(this@MainActivity)
                     pausaDiario = SgePausaPessoal.ler(this@MainActivity)
                     docentes = SgeDocentesStore.ler(this@MainActivity)
@@ -374,7 +375,7 @@ class MainActivity : FragmentActivity() {
         comProtecao { lifecycleScope.launch {
             operando = true
             try {
-                val l = withContext(Dispatchers.IO) { SgeRelatoriosLote.criar(File(cacheDir,"relatorios"),gs,escola,responsavel,recorte) }
+                val l = withContext(Dispatchers.IO) { SgeRelatoriosLote.criar(File(cacheDir,"relatorios"),gs.map { SgeEscopo.filtrarGrupo(this@MainActivity, it) },escola,responsavel,recorte) }
                 lifecycle.withResumed { lotePronto = l }
             } catch (e: CancellationException) { throw e }
             catch (e: Exception) { aviso("Não foi possível gerar o lote de relatórios.") }
@@ -418,7 +419,7 @@ class MainActivity : FragmentActivity() {
         val iniciar = {
             lifecycleScope.launch {
                 try {
-                    val arquivo = withContext(Dispatchers.IO) { SgeRelatorioPdf.criar(File(cacheDir, "relatorios"), g, fonte, recorte, SgeBimestre.ler(this@MainActivity)) }
+                    val arquivo = withContext(Dispatchers.IO) { SgeRelatorioPdf.criar(File(cacheDir, "relatorios"), SgeEscopo.filtrarGrupo(this@MainActivity, g), fonte, recorte, SgeBimestre.ler(this@MainActivity)) }
                     if (!lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED) || (fonte == FontePainel.COORDENACAO && SgeSessaoStore.protegida(this@MainActivity) && !coordDesbloqueada.value)) return@launch
                     val uri = FileProvider.getUriForFile(this@MainActivity, "$packageName.arquivos", arquivo)
                     if (escolherContato) {
@@ -639,7 +640,7 @@ class MainActivity : FragmentActivity() {
             runCatching {
                 val v = JSONTokener(raw).nextValue()
                 if (v is String && v.length > 2) getSharedPreferences(SgePainelStore.PREFS_NAME, MODE_PRIVATE)
-                    .edit().putString("turmas_escola", v).apply()
+                    .takeIf { it.getString("turmas_escola", null) != v }?.edit()?.putString("turmas_escola", v)?.apply()
             }
         }
     }

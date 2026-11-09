@@ -543,6 +543,10 @@ object SgeEscopo {
         if (prefs(context).getBoolean(CHAVE_AEE, false)) add("AEE")
     }
     fun ativa(context: android.content.Context, categoria: String): Boolean = categoria in incluidas(context)
+    /** Grupo sem as turmas fora do escopo permitido (usado em PDF e lote, para compartilhar). */
+    fun filtrarGrupo(context: android.content.Context, g: GrupoPendencias): GrupoPendencias =
+        g.copy(resultados = g.resultados.filter { permitida(context, it.turma.nome) })
+
     /** Turma pelo nome: entra nas listas de coordenação e de vínculos só se a categoria estiver permitida. */
     fun permitida(context: android.content.Context, nome: String): Boolean {
         val c = categoriaTurma(nome)
