@@ -11,4 +11,5 @@
     <string name="widget_professores_desc">Resultados por vínculo docente do horário.</string>
     <string name="widget_foco">SGE · Cartão em foco</string>
     <string name="widget_foco_desc">Um recorte de cada vez, com anterior e próximo.</string>
+    <string name="widget_erro">Abra o SGE Diário para atualizar o widget.</string>
 </resources>

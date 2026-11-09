@@ -71,13 +71,24 @@ fun EmblemaEstado(estado: EstadoGrupo) {
     }
 }
 
+private fun GrupoPendencias.estadoNoModulo(modulo: Int): EstadoGrupo {
+    val resumo = modulos.getOrNull(modulo) ?: return estado
+    return when {
+        resultados.isEmpty() -> EstadoGrupo.SEM_DADOS
+        (resumo.quantidade ?: 0) > 0 -> EstadoGrupo.PENDENTE
+        !resumo.completa -> EstadoGrupo.CONFERIR
+        else -> EstadoGrupo.EM_DIA
+    }
+}
+
 @Composable
 fun CartaoGrupo(grupo: GrupoPendencias, por: Agrupamento, selecionado: Boolean = false,
-    mudancas: List<MudancaModulo> = emptyList(), abrir: () -> Unit) {
+    mudancas: List<MudancaModulo> = emptyList(), modulo: Int = -1, abrir: () -> Unit) {
+    val estado = grupo.estadoNoModulo(modulo)
     val horasDado = remember(grupo) { SgeIdade.maisAntigaPorModulo(grupo.resultados, LocalDateTime.now()) }
     val tituloV = tituloVisivel(grupo)
     val descricao = buildString {
-        append(tituloV).append(". ").append(nomeEstado(grupo.estado))
+        append(tituloV).append(". ").append(nomeEstado(estado))
         horasDado?.let { append(". Dados ").append(SgeIdade.texto(it)) }
         append(". Toque para ver detalhes.")
     }
@@ -98,7 +109,7 @@ fun CartaoGrupo(grupo: GrupoPendencias, por: Agrupamento, selecionado: Boolean =
                     Text(subtituloVisivel(grupo), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 2, overflow = TextOverflow.Ellipsis)
                 }
-                EmblemaEstado(grupo.estado)
+                EmblemaEstado(estado)
             }
             if (horasDado != null) {
                 val parcial = grupo.modulos.any { !it.completa && !it.naoConfigurado }
@@ -110,8 +121,8 @@ fun CartaoGrupo(grupo: GrupoPendencias, por: Agrupamento, selecionado: Boolean =
                         style = MaterialTheme.typography.labelSmall, color = corIdade)
                 }
             }
-            val mudancasVisiveis = if (por == Agrupamento.TURMA) mudancas.filter { it.turmaId in grupo.turmaIds && it.delta != 0 } else emptyList()
-            val modulosVisiveis = (grupo.modulos.filter { (it.quantidade ?: 0) > 0 } +
+            val mudancasVisiveis = if (por == Agrupamento.TURMA) mudancas.filter { it.turmaId in grupo.turmaIds && it.delta != 0 && (modulo < 0 || it.indice == modulo) } else emptyList()
+            val modulosVisiveis = if (modulo >= 0) listOfNotNull(grupo.modulos.getOrNull(modulo)) else (grupo.modulos.filter { (it.quantidade ?: 0) > 0 } +
                 mudancasVisiveis.mapNotNull { mudanca -> grupo.modulos.firstOrNull { it.indice == mudanca.indice } })
                 .distinctBy { it.indice }
             if (modulosVisiveis.isNotEmpty()) {
@@ -126,7 +137,7 @@ fun CartaoGrupo(grupo: GrupoPendencias, por: Agrupamento, selecionado: Boolean =
                                         Box(Modifier.size(8.dp).background(corModulo, CircleShape))
                                         Text(SgeDashboard.nomes[m.indice], style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                     }
-                                    Text("${m.valor()} ${m.unidade()}", style = MaterialTheme.typography.titleSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                                    Text(if (m.quantidade == null || m.naoConfigurado) m.valor() else "${m.valor()} ${m.unidade()}", style = MaterialTheme.typography.titleSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
                                     variacao?.let {
                                         val melhorou = it.delta < 0
                                         val corVariacao = if (melhorou) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.error
@@ -148,7 +159,7 @@ fun CartaoGrupo(grupo: GrupoPendencias, por: Agrupamento, selecionado: Boolean =
                 EstadoGrupo.SEM_DADOS -> "Toque para consultar esta turma."
                 else -> "Existem dados que precisam de conferência."
             }, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            if (grupo.estado == EstadoGrupo.PENDENTE && grupo.exigeConferencia) Text("Inclui dados a conferir", style = MaterialTheme.typography.labelSmall, color = corAlerta())
+            if (estado == EstadoGrupo.PENDENTE && (grupo.modulos.getOrNull(modulo)?.let { !it.completa } ?: grupo.exigeConferencia)) Text("Inclui dados a conferir", style = MaterialTheme.typography.labelSmall, color = corAlerta())
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text("Ver detalhes →", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary,
@@ -176,12 +187,13 @@ fun TelaCartoes(
     fonte: FontePainel, painel: PainelSge, coord: CoordPainel, docentes: PainelDocentes,
     conhecidas: List<Pair<String, String>>, por: Agrupamento, aoAgrupar: (Agrupamento) -> Unit,
     aoAbrir: (GrupoPendencias) -> Unit, aoSincronizar: () -> Unit, aoCarregarTurmas: () -> Unit,
-    aoAtualizarDocentes: () -> Unit, aoAbrirSge: () -> Unit, aoAjuda: () -> Unit, selecionada: String? = null, filtroAvancado: FiltroAvancado = FiltroAvancado(), organizacao: Map<String,DadosTurma> = emptyMap(), aoFiltros: ()->Unit = {}, aoMapa: ()->Unit = {}, aoLote: ()->Unit = {},
+    aoAtualizarDocentes: () -> Unit, aoAbrirSge: () -> Unit, aoAjuda: () -> Unit, selecionada: String? = null, filtroAvancado: FiltroAvancado = FiltroAvancado(), organizacao: Map<String,DadosTurma> = emptyMap(), aoFiltros: ()->Unit = {}, aoMapa: ()->Unit = {}, aoLote: ()->Unit = {}, aoSemana: ()->Unit = {},
     filtrosSalvos: List<FiltroSalvo> = emptyList(), aoAplicarFiltro: (FiltroAvancado)->Unit = {}, aoSalvarFiltro: (FiltroSalvo)->Unit = {}, aoExcluirFiltro: (String)->Unit = {},
     filaCoord: FilaCoord? = null, aoPausarFila: ()->Unit = {}, aoRetomarFila: ()->Unit = {}, aoTentarFalhas: ()->Unit = {}, pausaDiario: PausaPessoal? = null, aoPausarDiario: ()->Unit = {}, aoRetomarDiario: ()->Unit = {}, perfil: PerfilSge? = null
 ) {
     var busca by rememberSaveable(fonte.name) { mutableStateOf("") }
     val filtro = filtroAvancado.estado
+    val modulo = filtroAvancado.modulo
     var mostrarBusca by rememberSaveable(fonte.name) { mutableStateOf(false) }
     var menuFiltro by remember { mutableStateOf(false) }
     var mostrarMensagem by remember { mutableStateOf(false) }
@@ -210,16 +222,21 @@ fun TelaCartoes(
     val resultados = remember(escola, coord.turmas, painel.turmas, filtroAvancado, organizacao, docentes) { SgeOrganizacao.filtrar(if (escola) coord.turmas.flatMap { it.disciplinas } else painel.turmas, filtroAvancado, organizacao, docentes) }
     val grupos = remember(resultados, docentes, conhecidas, por, escola, filtroAvancado) {
         val list = SgeDashboard.agrupar(resultados, por, docentes.vinculos, docentes.locais)
-        if (escola && por == Agrupamento.TURMA && !filtroAvancado.ativo) list + conhecidas.filter { (id, _) -> list.none { id in it.turmaIds } }
+        if (escola && por == Agrupamento.TURMA && !filtroAvancado.copy(modulo = -1).ativo) list + conhecidas.filter { (id, _) -> list.none { id in it.turmaIds } }
             .map { (id, nome) -> GrupoPendencias("turma:$id", nome.substringBefore('/'), nome.substringAfter('/', "Ainda não consultada"), emptyList(), setOf(id)) }
         else list
     }
     val porTurma = remember(resultados) { SgeDashboard.agrupar(resultados, Agrupamento.TURMA) }
-    val pendentes = porTurma.count { it.estado == EstadoGrupo.PENDENTE }
-    val coberturaParcial = remember(resultados) { resultados.any { r -> r.modulos.any { !it.coberturaCompleta && !it.naoConfigurado } } }
-    val conferir = porTurma.count { it.exigeConferencia } + if (escola) conhecidas.count { (id, _) -> porTurma.none { id in it.turmaIds } } else 0
-    val totalPendencias = remember(porTurma) { porTurma.sumOf { g -> g.modulos.sumOf { (it.quantidade ?: 0).coerceAtLeast(0) } } }
-    val emDia = porTurma.count { it.estado == EstadoGrupo.EM_DIA }
+    fun exigeConferencia(g: GrupoPendencias): Boolean = g.modulos.getOrNull(modulo)?.let { !it.completa } ?: g.exigeConferencia
+    val pendentes = porTurma.count { it.estadoNoModulo(modulo) == EstadoGrupo.PENDENTE }
+    val coberturaParcial = remember(resultados, modulo) {
+        resultados.any { r -> r.modulos.withIndex().any { (i, m) -> (modulo < 0 || i == modulo) && !m.coberturaCompleta && !m.naoConfigurado } }
+    }
+    val conferir = porTurma.count(::exigeConferencia) + if (escola) conhecidas.count { (id, _) -> porTurma.none { id in it.turmaIds } } else 0
+    val totalPendencias = remember(porTurma, modulo) {
+        porTurma.sumOf { g -> g.modulos.sumOf { if (modulo < 0 || it.indice == modulo) (it.quantidade ?: 0).coerceAtLeast(0) else 0 } }
+    }
+    val emDia = porTurma.count { it.estadoNoModulo(modulo) == EstadoGrupo.EM_DIA }
     val naoConsultadas = if (escola) conhecidas.count { (id, _) -> porTurma.none { id in it.turmaIds } } else 0
     val nomesProf = remember(docentes) { SgeBusca.indiceProfessores(docentes.vinculos, docentes.locais) }
     val sgeMudou = remember(resultados) { SgeSaude.sgeMudou(resultados) }
@@ -227,8 +244,8 @@ fun TelaCartoes(
     val diagnosticosRevisao = remember(docentes.diagnosticos) { docentes.diagnosticos }
     val visiveis = grupos.filter { g ->
         (busca.isBlank() || SgeBusca.combina(busca, g.titulo + " " + g.subtitulo + " " + g.resultados.joinToString { it.turma.nome + " " + it.turma.disciplina + " " + nomesProf(it) })) &&
-            when(filtro) { 1 -> g.estado == EstadoGrupo.PENDENTE; 2 -> g.exigeConferencia
-                3 -> g.estado == EstadoGrupo.EM_DIA; else -> true }
+            when(filtro) { 1 -> g.estadoNoModulo(modulo) == EstadoGrupo.PENDENTE; 2 -> exigeConferencia(g)
+                3 -> g.estadoNoModulo(modulo) == EstadoGrupo.EM_DIA; else -> true }
     }
     val carregando = if (escola) coord.sincronizando else painel.sincronizando
     val mensagemStatus = if (escola) coord.mensagem else painel.mensagem
@@ -264,7 +281,9 @@ fun TelaCartoes(
             Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
                 AnimatedVisibility(visible = carregando, enter = fadeIn(tween(SgeMotion.duration(130))),
                     exit = fadeOut(tween(SgeMotion.duration(110)))) {
-                    LinearProgressIndicator(Modifier.fillMaxWidth())
+                    val progresso = if (escola) filaCoord?.progresso else pausaDiario?.progresso
+                    if (progresso != null) LinearProgressIndicator(progress = progresso, modifier = Modifier.fillMaxWidth())
+                    else LinearProgressIndicator(Modifier.fillMaxWidth())
                 }
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     AnimatedContent(targetState = if (mostrarResumo) {
@@ -288,6 +307,7 @@ fun TelaCartoes(
                     val podeContinuar = !carregando && if (escola) filaCoord?.let { it.pausada && it.ids.isNotEmpty() } == true else pausaDiario?.pausada == true
                     if (podePausar) TextButton(onClick = if (escola) aoPausarFila else aoPausarDiario) { Text("Pausar") }
                     else if (diarioPausando) TextButton(onClick = {}, enabled = false) { Text("Pausando…") }
+                    else if (podeContinuar && perfil == PerfilSge.EXPIRADO) Button(onClick = aoAbrirSge) { Text("Entrar no SGE") }
                     else if (podeContinuar) Button(onClick = if (escola) aoRetomarFila else aoRetomarDiario) { Text("Continuar") }
                     if (escola) TextButton(onClick = aoCarregarTurmas) { Text(if (conhecidas.isEmpty()) "Carregar turmas" else "Reler turmas") }
                 }
@@ -318,7 +338,10 @@ fun TelaCartoes(
                             if (nomesFalhas.isNotEmpty()) Text("Falharam: ${nomesFalhas.joinToString(" · ")}",
                                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                                if (fila.ids.isNotEmpty() && fila.pausada) Button(onClick = aoRetomarFila) { Text("Retomar") }
+                                if (fila.ids.isNotEmpty() && fila.pausada) {
+                                    if (perfil == PerfilSge.EXPIRADO) Button(onClick = aoAbrirSge) { Text("Entrar no SGE") }
+                                    else Button(onClick = aoRetomarFila) { Text("Retomar") }
+                                }
                                 if (fila.ids.isNotEmpty() && !fila.pausada) OutlinedButton(onClick = aoPausarFila) { Text("Pausar") }
                                 if (fila.falhas.isNotEmpty() && fila.ids.isEmpty()) Button(onClick = aoTentarFalhas) { Text("Tentar falhas (${fila.falhas.size})") }
                             }
@@ -339,6 +362,7 @@ fun TelaCartoes(
                     OutlinedButton(onClick = aoMapa, modifier = Modifier.weight(1f)) { Text("Mapa da escola") }
                     OutlinedButton(onClick = aoLote, modifier = Modifier.weight(1f)) { Text("Relatórios em lote") }
                 }
+                if (escola) OutlinedButton(onClick = aoSemana, modifier = Modifier.fillMaxWidth()) { Text("Conferência semanal") }
             }
         }
         item(span = { GridItemSpan(maxLineSpan) }) {
@@ -446,7 +470,7 @@ fun TelaCartoes(
         }
         items(visiveis, key = { it.chave }) { grupo ->
             Box(Modifier.animateItemPlacement(tween(SgeMotion.duration(190))).graphicsLayer { alpha = alphaCartoes.value }) {
-                CartaoGrupo(grupo, por, selecionado = grupo.chave == selecionada, mudancas = mudancas) { aoAbrir(grupo) }
+                CartaoGrupo(grupo, por, selecionado = grupo.chave == selecionada, mudancas = mudancas, modulo = modulo) { aoAbrir(grupo) }
             }
         }
         item(span = { GridItemSpan(maxLineSpan) }) {

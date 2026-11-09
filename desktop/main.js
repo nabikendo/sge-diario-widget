@@ -4,10 +4,11 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 
 const SGE = 'https://sge.seduc.to.pontoid.com.br';
+const icon = path.join(__dirname, 'assets', 'sge-diario.ico');
 let painel;
 function createWindow() {
   painel = new BrowserWindow({
-    width: 1180, height: 780, minWidth: 780, minHeight: 550,
+    icon, width: 1180, height: 780, minWidth: 780, minHeight: 550,
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: true }
   });
   painel.loadFile(path.join(__dirname, 'index.html'));
@@ -33,8 +34,8 @@ ipcMain.handle('report:pdf', async () => {
   await fs.writeFile(result.filePath, bytes);
   return true;
 });
-ipcMain.handle('sge:open', () => {
-  const sge = new BrowserWindow({ width: 1250, height: 850, title: 'SGE Web',
+ipcMain.handle('sge:open', async () => {
+  const sge = new BrowserWindow({ icon, width: 1250, height: 850, title: 'SGE Web',
     webPreferences: { partition: 'persist:sge-oficial', contextIsolation: true, nodeIntegration: false, sandbox: true } });
   sge.webContents.setWindowOpenHandler(({ url }) => {
     try { if (new URL(url).origin === SGE) return { action: 'allow' }; } catch (_) {}
@@ -43,5 +44,11 @@ ipcMain.handle('sge:open', () => {
   sge.webContents.on('will-navigate', (event, url) => {
     try { if (new URL(url).origin !== SGE) event.preventDefault(); } catch (_) { event.preventDefault(); }
   });
-  sge.loadURL(SGE);
+  try {
+    await sge.loadURL(SGE);
+  } catch {
+    if (sge.isDestroyed()) return;
+    sge.close();
+    throw new Error('Não foi possível abrir o SGE Web. Confira a conexão e tente novamente.');
+  }
 });

@@ -11,19 +11,21 @@ data class ResultadoModulo(
     val aprovados: Int = 0,
     val coberturaCompleta: Boolean = false,
     /** Instante da consulta deste módulo; 0 em registros legados sem timestamp individual. */
-    val atualizadoMs: Long = 0L
+    val atualizadoMs: Long = 0L,
+    val datas: DatasModulo? = null
 ) {
     /** O professor ainda não definiu a periodicidade no SGE: não há como saber quantos documentos deveriam existir. */
     val naoConfigurado get() = quantidade == 0 && !coberturaCompleta && detalhe.contains("periodicidade precisa ser definida", ignoreCase = true)
     fun resumo(): String = if (naoConfigurado) "n/c" else quantidade?.let { "$it${if (coberturaCompleta) "" else "*"}" } ?: "—"
     fun json() = JSONObject().put("quantidade", quantidade ?: JSONObject.NULL)
         .put("detalhe", detalhe).put("aguardando", aguardando).put("aprovados", aprovados).put("consultadoMs", atualizadoMs)
-        .put("completa", coberturaCompleta)
+        .put("completa", coberturaCompleta).put("datas", datas?.json())
     companion object {
         fun ler(json: JSONObject) = ResultadoModulo(
             if (json.isNull("quantidade")) null else json.getInt("quantidade"),
             json.optString("detalhe", "Não verificado"), json.optInt("aguardando"),
-            json.optInt("aprovados"), json.optBoolean("completa"), json.optLong("consultadoMs")
+            json.optInt("aprovados"), json.optBoolean("completa"), json.optLong("consultadoMs"),
+            json.optJSONObject("datas")?.let(DatasModulo::ler)
         )
     }
 }

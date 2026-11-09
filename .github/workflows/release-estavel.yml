@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       versao:
-        description: 'Versão (ex.: 1.3)'
+        description: 'Versão (ex.: 2.5.16)'
         required: true
 
 permissions:
@@ -18,7 +18,22 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  versao:
+    runs-on: ubuntu-22.04
+    outputs:
+      numero: ${{ steps.versao.outputs.numero }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Definir versão
+        id: versao
+        env:
+          SGE_VERSAO_MANUAL: ${{ inputs.versao }}
+        run: |
+          SGE_VERSAO="${SGE_VERSAO_MANUAL:-$(cat release/versao.txt)}"
+          [[ "$SGE_VERSAO" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo 'Versão inválida.'; exit 1; }
+          echo "numero=$SGE_VERSAO" >> "$GITHUB_OUTPUT"
   desktop:
+    needs: versao
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -28,29 +43,23 @@ jobs:
       - name: Instalar, testar e compilar Windows
         working-directory: desktop
         run: |
+          npm version "$env:SGE_VERSAO" --no-git-tag-version --allow-same-version
           npm install --no-audit --no-fund
           npm test
           npm run build:win
         env:
+          SGE_VERSAO: ${{ needs.versao.outputs.numero }}
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
       - uses: actions/upload-artifact@v4
         with:
           name: desktop-estavel
           path: desktop/dist/SGE-Diario-Desktop-*.exe
   release:
-    needs: desktop
+    needs: [versao, desktop]
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
-      - name: Definir versão
-        id: versao
-        env:
-          SGE_VERSAO_MANUAL: ${{ inputs.versao }}
-        run: |
-          SGE_VERSAO="${SGE_VERSAO_MANUAL:-$(cat release/versao.txt)}"
-          [[ "$SGE_VERSAO" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ ]] || { echo 'Versão inválida.'; exit 1; }
-          echo "numero=$SGE_VERSAO" >> "$GITHUB_OUTPUT"
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
@@ -64,14 +73,13 @@ jobs:
         run: echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
       - name: Testes e APK assinado
         env:
-          SGE_VERSAO: ${{ steps.versao.outputs.numero }}
+          SGE_VERSAO: ${{ needs.versao.outputs.numero }}
           KEYSTORE_FILE: ${{ runner.temp }}/release.jks
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         shell: bash
         run: |
-          set -o pipefail
           set -o pipefail
           gradle testDebugUnitTest assembleRelease "-Pversao=$SGE_VERSAO" -Pcodigo=${{ github.run_number }} --no-daemon --stacktrace 2>&1 | tee build.log
       - name: Resumo dos erros
@@ -98,14 +106,11 @@ jobs:
         id: publicar
         continue-on-error: false
         env:
-          SGE_VERSAO: ${{ steps.versao.outputs.numero }}
+          SGE_VERSAO: ${{ needs.versao.outputs.numero }}
           GH_TOKEN: ${{ github.token }}
         run: |
           cp app/build/outputs/apk/release/app-release.apk "SGE-Diario-$SGE_VERSAO.apk"
           python scripts/metadata-atualizacao.py "SGE-Diario-$SGE_VERSAO.apk" atualizacao.json
-          # O nome do .exe vem do package.json do desktop; renomeia para a versão da release
-          EXE=$(ls SGE-Diario-Desktop-*.exe 2>/dev/null | head -1)
-          [ -n "$EXE" ] && mv "$EXE" "SGE-Diario-Desktop-$SGE_VERSAO.exe" || true
           gh release create "v$SGE_VERSAO" "SGE-Diario-$SGE_VERSAO.apk" "SGE-Diario-Desktop-$SGE_VERSAO.exe" atualizacao.json --latest --target "$GITHUB_SHA" \
             --title "SGE Diário $SGE_VERSAO" \
             --notes-file release/NOTAS.md

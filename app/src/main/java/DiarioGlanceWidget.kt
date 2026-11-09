@@ -5,6 +5,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
+import android.net.Uri
 import androidx.compose.runtime.*
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
@@ -22,6 +23,8 @@ import br.to.seduc.sgediariowidget.R
 import br.to.seduc.sgediariowidget.data.*
 import br.to.seduc.sgediariowidget.worker.SgeSyncWorker
 import kotlinx.coroutines.CancellationException
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 
 open class SgeWidgetReceiver(private val tipo: TipoWidget) : GlanceAppWidgetReceiver() {
     override val glanceAppWidget: GlanceAppWidget get() = SgeWidgets.instancia(tipo)
@@ -86,6 +89,7 @@ class RefreshActionCallback : ActionCallback {
     override suspend fun onAction(context: Context, glanceId: GlanceId, parameters: ActionParameters) {
         val id = GlanceAppWidgetManager(context).getAppWidgetId(glanceId)
         val c = SgeWidgetStore.ler(context, id, SgeWidgets.tipo(context, id))
+        if (c.fonte == FontePainel.COORDENACAO && SgeSessaoStore.protegida(context)) return
         if (c.fonte == FontePainel.PESSOAL) {
             val p = SgePainelStore.ler(context)
             if (!p.sincronizando) {
@@ -121,11 +125,29 @@ private fun estadoTexto(e: EstadoGrupo) = when(e) {
 private fun corEstado(e: EstadoGrupo, c: CoresWidget) = when(e) {
     EstadoGrupo.PENDENTE -> c.pendente; EstadoGrupo.EM_DIA -> c.ok; else -> c.conferir
 }
-private fun abrir(context: Context, config: ConfigWidget, grupo: String = ""): Action = actionStartActivity(
-    Intent(context, MainActivity::class.java).setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-        .putExtra("sge_fonte", config.fonte.name).putExtra("sge_por", config.agrupamento.name).putExtra("sge_grupo", grupo))
+private fun abrir(context: Context, config: ConfigWidget, grupo: String = config.grupo, modulo: Int = -1): Action {
+    // Extras não fazem parte da identidade do PendingIntent no Android.
+    val destino = Uri.Builder().scheme("sge-diario").authority("widget")
+        .appendPath(config.fonte.name).appendPath(config.agrupamento.name)
+        .appendPath(grupo).appendPath(modulo.toString()).build()
+    return actionStartActivity(Intent(context, MainActivity::class.java)
+        .setData(destino).setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        .putExtra("sge_fonte", config.fonte.name).putExtra("sge_por", config.agrupamento.name)
+        .putExtra("sge_grupo", grupo).putExtra("sge_modulo", modulo))
+}
 
-open class SgeBaseWidget(private val tipo: TipoWidget) : GlanceAppWidget() {
+internal fun ultimaConsultaWidget(resultados: List<ResultadoTurma>, agora: LocalDateTime): String? =
+    resultados.asSequence()
+        .flatMap { r -> r.modulos.asSequence().filter { it.quantidade != null }.map { r to it } }
+        .mapNotNull { (r, m) ->
+            if (m.atualizadoMs > 0L) java.time.Instant.ofEpochMilli(m.atualizadoMs)
+                .atZone(java.time.ZoneId.systemDefault()).toLocalDateTime()
+            else SgeIdade.parse(r.atualizado, agora)
+        }
+        .maxOrNull()
+        ?.format(DateTimeFormatter.ofPattern("dd/MM HH:mm"))
+
+open class SgeBaseWidget(private val tipo: TipoWidget) : GlanceAppWidget(R.layout.widget_erro) {
     override val sizeMode: SizeMode = SizeMode.Exact
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val widgetId = GlanceAppWidgetManager(context).getAppWidgetId(id)
@@ -139,35 +161,68 @@ open class SgeBaseWidget(private val tipo: TipoWidget) : GlanceAppWidget() {
                 awaitDispose { prefs.unregisterOnSharedPreferenceChangeListener(listener); configs.unregisterOnSharedPreferenceChangeListener(listener) }
             }
             val config = remember(revisao) { SgeWidgetStore.ler(context, widgetId, tipo) }
-            val grupos = remember(revisao) { SgeWidgetStore.grupos(context, config) }
+            val escolar = config.fonte == FontePainel.COORDENACAO
+            val protegida = escolar && SgeSessaoStore.protegida(context)
             val c = remember(revisao) { cores(context) }
-            val pessoal = SgePainelStore.ler(context); val coord = SgeCoordStore.ler(context)
-            val ocupado = if (config.fonte == FontePainel.PESSOAL) pessoal.sincronizando else coord.sincronizando
+            val pessoal = remember(revisao) { if (!escolar) SgePainelStore.ler(context) else null }
+            val coord = remember(revisao) { if (escolar && !protegida) SgeCoordStore.ler(context) else null }
+            val ocupado = pessoal?.sincronizando == true || coord?.sincronizando == true
+            val recorte = remember(revisao) {
+                if (protegida) emptyList() else SgeWidgetStore.grupos(context, config.copy(soAtencao = false),
+                    pessoal?.turmas ?: coord?.turmas.orEmpty().flatMap { it.disciplinas })
+            }
+            val grupos = remember(recorte, config.soAtencao) {
+                if (config.soAtencao) recorte.filter { it.estado != EstadoGrupo.EM_DIA } else recorte
+            }
+            val ids = remember(recorte) { recorte.flatMap { it.turmaIds }.toSet() }
+            val falhas = remember(coord, ids, config.grupo) {
+                coord?.turmas.orEmpty().any { t ->
+                    t.erro != null && (config.grupo.isBlank() || t.id in ids || config.grupo == "turma:" + t.id)
+                }
+            }
+            val expirada = !protegida && SgeSessaoStore.perfil(context) == PerfilSge.EXPIRADO
+            val parcial = remember(recorte, falhas) { falhas || recorte.any { it.exigeConferencia } }
+            val ultima = remember(recorte) {
+                ultimaConsultaWidget(recorte.flatMap { it.resultados }.distinctBy(::chaveResultado), LocalDateTime.now())
+            }
             val size = LocalSize.current
             val focoIndice = grupos.indexOfFirst { it.chave == SgeWidgetStore.foco(context, widgetId) }.coerceAtLeast(0)
             val ajustar = actionStartActivity(Intent(context, WidgetConfigActivity::class.java).putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId))
+            // Somente referências a shapes e vetores XML. Nenhum bitmap entra no RemoteViews.
             Column(GlanceModifier.fillMaxSize().background(ImageProvider(c.fundo)).cornerRadius(28.dp).padding(12.dp)) {
                 Row(GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Column(GlanceModifier.defaultWeight().clickable(abrir(context, config))) {
                         Text(if (config.fonte == FontePainel.COORDENACAO) "SGE · ESCOLA" else "SGE · MEU DIÁRIO",
                             style = TextStyle(color = ColorProvider(c.secundario), fontSize = 9.sp, fontWeight = FontWeight.Medium), maxLines = 1)
-                        Text(when(tipo) { TipoWidget.FOCO -> if (config.fonte == FontePainel.COORDENACAO && SgeSessaoStore.protegida(context)) "Em foco" else "Em foco · ${if (grupos.isEmpty()) 0 else focoIndice + 1}/${grupos.size}"
+                        Text(when(tipo) { TipoWidget.FOCO -> if (protegida) "Em foco" else "Em foco · ${if (grupos.isEmpty()) 0 else focoIndice + 1}/${grupos.size}"
                             TipoWidget.RESUMO -> if (config.fonte == FontePainel.COORDENACAO) "Minha escola" else "Meu diário"; else -> tipo.titulo },
                             style = TextStyle(color = ColorProvider(c.texto), fontSize = if (size.width < 200.dp) 13.sp else 16.sp, fontWeight = FontWeight.Bold), maxLines = 1)
                     }
-                    if (tipo == TipoWidget.FOCO && grupos.size > 1 && !(config.fonte == FontePainel.COORDENACAO && SgeSessaoStore.protegida(context))) {
+                    if (tipo == TipoWidget.FOCO && grupos.size > 1 && !protegida) {
                         IconeWidget(R.drawable.ic_widget_up, "Recorte anterior", c.texto, actionRunCallback<AlternarFocoAction>(actionParametersOf(deltaKey to -1)))
                         IconeWidget(R.drawable.ic_widget_down, "Próximo recorte", c.texto, actionRunCallback<AlternarFocoAction>(actionParametersOf(deltaKey to 1)))
                     }
                     IconeWidget(R.drawable.ic_widget_settings, "Ajustar widget", c.secundario, ajustar)
-                    if (size.width >= 230.dp && tipo != TipoWidget.FOCO) IconeWidget(R.drawable.ic_widget_refresh, "Atualizar dados", c.acento, actionRunCallback<RefreshActionCallback>())
+                    if (size.width >= 230.dp && tipo != TipoWidget.FOCO && !protegida && !expirada) IconeWidget(R.drawable.ic_widget_refresh, "Atualizar dados", c.acento, actionRunCallback<RefreshActionCallback>())
+                }
+                if (!protegida) {
+                    val avisos = listOfNotNull("Atualizando…".takeIf { ocupado },
+                        "Sessão expirada".takeIf { expirada }, "Cobertura parcial".takeIf { parcial })
+                    val data = ultima?.let { "Última consulta: $it" } ?: "Sem consulta com dados"
+                    Text((avisos + data).joinToString(" · "),
+                        GlanceModifier.padding(top = 4.dp),
+                        style = TextStyle(color = ColorProvider(if (expirada || parcial) c.conferir else c.secundario), fontSize = 9.sp),
+                        maxLines = 2)
                 }
                 when {
-                    config.fonte == FontePainel.COORDENACAO && SgeSessaoStore.protegida(context) -> Column(GlanceModifier.fillMaxSize().clickable(abrir(context, config)).padding(top = 14.dp)) {
+                    protegida -> Column(GlanceModifier.fillMaxSize().clickable(abrir(context, config)).padding(top = 14.dp)) {
                         Text("Coordenação protegida", style = TextStyle(color = ColorProvider(c.texto), fontSize = 15.sp, fontWeight = FontWeight.Bold))
                         Text("Abra o app e confirme sua identidade.", style = TextStyle(color = ColorProvider(c.secundario), fontSize = 12.sp), maxLines = 3)
                     }
-                    tipo == TipoWidget.RESUMO -> ResumoWidget(grupos, config, c, context, size.height < 180.dp, ocupado)
+                    tipo == TipoWidget.RESUMO -> {
+                        AtalhosModulos(config, c, context)
+                        ResumoWidget(grupos, config, c, context, size.height < 180.dp)
+                    }
                     grupos.isEmpty() -> Column(GlanceModifier.fillMaxSize().clickable(ajustar).padding(top = 14.dp)) {
                         Text(if (config.grupo.isNotBlank()) "Este recorte não está disponível na última consulta."
                             else if (config.soAtencao) "Nenhum resultado neste filtro." else "Atualize o painel no aplicativo.",
@@ -193,8 +248,6 @@ open class SgeBaseWidget(private val tipo: TipoWidget) : GlanceAppWidget() {
                                 }
                             }
                         }
-                        Text(if (ocupado) "Atualizando…" else "Deslize para ver outros cartões · toque para detalhes",
-                            style = TextStyle(color = ColorProvider(c.secundario), fontSize = 9.sp), maxLines = 1)
                     }
                 }
             }
@@ -217,24 +270,34 @@ open class SgeBaseWidget(private val tipo: TipoWidget) : GlanceAppWidget() {
         Text(estadoTexto(grupo.estado), GlanceModifier.padding(top = 5.dp), style = TextStyle(color = ColorProvider(corEstado(grupo.estado, c)), fontSize = 11.sp, fontWeight = FontWeight.Medium))
         val ms = grupo.modulos
         if (!compacto) {
-            Row(GlanceModifier.fillMaxWidth().padding(top = 10.dp)) { ValorWidget("Conteúdos", ms[0], c); ValorWidget("Frequência", ms[1], c) }
-            Row(GlanceModifier.fillMaxWidth().padding(top = 8.dp)) { ValorWidget("Aula", ms[2], c); ValorWidget("Curso", ms[3], c); ValorWidget("PEI", ms[4], c) }
-        } else Text(ms.filter { (it.quantidade ?: 0) > 0 || !it.completa }.take(2).joinToString(" · ") {
-            "${SgeDashboard.nomes[it.indice]} ${it.valor()}${if (it.quantidade == null) "" else " ${it.unidade()}"}"
-        }.ifBlank { "Cinco módulos verificados" }, GlanceModifier.padding(top = 6.dp), style = TextStyle(color = ColorProvider(c.secundario), fontSize = 10.sp), maxLines = 2)
+            Row(GlanceModifier.fillMaxWidth().padding(top = 10.dp)) { ValorWidget("Conteúdos", ms[0], c, abrir(context, config, grupo.chave, 0)); ValorWidget("Frequência", ms[1], c, abrir(context, config, grupo.chave, 1)) }
+            Row(GlanceModifier.fillMaxWidth().padding(top = 8.dp)) { ValorWidget("Aula", ms[2], c, abrir(context, config, grupo.chave, 2)); ValorWidget("Curso", ms[3], c, abrir(context, config, grupo.chave, 3)); ValorWidget("PEI", ms[4], c, abrir(context, config, grupo.chave, 4)) }
+        } else AtalhosModulos(config, c, context, grupo)
         if (ms.any { !it.completa } && !compacto) Text("* parcial · — não verificado", GlanceModifier.padding(top = 7.dp), style = TextStyle(color = ColorProvider(c.conferir), fontSize = 9.sp))
     }
 }
 
-@Composable private fun RowScope.ValorWidget(nome: String, m: ResumoModulo, c: CoresWidget) {
-    Column(GlanceModifier.defaultWeight().padding(end = 5.dp)) {
+@Composable private fun AtalhosModulos(config: ConfigWidget, c: CoresWidget, context: Context, grupo: GrupoPendencias? = null) {
+    val modulos = grupo?.modulos
+    Row(GlanceModifier.fillMaxWidth().padding(top = 4.dp)) {
+        for ((indice, nome) in listOf(0 to "Cont.", 1 to "Freq.", 4 to "PEI")) {
+            val acao = abrir(context, config, grupo?.chave ?: config.grupo, indice)
+            if (modulos != null) ValorWidget(nome, modulos[indice], c, acao)
+            else Text(nome, GlanceModifier.defaultWeight().clickable(acao).padding(top = 4.dp, bottom = 4.dp),
+                style = TextStyle(color = ColorProvider(c.acento), fontSize = 10.sp, fontWeight = FontWeight.Bold), maxLines = 1)
+        }
+    }
+}
+
+@Composable private fun RowScope.ValorWidget(nome: String, m: ResumoModulo, c: CoresWidget, acao: Action) {
+    Column(GlanceModifier.defaultWeight().clickable(acao).padding(end = 5.dp)) {
         Text(nome, style = TextStyle(color = ColorProvider(c.secundario), fontSize = 9.sp), maxLines = 1)
         Text(m.valor(), style = TextStyle(color = ColorProvider(if ((m.quantidade ?: 0) > 0) c.pendente else if (!m.completa) c.conferir else c.texto),
             fontSize = 15.sp, fontWeight = FontWeight.Bold), maxLines = 1)
     }
 }
 
-@Composable private fun ColumnScope.ResumoWidget(grupos: List<GrupoPendencias>, config: ConfigWidget, c: CoresWidget, context: Context, compacto: Boolean, ocupado: Boolean) {
+@Composable private fun ColumnScope.ResumoWidget(grupos: List<GrupoPendencias>, config: ConfigWidget, c: CoresWidget, context: Context, compacto: Boolean) {
     val rs = grupos.flatMap { it.resultados }.distinctBy(::chaveResultado)
     val turmas = SgeDashboard.agrupar(rs, Agrupamento.TURMA)
     val semConsulta = if (config.fonte == FontePainel.COORDENACAO && config.grupo.isBlank()) SgeWidgetStore.conhecidas(context).count { (id, _) -> turmas.none { id in it.turmaIds } } else 0
@@ -255,5 +318,4 @@ open class SgeBaseWidget(private val tipo: TipoWidget) : GlanceAppWidget() {
                 style = TextStyle(color = ColorProvider(c.ok), fontSize = 11.sp), maxLines = 2)
         }
     }
-    Text(if (ocupado) "Atualizando…" else "Toque para abrir o painel", style = TextStyle(color = ColorProvider(c.secundario), fontSize = 9.sp), maxLines = 1)
 }

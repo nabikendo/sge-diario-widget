@@ -1,7 +1,7 @@
 name: Build Windows Desktop
 on:
   push:
-    paths: [ 'desktop/**', '.github/workflows/build-desktop.yml' ]
+    paths: [ 'desktop/**', 'release/versao.txt', '.github/workflows/build-desktop.yml' ]
   workflow_dispatch:
 permissions:
   contents: read
@@ -15,7 +15,10 @@ jobs:
           node-version: '22'
       - name: Instalar dependências
         working-directory: desktop
-        run: npm install --no-audit --no-fund
+        run: |
+          $versao = (Get-Content ../release/versao.txt -Raw).Trim()
+          npm version "$versao" --no-git-tag-version --allow-same-version
+          npm install --no-audit --no-fund
       - name: Testar modelo do backup
         working-directory: desktop
         run: npm test

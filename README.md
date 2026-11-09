@@ -2,7 +2,7 @@
 
 Acompanhe as pendências do diário escolar no SGE 3.0 — do seu diário e da escola inteira.
 
-[![Versão 2.5.13](https://img.shields.io/badge/versão-2.5.13-168B75)](https://github.com/nabikendo/sge-diario-widget/releases/tag/v2.5.13) [![Licença MIT](https://img.shields.io/badge/licença-MIT-2D7A46)](LICENSE)
+[![Versão 2.6.0](https://img.shields.io/badge/versão-2.6.0-168B75)](https://github.com/nabikendo/sge-diario-widget/releases/tag/v2.6.0) [![Licença MIT](https://img.shields.io/badge/licença-MIT-2D7A46)](LICENSE)
 
 ---
 
@@ -10,21 +10,29 @@ Acompanhe as pendências do diário escolar no SGE 3.0 — do seu diário e da e
 
 | Plataforma | Arquivo | Observação |
 |---|---|---|
-| Android | `SGE-Diario-2.5.13.apk` | Versão estável, instala por cima da anterior. |
-| Windows | `SGE-Diario-Desktop-2.5.13.exe` | Mostra um backup local; não sincroniza com o SGE. |
+| Android | `SGE-Diario-2.6.0.apk` | Android 8.0 ou superior. |
+| Windows | `SGE-Diario-Desktop-2.6.0.exe` | Portátil para Windows x64. Abre backups do Android. |
 | Canal de testes | [release `latest`](https://github.com/nabikendo/sge-diario-widget/releases/tag/latest) | Pré-versões automáticas. |
 
 Todas as versões estão em [Releases](https://github.com/nabikendo/sge-diario-widget/releases).
 
 ---
 
-## Como começar
+## Como começar no Android
 
 1. Instale o APK e abra o app.
 2. Na aba **SGE Web**, entre com seu perfil no SGE 3.0.
 3. Volte a **Meu diário** ou **Coordenação** e toque em atualizar.
 
 O app lê o que o SGE mostra na sua sessão e monta o painel no aparelho. Não grava nada no SGE.
+
+## Como começar no Windows
+
+1. No Android, exporte um backup em **Ajustes → Backup**.
+2. No Windows, abra o executável e selecione **Importar backup JSON**.
+3. Escolha **Meu diário** ou **Coordenação**, filtre os resultados e salve o PDF do recorte exibido.
+
+O painel Windows usa os dados da última consulta salva no backup. O botão **Abrir SGE Web** abre o site oficial em uma sessão independente. Veja o [guia do Windows](desktop/README.md) para detalhes.
 
 ---
 
@@ -72,26 +80,46 @@ Uma turma só aparece **em dia** quando os cinco módulos foram conferidos por c
 - **Painel pessoal e coordenação:** cartões por turma, componente ou professor, com busca e filtros.
 - **Coordenação por professor:** no grupo de um professor, sincronizar verifica só as disciplinas dele.
 - **Hero Card:** total de pendências, barra de turmas em dia e botão de sincronizar.
-- **Widgets:** seis opções para a tela inicial.
-- **Fila de coordenação:** acompanhe, pause, retome e reprocesse as turmas que falharam.
-- **Histórico:** compare duas janelas de sete dias.
+- **Widgets:** seis opções para a tela inicial, com horário da última consulta, avisos de cobertura e atalhos por módulo.
+- **Fila de coordenação:** veja o progresso, pause, retome depois de renovar a sessão e reprocesse as turmas que falharam.
+- **Histórico:** compare consultas e veja pendências novas, resolvidas ou sem verificação.
+- **Conferência semanal:** em Coordenação, selecione uma semana e um professor, revise o que o SGE retornou e confira a prévia do PDF ou do texto.
 - **Relatórios:** texto para WhatsApp ou PDF para a coordenação, com o bimestre no cabeçalho.
 - **Tablets:** painel lado a lado em telas largas.
 
 ---
 
+## Android 17
+
+Com o **Continuar em outro dispositivo** do sistema, um aparelho compatível pode abrir o mesmo painel ou semana em outro aparelho com o SGE Diário instalado. O app transfere apenas o recorte de navegação. Cada aparelho usa seus próprios dados locais, sessão do SGE e proteção da coordenação.
+
+As consultas manuais exibem progresso no app. Se as notificações estiverem autorizadas e o Android aceitar a promoção, o progresso pode aparecer como atualização ao vivo.
+
 ## Privacidade
 
-O app é somente leitura. Não guarda senha nem cookie. Os dados ficam no aparelho, e o backup é manual, pelo seletor de arquivos do Android.
+O painel consulta dados em modo somente leitura. O backup é exportado manualmente e pode conter informações escolares. Guarde o arquivo e os relatórios em local de acesso restrito. A janela oficial do SGE Web no Windows mantém sua própria sessão local.
 
 ---
 
 ## Limitações conhecidas
 
 - Os resultados valem para o último sync. Depois de trocar o bimestre, o painel atualiza sozinho, mas leva alguns minutos.
+- A conferência semanal usa as datas que o SGE retornou e os vínculos docentes locais. Confira o horário oficial e a adequação do conteúdo à matriz, ao plano e ao PEI nas fontes originais.
 - Não é oficial nem tem vínculo com a Seduc-TO ou a Ponto iD.
 
 ---
+
+## Como funciona a versão
+
+Usamos três números no formato **MAIOR.MENOR.CORREÇÃO**. Em **2.5.15**, o **2** identifica a geração do app, o **5** a série de funcionalidades e o **15** a revisão dessa série.
+
+| Próxima versão | Quando usar |
+|---|---|
+| `2.5.16` | Corrigir falhas mantendo a compatibilidade. |
+| `2.6.0` | Adicionar um recurso compatível, como novos filtros no painel. |
+| `3.0.0` | Fazer uma mudança que quebra compatibilidade, como trocar o formato de backup sem oferecer migração. |
+
+O fluxo estável usa [release/versao.txt](release/versao.txt) ou a versão informada no disparo manual para compilar o APK e o EXE. O Android também usa um código interno de compilação para ordenar instalações. [Referência do versionamento semântico](https://semver.org/lang/pt-BR/).
 
 ## Licença
 

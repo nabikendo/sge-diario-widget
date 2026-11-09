@@ -13,8 +13,13 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
+import java.util.UUID
 import java.util.concurrent.TimeUnit
 
 class SgeSyncWorker(private val ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, params) {
@@ -22,30 +27,41 @@ class SgeSyncWorker(private val ctx: Context, params: WorkerParameters) : Corout
         SgePainelStore.salvar(ctx, painel)
         SgeWidgets.atualizar(ctx)
     }
-    override suspend fun doWork(): Result = withContext(SgeSessaoStore.contextoConsulta(ctx)) { executar() }
+    override suspend fun doWork(): Result {
+        val trava = if (inputData.getString("coord_alvo") == null) travaPessoal else travaCoord
+        return withContext(SgeSessaoStore.contextoConsulta(ctx)) { trava.withLock { executar() } }
+    }
     private suspend fun executar(): Result {
         val geracao = SgeSessaoStore.geracao(ctx)
         val antigo = SgePainelStore.ler(ctx)
         val alvo = inputData.getString("coord_alvo")
         val coordenacao = alvo != null
+        val rodada = inputData.getString("coord_rodada")
+        val filaInicial = if (coordenacao) SgeFila.ler(ctx) else null
+        val bimestre = filaInicial?.bimestre?.takeIf { it >= 0 } ?: SgeBimestre.ler(ctx)
+        if (filaInicial?.pausada == true || rodada != null && filaInicial?.let { it.rodada == rodada && alvo != null && alvo in it.ids } != true)
+            return Result.success()
+        val manual = if (coordenacao) !inputData.getBoolean("auto", false) else inputData.getBoolean("manual", false)
+        val notificacao = if (manual) SgeProgressoNotificacao(ctx, id.toString(), coordenacao) else null
         val inicioWorker = System.currentTimeMillis()
-        val retomando = inputData.getBoolean("retomar", false)
+        val retomando = inputData.getBoolean("retomar", false) || runAttemptCount > 0
+        if (!coordenacao && !manual && SgePausaPessoal.ler(ctx)?.pausada == true) return Result.success()
         if (!coordenacao && !retomando) {
-            // A pausa pedida pelo usuário vale também para consultas automáticas; atualizar manualmente recomeça do zero.
-            if (!inputData.getBoolean("manual", false) && SgePausaPessoal.ler(ctx)?.pausada == true) return Result.success()
             SgePausaPessoal.limpar(ctx)
         }
         if (!coordenacao) mostrar(antigo.copy(sincronizando = true, inicioConsulta = System.currentTimeMillis(), mensagem = "Consultando o horário do professor…"))
         var cliente: SgeReadClient? = null
         var cancelado = false
+        var bloqueada = false
         val updatedCookies = mutableListOf<String>()
         try {
+            notificacao?.mostrar(filaInicial?.resolvidas ?: 0, filaInicial?.total ?: 0)
             val cookies = withContext(Dispatchers.Main) { CookieManager.getInstance().getCookie(BASE) }
             if (cookies.isNullOrBlank()) throw SessaoExpirada()
             val agent = ctx.getSharedPreferences(SgePainelStore.PREFS_NAME, Context.MODE_PRIVATE)
                 .getString("web_user_agent", null) ?: error("Abra o SGE no aplicativo antes de sincronizar.")
             val client = SgeReadClient(cookies, agent, ctx.getSharedPreferences(SgePainelStore.PREFS_NAME, Context.MODE_PRIVATE).getString("turmas_contexto", null)) { updatedCookies.add(it) }
-            client.bimestreFiltro = SgeBimestre.ler(ctx)
+            client.bimestreFiltro = bimestre
             cliente = client
             // Dois perfis no SGE: Servidor (professor) e Unidade escolar (coordenação). Cada um tem seu painel.
             val escola = withTimeout(30_000L) { withContext(Dispatchers.IO) { client.ehPerfilEscola() } }
@@ -58,9 +74,10 @@ class SgeSyncWorker(private val ctx: Context, params: WorkerParameters) : Corout
                 return Result.success()
             }
             if (coordenacao) {
-                registrarErroCoord(alvo!!, "O perfil ativo é Servidor; troque para Unidade escolar antes de consultar esta turma.")
+                bloqueada = true
+                pausarFilaAtual(rodada)
                 SgeCoordStore.salvar(ctx, SgeCoordStore.ler(ctx).copy(sincronizando = false,
-                    mensagem = "O perfil ativo é Servidor. Troque para Unidade escolar no SGE Web e tente de novo."))
+                    mensagem = "O perfil ativo é Servidor. Entre no perfil Unidade escolar no SGE Web e toque em Continuar."))
                 return Result.success()
             }
 
@@ -69,32 +86,32 @@ class SgeSyncWorker(private val ctx: Context, params: WorkerParameters) : Corout
             }
             val todosIds = turmas.map { chaveVinculo(it.id, it.disciplina) }.toSet()
             // Continuar segue de onde parou; qualquer outra consulta recomeça do zero.
-            val feitasAntes = if (retomando) SgePausaPessoal.ler(ctx)?.feitas.orEmpty().filter { it in todosIds }.toSet() else emptySet()
+            SgePausaPessoal.definirEscopo(ctx, todosIds, bimestre)
+            val feitasAntes = if (retomando) SgePausaPessoal.ler(ctx)?.feitas.orEmpty() else emptySet()
             val idsFeitasAntes = turmas.filter { chaveVinculo(it.id, it.disciplina) in feitasAntes }.map { it.id }.toSet()
             val mudancasAnteriores = antigo.mudancas.filter { it.turmaId in idsFeitasAntes }
             val resultados = antigo.turmas.filter { chaveResultado(it) in feitasAntes }.toMutableList()
             val novos = mutableListOf<ResultadoTurma>()
             var pausou = false
-            for ((indice, turma) in turmas.withIndex()) {
+            for (turma in turmas) {
                 val chave = chaveVinculo(turma.id, turma.disciplina)
                 if (chave in feitasAntes) continue
                 if (pausaPedida()) { pausou = true; break }
-                mostrar(PainelSge(SgeDashboard.progresso(antigo.turmas, resultados, todosIds), "Consultando ${indice + 1}/${turmas.size}: ${turma.nome} \u2022 ${turma.disciplina}", true, true, System.currentTimeMillis(), mudancasAnteriores))
-                val etapas = listOf<() -> ResultadoModulo>(
-                    { client.conteudos(turma).carimbar() }, { client.frequencia(turma).carimbar() },
-                    { planosComCache(client, turma, "PLANO DE AULA", 2, antigo.turmas) },
-                    { planosComCache(client, turma, "PLANO DE CURSO", 3, antigo.turmas) },
-                    { planosComCache(client, turma, "PEI - Plano de Ensino Individualizado", 4, antigo.turmas) })
+                notificacao?.mostrar(resultados.size, turmas.size)
+                val parcial = SgeDashboard.progresso(antigo.turmas, resultados, todosIds)
+                val mudancasParciais = mudancasAnteriores + SgeComparacao.calcular(antigo.turmas, novos)
                 val modulos = withTimeout(90_000L) {
-                    withContext<List<ResultadoModulo>?>(Dispatchers.IO) {
-                        val lidos = mutableListOf<ResultadoModulo>()
-                        for (etapa in etapas) { if (pausaPedida()) return@withContext null; lidos.add(etapa()) }
-                        lidos.toList()
+                    consultarModulos(client, turma, antigo.turmas, ::pausaPedida) { etapa ->
+                        SgePainelStore.salvar(ctx, PainelSge(parcial, "${resultados.size}/${turmas.size} consultas processadas · ${turma.nome} · $etapa",
+                            true, true, System.currentTimeMillis(), mudancasParciais))
                     }
                 }
                 if (modulos == null) { pausou = true; break } // pausa no meio da turma: ela é refeita ao continuar
                 val lida = ResultadoTurma(turma, modulos, LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd/MM HH:mm")))
                 resultados.add(lida); novos.add(lida)
+                mostrar(PainelSge(SgeDashboard.progresso(antigo.turmas, resultados, todosIds),
+                    "${resultados.size}/${turmas.size} consultas processadas.", true, true, System.currentTimeMillis(),
+                    mudancasAnteriores + SgeComparacao.calcular(antigo.turmas, novos)))
                 SgePausaPessoal.marcarFeita(ctx, chave)
             }
             val mudancas = mudancasAnteriores + SgeComparacao.calcular(antigo.turmas, novos)
@@ -117,16 +134,19 @@ class SgeSyncWorker(private val ctx: Context, params: WorkerParameters) : Corout
         } catch (e: TimeoutCancellationException) {
             guardarDiagnostico("Tempo limite de 90s excedido", cliente)
             if (coordenacao) registrarErroCoord(alvo!!, "Tempo limite excedido; consulta não concluída.")
-            avisar(coordenacao, antigo.copy(mensagem = "A consulta demorou mais de 90 segundos. Verifique a conexão e tente novamente.",
+            if (!coordenacao && manual) SgePausaPessoal.pedirPausa(ctx)
+            avisar(coordenacao, SgePainelStore.ler(ctx).copy(mensagem = "A consulta excedeu o tempo limite. Verifique a conexão e tente novamente.",
                 sincronizando = false, inicioConsulta = 0L))
             return if (coordenacao) Result.success() else Result.failure()
         } catch (e: CancellationException) { cancelado = true; throw e }
         catch (e: SessaoExpirada) {
             SgeSessaoStore.salvar(ctx, PerfilSge.EXPIRADO)
-            if (coordenacao) registrarErroCoord(alvo!!, "Sessão expirada; entre novamente no SGE.")
-            if (!inputData.getBoolean("manual", false) && (!coordenacao || inputData.getBoolean("auto", false))) SgeAvisos.sessaoExpirada(ctx)
+            bloqueada = true
+            if (coordenacao) pausarFilaAtual(rodada) else SgePausaPessoal.pedirPausa(ctx)
+            if (!manual) SgeAvisos.sessaoExpirada(ctx)
             guardarDiagnostico("Sessão expirada", cliente)
-            avisar(coordenacao, antigo.copy(mensagem = "Sessão expirada. Entre novamente no SGE. Dados abaixo são da última consulta.", sincronizando = false, sessaoAtiva = false))
+            avisar(coordenacao, SgePainelStore.ler(ctx).copy(mensagem = "Sessão expirada. Entre novamente no SGE Web e toque em Continuar.",
+                sincronizando = false, sessaoAtiva = false, inicioConsulta = 0L))
             return Result.success()
         } catch (e: Exception) {
             // O SGE varia o formato de algumas telas. Exibir a etapa que falhou
@@ -134,39 +154,49 @@ class SgeSyncWorker(private val ctx: Context, params: WorkerParameters) : Corout
             val motivo = "${e.javaClass.simpleName}: ${e.message ?: ""}".replace(Regex("\\s+"), " ").take(500)
             guardarDiagnostico("Erro: $motivo", cliente)
             if (coordenacao) registrarErroCoord(alvo!!, motivo)
-            avisar(coordenacao, antigo.copy(mensagem = "Não foi possível consultar o horário: $motivo. Dados abaixo são da última consulta.", sincronizando = false))
+            if (!coordenacao && manual && runAttemptCount >= 2) SgePausaPessoal.pedirPausa(ctx)
+            avisar(coordenacao, SgePainelStore.ler(ctx).copy(mensagem = "Não foi possível completar a consulta: $motivo.",
+                sincronizando = false, inicioConsulta = 0L))
             return if (coordenacao) Result.success() else if (runAttemptCount < 2) Result.retry() else Result.failure()
         } finally {
-            if (coordenacao) {
-                val fila = SgeFila.ler(ctx)
-                if (cancelado && fila?.pausada == true) SgeCoordStore.salvar(ctx, SgeCoordStore.ler(ctx).copy(sincronizando = false, inicioConsulta = 0L, mensagem = SgeFila.textoPausada(fila)))
-                else {
-                    if (!cancelado) {
-                        val erroTurma = SgeCoordStore.ler(ctx).turmas.firstOrNull { it.id == alvo }?.erro != null
-                        if (erroTurma) SgeFila.falhar(ctx, alvo!!) else SgeFila.concluir(ctx, alvo!!, System.currentTimeMillis() - inicioWorker)
-                    }
-                    val restante = SgeFila.ler(ctx)
-                    val atual = SgeCoordStore.ler(ctx)
-                    when {
-                        restante?.pausada == true -> SgeCoordStore.salvar(ctx, atual.copy(sincronizando = false, inicioConsulta = 0L, mensagem = SgeFila.textoPausada(restante)))
-                        restante?.ids?.isNotEmpty() == true -> SgeCoordStore.salvar(ctx, atual.copy(sincronizando = true, inicioConsulta = System.currentTimeMillis(),
-                            mensagem = SgeFila.textoAndamento(restante, "Fila de coordenação")))
-                        restante?.falhas?.isNotEmpty() == true -> SgeCoordStore.salvar(ctx, atual.copy(sincronizando = false, inicioConsulta = 0L,
-                            mensagem = "Fila concluída: ${restante.concluidas.size} consulta(s) concluída(s), ${restante.falhas.size} falha(s). Toque em Tentar falhas para repetir."))
-                        else -> SgeCoordStore.salvar(ctx, atual.copy(sincronizando = false, inicioConsulta = 0L, mensagem = "Fila concluída sem falhas."))
-                    }
-                }
-            }
+            notificacao?.encerrar()
+            if (alvo != null && !bloqueada && !cancelado) finalizarFila(rodada, alvo, inicioWorker)
             // Refresh after every exit path, including cancellation/retry, so the
             // launcher widget never stays visually stuck on a stale loading view.
             withContext(NonCancellable + Dispatchers.Main) {
-                if (SgeSessaoStore.geracao(ctx) == geracao) { updatedCookies.forEach { CookieManager.getInstance().setCookie(BASE, it) }; CookieManager.getInstance().flush() }
+                if (!cancelado && !bloqueada && SgeSessaoStore.geracao(ctx) == geracao) {
+                    updatedCookies.forEach { CookieManager.getInstance().setCookie(BASE, it) }
+                    CookieManager.getInstance().flush()
+                }
                 SgeWidgets.atualizar(ctx)
             }
         }
     }
     private suspend fun avisar(coordenacao: Boolean, p: PainelSge) {
-        if (coordenacao) SgeCoordStore.salvar(ctx, SgeCoordStore.ler(ctx).copy(mensagem = p.mensagem, sincronizando = false)) else mostrar(p)
+        if (coordenacao) SgeCoordStore.salvar(ctx, SgeCoordStore.ler(ctx).copy(mensagem = p.mensagem, sincronizando = false, inicioConsulta = 0L)) else mostrar(p)
+    }
+    private fun pausarFilaAtual(rodada: String?) {
+        SgeSessaoStore.gravarSeAtual(ctx) {
+            if (rodada == null || SgeFila.ler(ctx)?.rodada == rodada) SgeFila.pausar(ctx)
+        }
+    }
+    private fun finalizarFila(rodada: String?, alvo: String, inicio: Long) {
+        SgeSessaoStore.gravarSeAtual(ctx) {
+            val fila = SgeFila.ler(ctx)
+            if (fila?.pausada == true || rodada != null && fila?.rodada != rodada) return@gravarSeAtual
+            val atual = SgeCoordStore.ler(ctx)
+            val erro = atual.turmas.firstOrNull { it.id == alvo }?.erro
+            val restante = if (erro != null) SgeFila.falhar(ctx, alvo) else SgeFila.concluir(ctx, alvo, System.currentTimeMillis() - inicio)
+            val rodando = restante?.ids?.isNotEmpty() == true
+            val mensagem = when {
+                rodando -> SgeFila.textoAndamento(restante!!, "Fila de coordenação")
+                restante?.falhas?.isNotEmpty() == true ->
+                    "Fila concluída: ${restante.concluidas.size} consulta(s) concluída(s), ${restante.falhas.size} falha(s). Toque em Tentar falhas para repetir."
+                else -> if (erro == null) "Fila concluída sem falhas." else atual.mensagem
+            }
+            SgeCoordStore.salvar(ctx, atual.copy(sincronizando = rodando, inicioConsulta = if (rodando) System.currentTimeMillis() else 0L,
+                mensagem = mensagem))
+        }
     }
     /** Coordenação: verifica UMA turma por vez (todas as disciplinas dela × 5 módulos), reaproveitando as consultas do professor. */
     private suspend fun sincronizarCoordenacao(client: SgeReadClient, alvo: String): Result {
@@ -181,12 +211,13 @@ class SgeSyncWorker(private val ctx: Context, params: WorkerParameters) : Corout
         }
         val nome = o.getString("t")
         val agora = { LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd/MM HH:mm")) }
-        suspend fun gravar(t: CoordTurma, msg: String, ocupado: Boolean, mudancas: List<MudancaModulo>? = null) {
+        suspend fun gravar(t: CoordTurma, msg: String, ocupado: Boolean, mudancas: List<MudancaModulo>? = null,
+            atualizarWidget: Boolean = true) {
             val novasMudancas = mudancas?.let { painel.mudancas.filterNot { m -> m.turmaId == alvo } + it } ?: painel.mudancas
             painel = painel.copy(turmas = painel.turmas.filter { it.id != alvo } + t, mensagem = msg, sincronizando = ocupado,
                 inicioConsulta = if (ocupado) System.currentTimeMillis() else 0L, mudancas = novasMudancas)
             SgeCoordStore.salvar(ctx, painel)
-            SgeWidgets.atualizar(ctx)
+            if (atualizarWidget) SgeWidgets.atualizar(ctx)
         }
         val anterior = painel.turmas.firstOrNull { it.id == alvo } ?: CoordTurma(alvo, nome)
         gravar(anterior.copy(erro = null), "Lendo as disciplinas de $nome…", true)
@@ -197,15 +228,23 @@ class SgeSyncWorker(private val ctx: Context, params: WorkerParameters) : Corout
         val todas = withTimeout(60_000L) { withContext(Dispatchers.IO) { client.disciplinasDaTurma(alvo) } }
         val nomes = if (escolhidos == null) todas else todas.filter { normalizarSge(it) in escolhidos }
         val mantidas = if (escolhidos == null) emptyList() else anterior.disciplinas.filter { normalizarSge(it.turma.disciplina) !in escolhidos }
+        if (nomes.isEmpty()) {
+            registrarErroCoord(alvo, "Nenhuma disciplina do recorte foi identificada no SGE.")
+            return Result.success()
+        }
+        val chaves = nomes.map { chaveVinculo(alvo, it) }.toSet()
         val feitas = mutableListOf<ResultadoTurma>()
         for ((i, d) in nomes.withIndex()) {
-            gravar(CoordTurma(alvo, nome, SgeDashboard.progresso(anterior.disciplinas, feitas, nomes.map { chaveVinculo(alvo, it) }.toSet()), null, anterior.atualizado, anterior.atualizadoMs),
-                SgeFila.ler(ctx)?.let { SgeFila.textoAndamento(it, "$nome • $d (${i + 1}/${nomes.size})") } ?: "Consultando $nome • $d (${i + 1}/${nomes.size})", true)
             val t = TurmaMonitorada(alvo, nome, "", d)
+            val parcial = anterior.copy(disciplinas = mantidas + SgeDashboard.progresso(anterior.disciplinas, feitas, chaves), erro = null)
             val modulos = try {
-                withTimeout(180_000L) { withContext(Dispatchers.IO) { listOf(
-                    client.conteudos(t).carimbar(), client.frequencia(t).carimbar(), planosComCache(client, t, "PLANO DE AULA", 2, anterior.disciplinas),
-                    planosComCache(client, t, "PLANO DE CURSO", 3, anterior.disciplinas), planosComCache(client, t, "PEI - Plano de Ensino Individualizado", 4, anterior.disciplinas)) } }
+                withTimeout(180_000L) {
+                    consultarModulos(client, t, anterior.disciplinas) { etapa ->
+                        val atual = "$nome • $d (${i + 1}/${nomes.size}) • $etapa"
+                        gravar(parcial, SgeFila.ler(ctx)?.let { SgeFila.textoAndamento(it, atual) } ?: atual, true,
+                            atualizarWidget = etapa == SgePainelStore.NOMES_MODULOS.first())
+                    }.orEmpty()
+                }
             } catch (e: TimeoutCancellationException) { List(5) { ResultadoModulo(detalhe = "Não verificado: tempo esgotado") } }
             feitas.add(ResultadoTurma(t, modulos, agora()))
         }
@@ -220,6 +259,25 @@ class SgeSyncWorker(private val ctx: Context, params: WorkerParameters) : Corout
         SgeHistoricoStore.registrar(ctx, FontePainel.COORDENACAO, feitas)
         guardarDiagnostico("Coordenação: $nome", client, feitas)
         return Result.success()
+    }
+
+    private suspend fun consultarModulos(client: SgeReadClient, turma: TurmaMonitorada, anteriores: List<ResultadoTurma>,
+        interromper: () -> Boolean = { false }, status: suspend (String) -> Unit): List<ResultadoModulo>? {
+        val etapas = listOf<() -> ResultadoModulo>(
+            { client.conteudos(turma).carimbar() },
+            { client.frequencia(turma).carimbar() },
+            { planosComCache(client, turma, "PLANO DE AULA", 2, anteriores) },
+            { planosComCache(client, turma, "PLANO DE CURSO", 3, anteriores) },
+            { planosComCache(client, turma, "PEI - Plano de Ensino Individualizado", 4, anteriores) }
+        )
+        val resultados = mutableListOf<ResultadoModulo>()
+        for ((indice, etapa) in etapas.withIndex()) {
+            currentCoroutineContext().ensureActive()
+            if (interromper()) return null
+            status(SgePainelStore.NOMES_MODULOS[indice])
+            resultados.add(withContext(Dispatchers.IO) { etapa() })
+        }
+        return resultados
     }
 
     /** Planos e PEIs mudam pouco: reaproveita a última consulta completa e sem pendências por até sete dias. */
@@ -255,30 +313,34 @@ class SgeSyncWorker(private val ctx: Context, params: WorkerParameters) : Corout
 
     companion object {
         const val BASE = "https://sge.seduc.to.pontoid.com.br"
+        private val travaPessoal = Mutex()
+        private val travaCoord = Mutex()
         private fun rede() = Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()
         fun agendarPeriodico(context: Context) {
             WorkManager.getInstance(context).enqueueUniquePeriodicWork("sge_periodic_sync", ExistingPeriodicWorkPolicy.UPDATE,
                 PeriodicWorkRequestBuilder<SgeSyncWorker>(SgeEconomia.ler(context).horas.toLong(), TimeUnit.HOURS).setConstraints(SgeEconomia.restricoes(context)).build())
         }
         /** Coordenação: enfileira uma consulta por turma, em sequência (cada uma cabe no limite de tempo do WorkManager). */
-        fun verificarTurmas(context: Context, ids: List<String>, substituir: Boolean = true, automatica: Boolean = false) {
+        fun verificarTurmas(context: Context, ids: List<String>, substituir: Boolean = true, automatica: Boolean = false,
+            componentes: Map<String, Set<String>> = emptyMap()) {
             if (ids.isEmpty()) return
             val atual = SgeFila.ler(context)
             if (automatica && atual != null && atual.pausada && atual.ids.isNotEmpty()) return
-            if (!substituir && atual != null && !atual.pausada && atual.ids.isNotEmpty()) return
-            // Várias turmas: pendentes primeiro e sem refazer as verificadas há pouco. Uma turma escolhida de propósito sempre é verificada.
-            val plano = SgeFila.planejar(ids, SgeCoordStore.ler(context).turmas, System.currentTimeMillis(), pular = automatica || ids.distinct().size > 1)
+            if (!substituir && atual != null && atual.ids.isNotEmpty()) return
+            // Consultas manuais refazem o recorte escolhido, mesmo após consulta recente em outro bimestre.
+            val plano = SgeFila.planejar(ids, SgeCoordStore.ler(context).turmas, System.currentTimeMillis(), pular = automatica)
             if (plano.ordem.isEmpty()) {
                 SgeFila.salvar(context, null)
                 SgeCoordStore.salvar(context, SgeCoordStore.ler(context).copy(sincronizando = false, inicioConsulta = 0L,
                     mensagem = "Todas as ${plano.puladas} turmas foram verificadas há menos de 3 horas. Nada a consultar agora."))
                 kotlinx.coroutines.CoroutineScope(Dispatchers.Main).launch { SgeWidgets.atualizar(context) }; return
             }
-            val fila = FilaCoord(plano.ordem, plano.ordem.size + plano.puladas, false, plano.puladas, SgeFila.media(context))
+            val fila = FilaCoord(plano.ordem, plano.ordem.size + plano.puladas, false, plano.puladas, SgeFila.media(context),
+                bimestre = SgeBimestre.ler(context), componentes = componentes)
             SgeFila.salvar(context, fila)
             SgeCoordStore.salvar(context, SgeCoordStore.ler(context).copy(sincronizando = true, inicioConsulta = System.currentTimeMillis(),
                 mensagem = "Na fila: ${fila.total} turma(s), ${SgeFila.textoEstimativa(fila.total, fila.mediaMs)}" + (if (plano.puladas > 0) "; ${plano.puladas} pulada(s), verificadas há menos de 3 h" else "") + ". Toque em verificar para pausar."))
-            enfileirar(context, plano.ordem, substituir, automatica)
+            enfileirar(context, fila, substituir, automatica)
         }
         fun pausar(context: Context) {
             SgeFila.pausar(context)
@@ -286,11 +348,16 @@ class SgeSyncWorker(private val ctx: Context, params: WorkerParameters) : Corout
             SgeFila.ler(context)?.let { SgeCoordStore.salvar(context, SgeCoordStore.ler(context).copy(sincronizando = false, inicioConsulta = 0L, mensagem = SgeFila.textoPausada(it))) }
         }
         fun retomar(context: Context) {
-            val f = SgeFila.ler(context)?.takeIf { it.ids.isNotEmpty() } ?: return
-            SgeFila.salvar(context, f.copy(pausada = false))
+            val f = SgeFila.ler(context)?.takeIf { it.pausada && it.ids.isNotEmpty() } ?: return
+            if (f.bimestre >= 0 && f.bimestre != SgeBimestre.ler(context)) {
+                verificarTurmas(context, f.concluidas + f.falhas + f.ids, componentes = f.componentes)
+                return
+            }
+            val nova = f.copy(pausada = false, rodada = UUID.randomUUID().toString())
+            SgeFila.salvar(context, nova)
             SgeCoordStore.salvar(context, SgeCoordStore.ler(context).copy(sincronizando = true, inicioConsulta = System.currentTimeMillis(),
                 mensagem = "Retomando: restam ${f.ids.size} turma(s), ${SgeFila.textoEstimativa(f.ids.size, f.mediaMs)}."))
-            enfileirar(context, f.ids, true, false)
+            enfileirar(context, nova, true, false)
         }
         /** Meu diário: para na próxima etapa guardando o que já foi lido. */
         fun pausarPessoal(context: Context) {
@@ -307,23 +374,23 @@ class SgeSyncWorker(private val ctx: Context, params: WorkerParameters) : Corout
                 OneTimeWorkRequestBuilder<SgeSyncWorker>().setConstraints(rede()).setInputData(workDataOf("manual" to true, "retomar" to true)).build())
         }
         fun tentarFalhas(context: Context) {
-            val falhas = SgeFila.ler(context)?.falhas.orEmpty()
-            if (falhas.isNotEmpty()) verificarTurmas(context, falhas, substituir = true, automatica = false)
+            val fila = SgeFila.ler(context)?.takeIf { it.falhas.isNotEmpty() } ?: return
+            verificarTurmas(context, fila.falhas, componentes = fila.componentes)
         }
-        private fun enfileirar(context: Context, ids: List<String>, substituir: Boolean, automatica: Boolean) {
-            val reqs = ids.map { OneTimeWorkRequestBuilder<SgeSyncWorker>().setConstraints(if (automatica) SgeEconomia.restricoes(context) else rede()).setInputData(workDataOf("coord_alvo" to it, "auto" to automatica)).build() }
+        private fun enfileirar(context: Context, fila: FilaCoord, substituir: Boolean, automatica: Boolean) {
+            val reqs = fila.ids.map { id ->
+                val dados = Data.Builder().putString("coord_alvo", id).putBoolean("auto", automatica).putString("coord_rodada", fila.rodada)
+                fila.componentes[id]?.let { dados.putString("coord_componentes", JSONArray(it.toList()).toString()) }
+                OneTimeWorkRequestBuilder<SgeSyncWorker>()
+                    .setConstraints(if (automatica) SgeEconomia.restricoes(context) else rede()).setInputData(dados.build()).build()
+            }
             var c = WorkManager.getInstance(context).beginUniqueWork("sge_coord", if (substituir) ExistingWorkPolicy.REPLACE else ExistingWorkPolicy.KEEP, reqs.first())
             reqs.drop(1).forEach { c = c.then(it) }
             SgeSessaoStore.gravarSeAtual(context) { c.enqueue() }
         }
         /** Sincroniza só as disciplinas indicadas: turmaId → componentes. */
         fun verificarComponentes(context: Context, pares: Map<String, Set<String>>) {
-            if (pares.isEmpty()) return
-            val reqs = pares.map { (turma, comps) -> OneTimeWorkRequestBuilder<SgeSyncWorker>().setConstraints(rede())
-                .setInputData(workDataOf("coord_alvo" to turma, "coord_componentes" to JSONArray(comps.toList()).toString(), "auto" to false, "manual" to true)).build() }
-            var c = WorkManager.getInstance(context).beginUniqueWork("sge_coord", ExistingWorkPolicy.REPLACE, reqs.first())
-            reqs.drop(1).forEach { c = c.then(it) }
-            SgeSessaoStore.gravarSeAtual(context) { c.enqueue() }
+            verificarTurmas(context, pares.keys.toList(), componentes = pares)
         }
         fun sincronizarAgora(context: Context) {
             WorkManager.getInstance(context).enqueueUniqueWork("sge_sync_now", ExistingWorkPolicy.REPLACE,

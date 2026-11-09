@@ -17,3 +17,31 @@ test('recusa contagem negativa e backup de outro formato', () => {
   const r=resultado(Array(5).fill(m(-1,true)));
   assert.throws(()=>lerBackup(JSON.stringify({formato:'sge-diario-backup',schema:1,dados:{painel_v2:JSON.stringify({turmas:[r]})}})),/Contagem inválida/);
 });
+
+test('importa módulos legados sem quantidade como não verificados', () => {
+  const r = resultado(Array.from({ length: 5 }, () => ({ completa: false })));
+  const texto = JSON.stringify({
+    formato: 'sge-diario-backup', schema: 1,
+    dados: { painel_v2: JSON.stringify({ turmas: [r] }) }
+  });
+  const [turma] = lerBackup(texto).pessoal;
+  assert.equal(valor(turma.modulos[0]), '—');
+  assert.equal(estado(turma), 'conferir');
+});
+
+test('mantém visível uma falha de coordenação sem disciplinas consultadas', () => {
+  const falha = { id: '27713', nome: '13.01', erro: 'Sessão expirada', disc: [] };
+  const texto = JSON.stringify({
+    formato: 'sge-diario-backup', schema: 1,
+    dados: { painel_coord_v2: JSON.stringify({ turmas: [falha] }) }
+  });
+  const [turma] = lerBackup(texto).coordenacao;
+  assert.equal(turma.erro, falha.erro);
+  assert.equal(estado(turma), 'conferir');
+  assert.equal(turma.modulos.length, 5);
+});
+
+test('distingue periodicidade não configurada de zero com cobertura parcial', () => {
+  assert.equal(valor({ ...m(0, false), detalhe: 'A periodicidade precisa ser definida' }), 'n/c');
+  assert.equal(valor(m(0, false)), '0*');
+});

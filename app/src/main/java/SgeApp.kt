@@ -1,5 +1,6 @@
 package br.to.seduc.sgediariowidget
 
+import java.time.LocalDate
 import android.os.Build
 import android.view.View
 import android.webkit.WebView
@@ -36,7 +37,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import br.to.seduc.sgediariowidget.data.*
 import br.to.seduc.sgediariowidget.widget.TipoWidget
 
-data class PedidoWidget(val fonte: FontePainel, val por: Agrupamento, val grupo: String, val evento: Long = System.nanoTime())
+data class PedidoWidget(val fonte: FontePainel, val por: Agrupamento, val grupo: String, val evento: Long = System.nanoTime(), val modulo: Int = -1)
 private data class RotaSge(val aba: Int, val pagina: String?, val grupo: GrupoPendencias?, val fonte: FontePainel)
 
 /** Turma → disciplinas em que o professor do grupo leciona (vínculos já lidos do horário). */
@@ -64,12 +65,11 @@ fun AppDiario(
     horarioLembrete: String = "17:00", aoEscolherHorarioLembrete: () -> Unit = {},
     modoComputador: Boolean = true, aoModoComputador: (Boolean) -> Unit = {},
     aoAtalhoSge: (String, String, String, Int, List<String>, String) -> Unit = { _, _, _, _, _, _ -> },
-    abaInicial: Int = -1, aoAbaAlterada: (Int) -> Unit = {}
+    pedidoHandoff: PedidoHandoff? = null, aoContextoHandoff: (ContextoHandoff?) -> Unit = {},
+    semana: LocalDate = LocalDate.now(), aoSemana: (LocalDate) -> Unit = {}
 ) {
     val visiveis = remember(papel) { when (papel) { 1 -> setOf(0, 2); 2 -> setOf(1, 2); else -> setOf(0, 1, 2) } }
     var aba by rememberSaveable { mutableStateOf(if (papel == 2) 1 else 0) }
-    LaunchedEffect(abaInicial) { if (abaInicial in 0..2) aba = abaInicial }
-    LaunchedEffect(aba) { aoAbaAlterada(aba) }
     LaunchedEffect(papel, aba) { if (aba !in visiveis) aba = visiveis.first() }
     var pagina by rememberSaveable { mutableStateOf<String?>(null) }
     var intro by rememberSaveable { mutableStateOf(introduzir) }
@@ -105,8 +105,15 @@ fun AppDiario(
         pedido?.let { p ->
             aba = if (p.fonte == FontePainel.COORDENACAO) 1 else 0
             if (aba == 1) porCoord = p.por else porPessoal = if (p.por == Agrupamento.PROFESSOR) Agrupamento.TURMA else p.por
-            pagina = null; fonteDetalhe = p.fonte
+            pagina = null
+            fonteDetalhe = p.fonte
+            origemDetalhe = null
+            moduloDetalhe = p.modulo
             detalhe = grupos(p.fonte, p.por).firstOrNull { it.chave == p.grupo }
+            if (p.modulo >= 0 && detalhe == null) {
+                val recorte = FiltroAvancado(modulo = p.modulo)
+                if (p.fonte == FontePainel.COORDENACAO) filtroCoord = recorte else filtroPessoal = recorte
+            }
         }
     }
     LaunchedEffect(painel, coord, docentes) {
@@ -116,9 +123,30 @@ fun AppDiario(
         }
     }
     val autorizado = !bloqueioCoord || coordDesbloqueada
-    val protegida = !autorizado && ((pagina == null && (aba == 1 || aba == 2 || (detalhe != null && fonteDetalhe == FontePainel.COORDENACAO))) || pagina in setOf("mapa", "lote", "organizacao", "backup"))
+    val protegida = !autorizado && ((pagina == null && (aba == 1 || aba == 2 || (detalhe != null && fonteDetalhe == FontePainel.COORDENACAO))) || pagina in setOf("mapa", "lote", "organizacao", "backup", "semana"))
+    LaunchedEffect(pedidoHandoff) {
+        val contexto = pedidoHandoff?.contexto ?: return@LaunchedEffect
+        if (contexto.aba !in visiveis) return@LaunchedEffect
+        aba = contexto.aba
+        pagina = if (contexto.semana != null) "semana" else null
+        detalhe = null
+        origemDetalhe = null
+        moduloDetalhe = -1
+        if (aba == 1) filtroCoord = filtroCoord.copy(modulo = contexto.modulo)
+        else filtroPessoal = filtroPessoal.copy(modulo = contexto.modulo)
+    }
     val webVisivel = aba == 2 && pagina == null && detalhe == null && !intro && autorizado
     LaunchedEffect(webVisivel) { aoWebVisivel(webVisivel) }
+    SideEffect {
+        val contexto = when {
+            !autorizado || intro || aba !in 0..1 -> null
+            pagina == "semana" -> ContextoHandoff(1, semana = semana)
+            pagina == null && detalhe == null ->
+                ContextoHandoff(aba, if (aba == 1) filtroCoord.modulo else filtroPessoal.modulo)
+            else -> null
+        }
+        aoContextoHandoff(contexto)
+    }
     BackHandler(enabled = intro || pagina != null || detalhe != null || aba != 0) {
         when { intro -> { intro = false; aoIntroduzido() }
             pagina != null -> pagina = null
@@ -128,7 +156,7 @@ fun AppDiario(
     }
     val titulo = when {
         pagina == "mapa" -> "Mapa da escola"; pagina == "lote" -> "Relatórios"; pagina == "organizacao" -> "Organizar turmas"; pagina == "economia" -> "Sincronização"; pagina == "backup" -> "Backup"; pagina == "ajustes" -> "Ajustes"; pagina == "ajuda" -> "Como interpretar"
-        pagina == "historico" -> "Histórico"; pagina == "widgets" -> "Widgets"; pagina == "sobre" -> "Sobre"; detalhe != null && !largo -> "Pendências por módulo"; aba == 2 -> "SGE Web"; else -> "Diário"
+        pagina == "semana" -> "Conferência semanal"; pagina == "historico" -> "Histórico"; pagina == "widgets" -> "Widgets"; pagina == "sobre" -> "Sobre"; detalhe != null && !largo -> "Pendências por módulo"; aba == 2 -> "SGE Web"; else -> "Diário"
     }
     val cabecalhoNaTela = pagina == null && detalhe == null && aba != 2
     Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).windowInsetsPadding(WindowInsets.safeDrawing)) {
@@ -205,6 +233,7 @@ fun AppDiario(
                         rota.pagina == "organizacao" -> TelaOrganizacao(conhecidas, rsCoord, recursos.organizacao, recursos.aoOrganizacao)
                         rota.pagina == "economia" -> TelaEconomia(recursos.economia, recursos.aoEconomia)
                         rota.pagina == "backup" -> TelaBackup(recursos.aoBackup, recursos.aoRestaurar)
+                        rota.pagina == "semana" -> TelaConferenciaSemanal(coord, conhecidas, docentes, semana, aoSemana)
                         rota.pagina == "historico" -> TelaHistorico(historico, fonteHistorico, { fonteHistorico = it }, !autorizado, aoDesbloquear, docentes = docentes)
                         rota.pagina == "sobre" -> TelaSobre(versao, aoUrl)
                         rota.pagina == "ajuda" -> TelaAjuda()
@@ -215,12 +244,12 @@ fun AppDiario(
                                 saveable.SaveableStateProvider("painel:${rota.aba}") {
                                     TelaCartoes(fonte, painel, coord, docentes, conhecidas, if (rota.aba == 1) porCoord else porPessoal,
                                         { if (rota.aba == 1) porCoord = it else porPessoal = it; detalhe = null },
-                                        { fonteDetalhe = fonte; detalhe = it; moduloDetalhe = -1; origemDetalhe = null; focus.clearFocus() },
+                                        { fonteDetalhe = fonte; detalhe = it; moduloDetalhe = (if (fonte == FontePainel.COORDENACAO) filtroCoord else filtroPessoal).modulo; origemDetalhe = null; focus.clearFocus() },
                                         { if (rota.aba == 1) aoVerificarTurmas(conhecidas.map { it.first }) else aoSincronizarPessoal() },
                                         aoCarregarTurmas, aoAtualizarDocentes, { aba = 2 }, { pagina = "ajuda" },
                                         selecionada = if (largo) rota.grupo?.chave else null,
                                         filtroAvancado = if (rota.aba == 1) filtroCoord else filtroPessoal, organizacao = recursos.organizacao,
-                                        aoFiltros = { filtrosAbertos = true }, aoMapa = { pagina = "mapa" }, aoLote = { pagina = "lote" },
+                                        aoFiltros = { filtrosAbertos = true }, aoMapa = { pagina = "mapa" }, aoLote = { pagina = "lote" }, aoSemana = { pagina = "semana" },
                                         filtrosSalvos = recursos.filtrosSalvos[fonte].orEmpty(),
                                         aoAplicarFiltro = { f -> if (rota.aba == 1) filtroCoord = f else filtroPessoal = f; recursos.aoFiltro(fonte, f) },
                                         aoSalvarFiltro = { recursos.aoSalvarFiltro(fonte, it) },

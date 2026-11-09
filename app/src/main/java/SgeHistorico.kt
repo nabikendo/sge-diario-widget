@@ -75,7 +75,7 @@ object SgeHistorico {
 
     fun json(dias: List<DiaHistorico>): String = JSONArray().also { a -> dias.forEach { d -> a.put(JSONObject()
         .put("dia", d.data.toString()).put("fonte", d.fonte.name).put("medicoes", JSONArray().also { ms -> d.medicoes.forEach { m ->
-            ms.put(JSONObject().put("chave", m.chave).put("turma", m.turmaId).put("nome", m.turmaNome).put("modulos", JSONArray().also { mm -> m.modulos.forEach { mm.put(JSONArray().put(it.quantidade ?: JSONObject.NULL).put(it.aguardando).put(it.aprovados).put(it.coberturaCompleta).put(it.atualizadoMs)) } }))
+            ms.put(JSONObject().put("chave", m.chave).put("turma", m.turmaId).put("nome", m.turmaNome).put("modulos", JSONArray().also { mm -> m.modulos.forEach { mm.put(JSONArray().put(it.quantidade ?: JSONObject.NULL).put(it.aguardando).put(it.aprovados).put(it.coberturaCompleta).put(it.atualizadoMs).put(it.datas?.copy(registradas = emptyList())?.json())) } }))
         } })) } }.toString()
 
     fun ler(raw: String): List<DiaHistorico> {
@@ -85,7 +85,8 @@ object SgeHistorico {
             DiaHistorico(LocalDate.parse(d.getString("dia")), FontePainel.valueOf(d.getString("fonte")), (0 until ms.length()).map { j ->
                 val m = ms.getJSONObject(j); val mm = m.getJSONArray("modulos")
                 MedicaoHistorica(m.getString("chave"), m.getString("turma"), (0 until mm.length()).map { k -> mm.getJSONArray(k).let { v ->
-                    ResultadoModulo(if (v.isNull(0)) null else v.getInt(0), "", v.getInt(1), v.getInt(2), v.getBoolean(3), if (v.length() > 4) v.getLong(4) else 0L)
+                    ResultadoModulo(if (v.isNull(0)) null else v.getInt(0), "", v.getInt(1), v.getInt(2), v.getBoolean(3), if (v.length() > 4) v.getLong(4) else 0L,
+                        v.optJSONObject(5)?.let(DatasModulo::ler))
                 } }, m.optString("nome", m.getString("turma")))
             })
         }
@@ -99,4 +100,56 @@ object SgeHistoricoStore {
         val dias = SgeHistorico.registrar(ler(ctx), fonte, resultados, LocalDate.now())
         SgeSessaoStore.gravarSeAtual(ctx) { check(ctx.getSharedPreferences(SgePainelStore.PREFS_NAME, Context.MODE_PRIVATE).edit().putString(KEY, SgeHistorico.json(dias)).commit()) }
     }
+}
+
+enum class TipoVariacaoConsulta(val titulo: String) {
+    NOVAS("Novas pendências"),
+    RESOLVIDAS("Pendências resolvidas"),
+    SALDO_DOCUMENTOS("Variação em documentos"),
+    SEM_VERIFICACAO("Sem verificação comparável")
+}
+
+data class VariacaoConsulta(val turma: String, val componente: String, val indice: Int,
+    val tipo: TipoVariacaoConsulta, val descricao: String)
+
+/** Preserva o significado dos totais: datas só mudam de estado se as duas consultas cobrem o mesmo início. */
+fun compararConsultas(anterior: DiaHistorico, atual: DiaHistorico): List<VariacaoConsulta> {
+    require(anterior.fonte == atual.fonte && anterior.data < atual.data)
+    val antes = anterior.medicoes.associateBy { it.chave }
+    val depois = atual.medicoes.associateBy { it.chave }
+    return (antes.keys + depois.keys).flatMap { chave ->
+        val a = antes[chave]
+        val b = depois[chave]
+        val item = (b ?: a) ?: return@flatMap emptyList()
+        SgeDashboard.nomes.indices.flatMap modulo@{ i ->
+            val m = a?.modulos?.getOrNull(i)
+            val n = b?.modulos?.getOrNull(i)
+            val x = m?.quantidade
+            val y = n?.quantidade
+            fun linha(tipo: TipoVariacaoConsulta, texto: String) =
+                VariacaoConsulta(item.turmaNome, item.resultado().turma.disciplina, i, tipo, texto)
+            fun falta(texto: String) = listOf(linha(TipoVariacaoConsulta.SEM_VERIFICACAO, texto))
+            if (m == null || n == null || x == null || y == null || !m.coberturaCompleta || !n.coberturaCompleta)
+                return@modulo falta("Cobertura ausente ou incompleta em uma das consultas.")
+            if (m.atualizadoMs <= 0L || n.atualizadoMs <= m.atualizadoMs)
+                return@modulo falta("O registro atual reaproveita a mesma consulta ou não tem data própria.")
+            if (i > 1) {
+                return@modulo if (y == x) emptyList() else listOf(linha(TipoVariacaoConsulta.SALDO_DOCUMENTOS,
+                    "Saldo de documentos pendentes passou de $x para $y."))
+            }
+            val d1 = m.datas
+            val d2 = n.datas
+            if (d1 == null || d2 == null || d1.inicio == null || d1.inicio != d2.inicio || d2.fim.isBefore(d1.fim))
+                return@modulo falta("O recorte de datas mudou ou não está disponível nas duas consultas.")
+            val originais = d1.pendentes.toSet()
+            val recentes = d2.pendentes.toSet()
+            buildList {
+                fun formatar(datas: Set<LocalDate>) = datas.sorted().joinToString(", ") { it.format(SgeConferenciaSemanal.formato) }
+                val novas = recentes - originais
+                val resolvidas = originais - recentes
+                if (novas.isNotEmpty()) add(linha(TipoVariacaoConsulta.NOVAS, formatar(novas)))
+                if (resolvidas.isNotEmpty()) add(linha(TipoVariacaoConsulta.RESOLVIDAS, formatar(resolvidas)))
+            }
+        }
+    }.sortedWith(compareBy({ it.tipo.ordinal }, { it.turma }, { it.componente }, { it.indice }))
 }
