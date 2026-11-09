@@ -1,7 +1,7 @@
-SGE Diário 2.5.14
+SGE Diário 2.5.15
 
 ### Correções
-- Turmas diversificadas e AEE não são mais sincronizadas sem você pedir. A lista de turmas da coordenação, a lista de turmas conhecidas (usada pelo seletor de bimestre e pelo sync noturno) e a análise de vínculos dos professores passam a respeitar as categorias ativas em Ajustes.
-- Plano de Ensino Individualizado (PEI) é encontrado no seletor do SGE, mesmo quando o nome aparece com a descrição completa.
+- PDF e relatórios em lote incluem só as turmas das categorias ativas em Ajustes. Diversificadas e AEE aparecem apenas quando você as ativa.
+- Coordenação mais leve durante a sincronização: o app deixou de recarregar os dados na tela principal a cada etapa, o que causava travamentos.
 
 Instala por cima da versão anterior.
