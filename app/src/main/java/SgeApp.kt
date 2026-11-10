@@ -351,9 +351,9 @@ fun AppDiario(
 @Composable private fun DockDiario(aba: Int, visiveis: Set<Int>, escolher: (Int) -> Unit) {
     val escuro = MaterialTheme.colorScheme.background.luminance() < .5f
     val baixa = LocalConfiguration.current.screenHeightDp < 480
-    Box(Modifier.fillMaxWidth().padding(horizontal = 32.dp, vertical = if (baixa) 6.dp else 24.dp), contentAlignment = Alignment.Center) {
+    Box(Modifier.fillMaxWidth().padding(horizontal = 32.dp, vertical = if (baixa) 6.dp else 18.dp), contentAlignment = Alignment.Center) {
         Surface(shape = RoundedCornerShape(50), color = (if (escuro) PilulaNavOled else MaterialTheme.colorScheme.surface).copy(alpha = .92f),
-            border = BorderStroke(1.dp, if (escuro) PilulaNavBorda else MaterialTheme.colorScheme.outlineVariant)) {
+            border = BorderStroke(1.dp, if (escuro) PilulaNavBorda else MaterialTheme.colorScheme.outlineVariant), shadowElevation = 4.dp) {
             Row(Modifier.padding(if (baixa) 4.dp else 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 listOf("Meu diário", "Coordenação", "SGE Web").forEachIndexed { i, label ->
                     if (i !in visiveis) return@forEachIndexed

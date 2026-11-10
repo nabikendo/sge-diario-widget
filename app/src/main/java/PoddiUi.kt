@@ -34,6 +34,7 @@ import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -50,7 +51,7 @@ internal val PilulaNavBorda = Color(0xFF2C2C2E)
 internal val RotuloCinza = Color(0xFF8E8E93)
 
 internal val RaioCartao = 32.dp
-internal val RaioHero = 38.dp
+internal val RaioHero = 32.dp
 
 /**
  * Brilho de carregamento (shimmer): faixa diagonal #141414 → #262629 → #141414 (tons claros no tema claro).
@@ -74,7 +75,7 @@ fun Modifier.shimmerLoading(): Modifier = composed {
 @Composable
 private fun BlocoShimmer(modifier: Modifier, raio: Dp) = Box(modifier.clip(RoundedCornerShape(raio)).shimmerLoading())
 
-/** Esqueleto com a mesma geometria da tela de cartões: cabeçalho, Hero (38 dp), filtros e cartões (32 dp). */
+/** Esqueleto com a mesma geometria da tela de cartões: cabeçalho, Hero e cartões (32 dp). */
 @Composable
 fun DashboardSkeleton() {
     LazyVerticalGrid(columns = GridCells.Adaptive(285.dp), contentPadding = PaddingValues(20.dp, 10.dp, 20.dp, 26.dp),
@@ -121,7 +122,7 @@ fun HeroResumo(
             Column {
                 Text(if (semDados) "—" else "$totalPendencias${if (coberturaParcial) "*" else ""}",
                     style = MaterialTheme.typography.displaySmall.copy(fontSize = 64.sp, lineHeight = 66.sp, fontWeight = FontWeight.Black, letterSpacing = (-2).sp),
-                    color = TintaMenta)
+                    color = TintaMenta, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
                 Text("PENDÊNCIAS NO SGE", style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.ExtraBold, letterSpacing = 1.2.sp),
                     color = TintaMentaSuave)
             }

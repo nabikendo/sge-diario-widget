@@ -173,9 +173,13 @@ fun CartaoGrupo(grupo: GrupoPendencias, por: Agrupamento, selecionado: Boolean =
 @Composable
 fun MensagemVazia(titulo: String, texto: String, acao: String? = null, aoAgir: () -> Unit = {}) {
     Surface(color = MaterialTheme.colorScheme.surface, shape = RoundedCornerShape(RaioCartao)) {
-        Column(Modifier.fillMaxWidth().padding(26.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Icon(SgeIcons.Cards, null, Modifier.size(34.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text(titulo, style = MaterialTheme.typography.titleMedium)
+        Column(Modifier.fillMaxWidth().padding(24.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = RoundedCornerShape(18.dp)) {
+                Box(Modifier.size(52.dp), contentAlignment = Alignment.Center) {
+                    Icon(SgeIcons.Cards, null, Modifier.size(26.dp), tint = MaterialTheme.colorScheme.onPrimaryContainer)
+                }
+            }
+            Text(titulo, style = MaterialTheme.typography.titleLarge, maxLines = 2, overflow = TextOverflow.Ellipsis)
             Text(texto, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             if (acao != null) Button(onClick = aoAgir) { Text(acao) }
         }
@@ -520,7 +524,7 @@ fun TelaCartoes(
 fun SeletorBimestre(fonte: FontePainel, turmasIds: List<String>) {
     val ctx = androidx.compose.ui.platform.LocalContext.current
     var escolhido by remember { mutableStateOf(br.to.seduc.sgediariowidget.data.SgeBimestre.ler(ctx)) }
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
         listOf(0 to "Atual", 1 to "1º", 2 to "2º", 3 to "3º", 4 to "4º", 5 to "Todos").forEach { (valor, rotulo) ->
             FilterChip(selected = escolhido == valor, onClick = {
                 if (escolhido != valor) {
@@ -529,7 +533,7 @@ fun SeletorBimestre(fonte: FontePainel, turmasIds: List<String>) {
                     if (fonte == FontePainel.COORDENACAO) br.to.seduc.sgediariowidget.worker.SgeSyncWorker.verificarTurmas(ctx, turmasIds)
                     else br.to.seduc.sgediariowidget.worker.SgeSyncWorker.sincronizarAgora(ctx)
                 }
-            }, label = { Text(rotulo) })
+            }, label = { Text(rotulo, maxLines = 1, softWrap = false) })
         }
     }
 }

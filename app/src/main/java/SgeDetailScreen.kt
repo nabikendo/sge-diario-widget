@@ -78,7 +78,7 @@ fun TelaDetalhes(grupo: GrupoPendencias, fonte: FontePainel, docentes: PainelDoc
                         (d.candidatos.any { it.first == r.turma.id } || (d.candidatos.isEmpty() &&
                             normalizarSge(d.turmaHorario) == normalizarSge(r.turma.nome.substringBefore('/'))))
                 }
-                Surface(color = MaterialTheme.colorScheme.surface, shape = MaterialTheme.shapes.medium) {
+                Surface(color = MaterialTheme.colorScheme.surface, shape = MaterialTheme.shapes.large) {
                     Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                         Text("${r.turma.nome.substringBefore('/')} · ${r.turma.disciplina}", style = MaterialTheme.typography.titleSmall)
                         Text(ps.joinToString(" · ") { it.nome }.ifBlank { "Professor não identificado" }, style = MaterialTheme.typography.bodyMedium)
@@ -135,11 +135,16 @@ private fun rotuloDia(d: LocalDate) = d.dayOfWeek.getDisplayName(java.time.forma
     val consulta = grupo.resultados.map { it.atualizado }.filter { it.isNotBlank() }.lastOrNull()
     val horas = remember(grupo) { SgeIdade.maisAntigaPorModulo(grupo.resultados, LocalDateTime.now()) }
     val dias = remember(grupo) { SgeMapaDias.montar(grupo.resultados, LocalDate.now()) }
-    Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp))
+    Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(RaioHero))
         .background(Brush.linearGradient(listOf(MentaClaro, MentaMedio), start = Offset(0f, 0f), end = Offset(900f, 900f)))) {
         Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(11.dp)) {
+            val rotuloPendencias = if (modsPend > 0) {
+                contarSge(modsPend, "módulo", "módulos") + " com pendência"
+            } else {
+                nomeEstado(grupo.estado)
+            }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                PilulaMenta(if (modsPend > 0) "${contarSge(modsPend, "módulo", "módulos")} com pendência" else nomeEstado(grupo.estado))
+                PilulaMenta(rotuloPendencias)
                 if (totalPend > 0) PilulaMenta("$totalPend no total")
             }
             Text(tituloVisivel(grupo), style = MaterialTheme.typography.displaySmall, color = TintaMenta)

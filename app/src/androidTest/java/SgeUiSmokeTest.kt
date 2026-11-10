@@ -16,7 +16,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import android.content.res.Configuration
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.unit.dp
@@ -157,6 +161,23 @@ class SgeUiSmokeTest {
             aoCarregarTurmas = {}, aoAtualizarDocentes = {}, aoCopiarDiagnostico = {}, aoCopiarPagina = {},
             aoSalvarVinculo = { _, _ -> }, aoAdicionarWidget = {}, aoCompartilhar = { _, _ -> }, aoWebVisivel = {},
             papel = papel, perfil = PerfilSge.COORDENACAO, bloqueioCoord = bloqueio, coordDesbloqueada = liberada, aoDesbloquear = desbloquear)
+    }
+    @Test fun dockExpoeAbasComDescricoesAcessiveisESelecaoAtualizada() {
+        content {
+            val compacto = Configuration(LocalConfiguration.current).apply {
+                screenWidthDp = 411
+                screenHeightDp = 800
+            }
+            CompositionLocalProvider(LocalConfiguration provides compacto) { appExemplo() }
+        }
+        fun aba(rotulo: String) = SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Tab) and hasContentDescription(rotulo)
+        compose.onNode(aba("Meu diário")).assertIsDisplayed().assertIsSelected()
+        compose.onNode(aba("Coordenação")).assertIsDisplayed().assertIsNotSelected()
+        compose.onNode(aba("SGE Web")).assertIsDisplayed().assertIsNotSelected()
+
+        compose.onNode(aba("Coordenação")).performClick()
+        compose.onNode(aba("Coordenação")).assertIsSelected()
+        compose.onNode(aba("Meu diário")).assertIsNotSelected()
     }
     @Test fun coordenacaoProtegidaNaoExibeDadosAntesDeAutenticar() {
         var liberada by mutableStateOf(false)
