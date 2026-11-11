@@ -10,8 +10,8 @@ Acompanhe as pendências do diário escolar no SGE 3.0 — do seu diário e da e
 
 | Plataforma | Arquivo | Observação |
 |---|---|---|
-| Android | `SGE-Diario-2.6.0.apk` | Android 8.0 ou superior. |
-| Windows | `SGE-Diario-Desktop-2.6.0.exe` | Portátil para Windows x64. Abre backups do Android. |
+| Android | `SGE-Diario-2.6.1.apk` | Android 8.0 ou superior. |
+| Windows | `SGE-Diario-Desktop-2.6.1.exe` | Portátil para Windows x64. Abre backups do Android. |
 | Canal de testes | [release `latest`](https://github.com/nabikendo/sge-diario-widget/releases/tag/latest) | Pré-versões automáticas. |
 
 Todas as versões estão em [Releases](https://github.com/nabikendo/sge-diario-widget/releases).

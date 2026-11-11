@@ -1,4 +1,4 @@
-SGE Diário 2.6.0
+SGE Diário 2.6.1
 
 ### Backup
 - Novos botões **Fazer Backup na Nuvem** e **Restaurar da Nuvem** em Ajustes → Backup.
