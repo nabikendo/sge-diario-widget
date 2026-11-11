@@ -232,7 +232,7 @@ fun AppDiario(
                         rota.pagina == "lote" -> TelaLote(rsCoord, docentes, filtroCoord, recursos.organizacao, { filtrosAbertos = true }, recursos.aoLote)
                         rota.pagina == "organizacao" -> TelaOrganizacao(conhecidas, rsCoord, recursos.organizacao, recursos.aoOrganizacao)
                         rota.pagina == "economia" -> TelaEconomia(recursos.economia, recursos.aoEconomia)
-                        rota.pagina == "backup" -> TelaBackup(recursos.aoBackup, recursos.aoRestaurar)
+                        rota.pagina == "backup" -> TelaBackup(recursos.aoBackup, recursos.aoRestaurar, recursos.aoBackupNuvem, recursos.aoRestaurarNuvem)
                         rota.pagina == "semana" -> TelaConferenciaSemanal(coord, conhecidas, docentes, semana, aoSemana)
                         rota.pagina == "historico" -> TelaHistorico(historico, fonteHistorico, { fonteHistorico = it }, !autorizado, aoDesbloquear, docentes = docentes)
                         rota.pagina == "sobre" -> TelaSobre(versao, aoUrl)

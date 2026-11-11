@@ -18,6 +18,11 @@ import android.provider.ContactsPickerSessionContract
 import androidx.activity.result.contract.ActivityResultContracts
 import br.to.seduc.sgediariowidget.worker.LembreteWorker
 import android.webkit.CookieManager
+import androidx.activity.result.IntentSenderRequest
+import com.google.android.gms.auth.api.identity.AuthorizationRequest
+import com.google.android.gms.auth.api.identity.Identity
+import com.google.android.gms.common.api.ApiException
+import com.google.android.gms.common.api.Scope
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Toast
@@ -38,6 +43,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.CancellationException
 import br.to.seduc.sgediariowidget.worker.SgeNoturnoWorker
 import java.io.File
+import java.io.IOException
 import java.time.LocalDate
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.*
@@ -88,6 +94,63 @@ class MainActivity : FragmentActivity() {
                 lifecycle.withResumed { comProtecao { backupPendente = b } }
             } catch (e: CancellationException) { throw e }
             catch (e: Exception) { aviso("Backup inválido ou incompatível. Nenhum dado foi alterado.") }
+        } }
+    }
+    private var acaoNuvemPendente: ((String) -> Unit)? = null
+    private val autorizarDrive = registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { r ->
+        val acao = acaoNuvemPendente; acaoNuvemPendente = null
+        val token = runCatching { Identity.getAuthorizationClient(this).getAuthorizationResultFromIntent(r.data).accessToken }.getOrNull()
+        if (token != null && acao != null) acao(token) else aviso("Autorização do Google Drive não concedida. Nada foi enviado nem alterado.")
+    }
+    /** Pede o escopo drive.appdata (pasta oculta do app); o Google mostra a escolha da conta e o consentimento se preciso. */
+    private fun comDrive(acao: (String) -> Unit) {
+        val pedido = AuthorizationRequest.builder().setRequestedScopes(listOf(Scope(SgeDriveBackup.ESCOPO))).build()
+        Identity.getAuthorizationClient(this).authorize(pedido)
+            .addOnSuccessListener { res ->
+                val intencao = res.pendingIntent
+                if (res.hasResolution() && intencao != null) {
+                    acaoNuvemPendente = acao
+                    autorizarDrive.launch(IntentSenderRequest.Builder(intencao.intentSender).build())
+                } else res.accessToken?.let(acao) ?: aviso("Não foi possível obter acesso ao Google Drive.")
+            }
+            .addOnFailureListener { aviso(mensagemNuvem(it)) }
+    }
+    private fun mensagemNuvem(e: Throwable): String = when {
+        e is SgeDriveBackup.SemBackup -> e.message.orEmpty()
+        e is SgeDriveBackup.Falha && (e.codigo == 401 || e.codigo == 403) -> "O Google Drive recusou o acesso. Tente novamente e aceite a autorização."
+        e is ApiException && e.statusCode == 7 -> "Sem conexão com a internet. Conecte-se e tente novamente."
+        e is ApiException && e.statusCode == 10 -> "Backup na nuvem ainda não está configurado neste aplicativo (falta o cliente OAuth do Google). Use o backup em arquivo."
+        e is ApiException -> "Não foi possível acessar a conta Google (código ${e.statusCode})."
+        e is IOException && e !is SgeDriveBackup.Falha -> "Sem conexão com a internet. Conecte-se e tente novamente."
+        e is SgeDriveBackup.Falha -> "O Google Drive respondeu com erro ${e.codigo}. Tente novamente mais tarde."
+        else -> "O backup na nuvem está inválido ou incompatível. Nenhum dado foi alterado."
+    }
+    private fun backupNuvem() {
+        comDrive { token -> lifecycleScope.launch {
+            operando = true
+            try {
+                val valores = getSharedPreferences(SgePainelStore.PREFS_NAME, MODE_PRIVATE).all
+                val versao = packageManager.getPackageInfo(packageName, 0).versionName.orEmpty()
+                withContext(Dispatchers.IO) {
+                    val texto = SgeBackup.criar(valores, versao)
+                    SgeBackup.validar(texto)
+                    SgeDriveBackup.enviar(token, texto)
+                }
+                aviso("Backup enviado ao Google Drive (pasta oculta do app).")
+            } catch (e: CancellationException) { throw e }
+            catch (e: Exception) { aviso(mensagemNuvem(e)) }
+            finally { operando = false }
+        } }
+    }
+    private fun restaurarNuvem() {
+        comDrive { token -> lifecycleScope.launch {
+            operando = true
+            try {
+                val b = withContext(Dispatchers.IO) { SgeBackup.validar(SgeDriveBackup.baixar(token)) }
+                lifecycle.withResumed { backupPendente = b }
+            } catch (e: CancellationException) { throw e }
+            catch (e: Exception) { aviso(mensagemNuvem(e)) }
+            finally { operando = false }
         } }
     }
     private lateinit var web: WebView
@@ -261,7 +324,8 @@ class MainActivity : FragmentActivity() {
                         { SgeSyncWorker.retomar(this@MainActivity) },
                         { SgeSyncWorker.tentarFalhas(this@MainActivity) },
                         pausaDiario = pausaDiario, aoPausarDiario = { SgeSyncWorker.pausarPessoal(this@MainActivity) },
-                        aoRetomarDiario = { extrairTurmas { SgeSyncWorker.retomarPessoal(this@MainActivity) } }),
+                        aoRetomarDiario = { extrairTurmas { SgeSyncWorker.retomarPessoal(this@MainActivity) } },
+                        aoBackupNuvem = { comProtecao { backupNuvem() } }, aoRestaurarNuvem = { comProtecao { restaurarNuvem() } }),
                     horarioLembrete = String.format(java.util.Locale.ROOT, "%02d:%02d", lembreteMinuto / 60, lembreteMinuto % 60),
                     aoEscolherHorarioLembrete = {
                         val atual = prefs.getInt("lembrete_minuto", 17 * 60).coerceIn(0, 1439)

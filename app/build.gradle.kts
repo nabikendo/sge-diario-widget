@@ -115,6 +115,7 @@ dependencies {
     implementation("androidx.glance:glance-material3:1.1.0")
     implementation("androidx.work:work-runtime-ktx:2.9.0")
     implementation("org.jsoup:jsoup:1.17.2")
+    implementation("com.google.android.gms:play-services-auth:21.3.0")
 
     androidTestImplementation(platform("androidx.compose:compose-bom:2024.12.01"))
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")

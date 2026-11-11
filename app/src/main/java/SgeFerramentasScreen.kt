@@ -23,7 +23,8 @@ data class RecursosSge(
     val filtrosSalvos: Map<FontePainel,List<FiltroSalvo>> = emptyMap(),
     val aoSalvarFiltro: (FontePainel,FiltroSalvo)->Unit = {_,_->}, val aoExcluirFiltro: (FontePainel,String)->Unit = {_,_->},
     val filaCoord: FilaCoord? = null, val aoPausarFila: ()->Unit = {}, val aoRetomarFila: ()->Unit = {}, val aoTentarFalhas: ()->Unit = {},
-    val pausaDiario: PausaPessoal? = null, val aoPausarDiario: ()->Unit = {}, val aoRetomarDiario: ()->Unit = {}
+    val pausaDiario: PausaPessoal? = null, val aoPausarDiario: ()->Unit = {}, val aoRetomarDiario: ()->Unit = {},
+    val aoBackupNuvem: ()->Unit = {}, val aoRestaurarNuvem: ()->Unit = {}
 )
 
 @Composable fun EscolhaFiltro(titulo: String, atual: String, opcoes: List<Pair<String,String>>, escolher: (String)->Unit) {
@@ -158,16 +159,21 @@ fun descreverFiltro(f: FiltroAvancado, docentes: PainelDocentes): String = listO
         Button(onClick={salvar(d)}) { Text("Salvar preferências") }
     }
 }
-@Composable fun TelaBackup(criar:()->Unit,restaurar:()->Unit) {
+@Composable fun TelaBackup(criar:()->Unit,restaurar:()->Unit,criarNuvem:()->Unit={},restaurarNuvem:()->Unit={}) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),verticalArrangement=Arrangement.spacedBy(18.dp)) {
         Text("Backup e restauração",style=MaterialTheme.typography.headlineLarge)
         Text("Guarde os painéis, histórico, vínculos de professores, organização das turmas e preferências em um arquivo. Você escolhe a pasta e pode usar o Google Drive se ele estiver disponível no seletor do Android.")
         Text("O arquivo contém dados da escola: guarde-o em um local de sua confiança. Não contém senha, cookies, sessão do SGE nem autorização biométrica. A proteção deste aparelho é mantida na restauração. Os widgets devem ser adicionados novamente ao trocar de aparelho.")
         Button(onClick=criar,modifier=Modifier.fillMaxWidth()) { Text("Criar backup") }
         OutlinedButton(onClick=restaurar,modifier=Modifier.fillMaxWidth()) { Text("Restaurar de um arquivo") }
+        HorizontalDivider()
+        Text("Google Drive",style=MaterialTheme.typography.titleMedium)
+        Text("O backup na nuvem fica numa pasta oculta do aplicativo no seu Google Drive, que não aparece entre os seus arquivos. Exige internet e a autorização da conta Google. Mantém um único backup, que é substituído a cada envio.")
+        Button(onClick=criarNuvem,modifier=Modifier.fillMaxWidth()) { Text("Fazer Backup na Nuvem") }
+        OutlinedButton(onClick=restaurarNuvem,modifier=Modifier.fillMaxWidth()) { Text("Restaurar da Nuvem") }
         Text("Antes de restaurar, o app valida o arquivo e mostra um resumo para você confirmar a substituição dos dados locais. Depois, entre no SGE para atualizar as consultas.",style=MaterialTheme.typography.bodySmall)
         HorizontalDivider()
         Text("Sobre entrar com Google",style=MaterialTheme.typography.titleMedium)
-        Text("Uma conta Google não substitui o acesso ao SGE. Para esta versão, o login continua no SGE Web. O seletor de arquivos já permite guardar o backup em provedores instalados, sem criar outra conta no aplicativo.",style=MaterialTheme.typography.bodyMedium)
+        Text("Uma conta Google não substitui o acesso ao SGE, que continua no SGE Web. A conta Google serve apenas para guardar o backup na pasta oculta do Drive; o app não lê nem altera seus outros arquivos.",style=MaterialTheme.typography.bodyMedium)
     }
 }
