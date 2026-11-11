@@ -207,11 +207,11 @@ class MainActivity : FragmentActivity() {
                 } else baixarWeb(arquivo)
             }
             webViewClient = object : WebViewClient() {
-                override fun onPageCommitVisible(view: WebView?, url: String?) { SgeWebComputador.viewport(view, modoComputadorWeb.value) }
+                override fun onPageCommitVisible(view: WebView?, url: String?) { SgeWebComputador.viewport(view, modoComputadorWeb.value, url) }
                 override fun onPageFinished(view: WebView?, url: String?) {
-                    SgeWebComputador.viewport(view, modoComputadorWeb.value)
+                    SgeWebComputador.viewport(view, modoComputadorWeb.value, url)
                     SgeAtalhoWeb.aoPaginaPronta(view, url)
-                    if (url?.contains("/Acesso/Entrar", true) == true) SgeSessaoStore.salvar(this@MainActivity, PerfilSge.EXPIRADO)
+                    if (SgeWebComputador.ehLogin(url)) SgeSessaoStore.salvar(this@MainActivity, PerfilSge.EXPIRADO)
                     CookieManager.getInstance().flush(); verificarSessao(); extrairEscola(); instalarHook()
                 }
             }
@@ -388,6 +388,11 @@ class MainActivity : FragmentActivity() {
             datas: List<String> = emptyList(), horario: String = "") {
         if (!::web.isInitialized) return
         SgeAtalhoWeb.abrir(web, SgeSyncWorker.BASE, AtalhoSge(turmaId, turma, componente, modulo, datas, horario))
+    }
+    /** Girar a tela, dobrar o aparelho ou mudar o tamanho da janela reajusta a página sem recarregar. */
+    override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
+        super.onConfigurationChanged(newConfig)
+        if (::web.isInitialized) web.post { SgeWebComputador.viewport(web, modoComputadorWeb.value) }
     }
     private fun alterarModoWeb(computador: Boolean) {
         if (!::web.isInitialized || modoComputadorWeb.value == computador) return
