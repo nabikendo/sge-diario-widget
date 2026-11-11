@@ -97,7 +97,7 @@ As consultas manuais exibem progresso no app. Se as notificações estiverem aut
 
 ## Privacidade
 
-O painel consulta dados em modo somente leitura. O backup é exportado manualmente e pode conter informações escolares. Guarde o arquivo e os relatórios em local de acesso restrito. A janela oficial do SGE Web no Windows mantém sua própria sessão local.
+O painel consulta dados em modo somente leitura. O backup, em arquivo ou na pasta oculta do Google Drive, é feito por ação sua e pode conter informações escolares. Guarde o arquivo e os relatórios em local de acesso restrito. A janela oficial do SGE Web no Windows mantém sua própria sessão local.
 
 ---
 
