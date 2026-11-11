@@ -26,4 +26,12 @@ class SgeWebComputadorTest {
     @Test fun modoCelularMantemOViewportOriginalForaDoLogin() {
         assertNull(SgeWebComputador.conteudoViewport(false, false, 360))
     }
+
+    @Test fun scriptDeLoginCentralizaFormularioComRespaldoFixo() {
+        val js = SgeWebComputador.SCRIPT_CENTRALIZAR_LOGIN
+        assertTrue(js.contains("content_login") && js.contains("login-form"))
+        assertTrue(js.contains("sge-login-centro"))
+        assertTrue(js.contains("position") && js.contains("translate(-50%,-50%)"))
+        assertFalse("não deve sobrar interpolação de Kotlin", js.contains("\${"))
+    }
 }

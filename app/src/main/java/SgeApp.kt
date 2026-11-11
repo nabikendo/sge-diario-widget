@@ -169,17 +169,32 @@ fun AppDiario(
                     Icon(SgeIcons.Back, "Voltar", Modifier.size(21.dp))
                 } else if (!cabecalhoNaTela) Icon(SgeIcons.Book, null, Modifier.padding(12.dp).size(22.dp), tint = MaterialTheme.colorScheme.primary)
                 val emDetalhe = detalhe != null && pagina == null && !largo
-                if (cabecalhoNaTela) Spacer(Modifier.weight(1f)) else Column(Modifier.weight(1f), horizontalAlignment = if (emDetalhe) Alignment.CenterHorizontally else Alignment.Start) {
-                    Text(if (emDetalhe) titulo.uppercase() else titulo,
+                if (cabecalhoNaTela) Spacer(Modifier.weight(1f)) else Column(Modifier.weight(1f).widthIn(min = 72.dp), horizontalAlignment = if (emDetalhe) Alignment.CenterHorizontally else Alignment.Start) {
+                    Text(if (emDetalhe) titulo.uppercase() else titulo, maxLines = 1, overflow = TextOverflow.Ellipsis,
                         style = if (emDetalhe) MaterialTheme.typography.labelLarge.copy(letterSpacing = 1.sp) else MaterialTheme.typography.titleMedium)
                     if (!emDetalhe) SeloPerfil(perfil)
                 }
                 if (webVisivel) {
-                    TextButton(onClick = { aoModoComputador(!modoComputador) }, modifier = Modifier.heightIn(min = 48.dp)) {
-                        Text(if (modoComputador) "Celular" else "Computador", style = MaterialTheme.typography.labelMedium)
-                    }
-                    TextButton(onClick = aoCopiarPagina, modifier = Modifier.heightIn(min = 48.dp)) {
-                        Text("Copiar página", style = MaterialTheme.typography.labelMedium)
+                    val compacto = PaddingValues(horizontal = 8.dp)
+                    if (largo) {
+                        TextButton(onClick = { aoModoComputador(!modoComputador) }, contentPadding = compacto, modifier = Modifier.heightIn(min = 48.dp)) {
+                            Text(if (modoComputador) "Celular" else "Computador", maxLines = 1, softWrap = false, style = MaterialTheme.typography.labelMedium)
+                        }
+                        TextButton(onClick = aoCopiarPagina, contentPadding = compacto, modifier = Modifier.heightIn(min = 48.dp)) {
+                            Text("Copiar página", maxLines = 1, softWrap = false, style = MaterialTheme.typography.labelMedium)
+                        }
+                    } else {
+                        // Em telas estreitas, as duas ações ficam num único menu e o título mantém o espaço dele.
+                        var menuWeb by remember { mutableStateOf(false) }
+                        Box {
+                            TextButton(onClick = { menuWeb = true }, contentPadding = compacto, modifier = Modifier.heightIn(min = 48.dp)) {
+                                Text("Opções", maxLines = 1, softWrap = false, style = MaterialTheme.typography.labelMedium)
+                            }
+                            DropdownMenu(expanded = menuWeb, onDismissRequest = { menuWeb = false }) {
+                                DropdownMenuItem(text = { Text(if (modoComputador) "Modo celular" else "Modo computador") }, onClick = { menuWeb = false; aoModoComputador(!modoComputador) })
+                                DropdownMenuItem(text = { Text("Copiar página") }, onClick = { menuWeb = false; aoCopiarPagina() })
+                            }
+                        }
                     }
                 }
                 if (emDetalhe) {
