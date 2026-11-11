@@ -1,13 +1,8 @@
-SGE Diário 2.6.1
+SGE Diário 2.6.2
 
-### Backup
-- Novos botões **Fazer Backup na Nuvem** e **Restaurar da Nuvem** em Ajustes → Backup.
-- O backup fica numa pasta oculta do app no seu Google Drive (não aparece entre os seus arquivos) e é substituído a cada envio.
-- O conteúdo é o mesmo do backup em arquivo: sem senha, cookies ou sessão do SGE.
-- Sem internet, o app avisa com uma mensagem simples e não altera nada. Ao restaurar, o backup é validado e você confirma antes de substituir os dados locais.
-- Atenção: o backup na nuvem só funciona depois que o cliente OAuth do Google for configurado para este aplicativo. Enquanto isso, use o backup em arquivo.
-
-### Continuidade (Handoff)
-- Já disponível no Android 17: aba, módulo e semana passam do celular para o tablet.
+### Correções
+- A barra superior do SGE Web não esmaga mais o título em telas estreitas; "Celular" e "Copiar página" ficam no menu **Opções** nesses casos.
+- O formulário de login do SGE passa a ser centralizado na tela, no celular e no tablet, e o viewport se adapta ao tamanho do aparelho e à rotação.
+- **Copiar página** inclui, na tela de login, o layout calculado do formulário, para diagnóstico caso ele ainda apareça fora do centro.
 
 Instala por cima da versão anterior.
