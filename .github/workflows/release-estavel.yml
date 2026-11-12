@@ -3,12 +3,22 @@ name: Release estável
 on:
   push:
     branches: [ main ]
-    paths: [ 'release/versao.txt' ]
+    paths:
+      - 'app/**'
+      - 'AndroidManifest.xml'
+      - '*.gradle.kts'
+      - 'gradle.properties'
+      - 'release/versao.txt'
+      - '.github/workflows/release-estavel.yml'
   workflow_dispatch:
     inputs:
       versao:
         description: 'Versão (ex.: 2.5.16)'
         required: true
+      somente_teste_fechado:
+        description: 'Executar apenas o envio para o teste fechado'
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -22,18 +32,34 @@ jobs:
     runs-on: ubuntu-22.04
     outputs:
       numero: ${{ steps.versao.outputs.numero }}
+      estavel: ${{ steps.versao.outputs.estavel }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: Definir versão
         id: versao
         env:
           SGE_VERSAO_MANUAL: ${{ inputs.versao }}
+          SGE_SOMENTE_TESTE_FECHADO: ${{ inputs.somente_teste_fechado }}
+          SGE_COMMIT_ANTERIOR: ${{ github.event.before }}
         run: |
           SGE_VERSAO="${SGE_VERSAO_MANUAL:-$(cat release/versao.txt)}"
           [[ "$SGE_VERSAO" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo 'Versão inválida.'; exit 1; }
           echo "numero=$SGE_VERSAO" >> "$GITHUB_OUTPUT"
+          if [[ "$GITHUB_EVENT_NAME" == workflow_dispatch ]]; then
+            if [[ "$SGE_SOMENTE_TESTE_FECHADO" != true ]]; then
+              echo "estavel=true" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            alteracoes=$(git diff --name-only "$SGE_COMMIT_ANTERIOR" "$GITHUB_SHA" -- release/versao.txt)
+            if [[ -n "$alteracoes" ]]; then
+              echo "estavel=true" >> "$GITHUB_OUTPUT"
+            fi
+          fi
   desktop:
     needs: versao
+    if: github.ref == 'refs/heads/main' && needs.versao.outputs.estavel == 'true'
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -55,7 +81,7 @@ jobs:
           name: desktop-estavel
           path: desktop/dist/SGE-Diario-Desktop-*.exe
   release:
-    needs: [versao, desktop]
+    needs: [versao, desktop, android-play]
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-22.04
     steps:
@@ -71,7 +97,7 @@ jobs:
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
         run: echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
-      - name: Testes e APK assinado
+      - name: Gerar APK assinado
         env:
           SGE_VERSAO: ${{ needs.versao.outputs.numero }}
           KEYSTORE_FILE: ${{ runner.temp }}/release.jks
@@ -81,24 +107,7 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          gradle testDebugUnitTest assembleRelease "-Pversao=$SGE_VERSAO" -Pcodigo=${{ github.run_number }} --no-daemon --stacktrace 2>&1 | tee build.log
-      - name: Gerar AAB assinado para a Play Store
-        env:
-          SGE_VERSAO: ${{ needs.versao.outputs.numero }}
-          KEYSTORE_FILE: ${{ runner.temp }}/release.jks
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-        run: |
-          set -o pipefail
-          gradle bundleRelease -PdistribuicaoPlay=true "-Pversao=$SGE_VERSAO" -Pcodigo=${{ github.run_number }} --no-daemon --stacktrace 2>&1 | tee build.log
-          LC_ALL=C jarsigner -verify app/build/outputs/bundle/release/app-release.aab | grep -F 'jar verified.'
-      - uses: actions/upload-artifact@v4
-        with:
-          name: android-play-estavel
-          path: app/build/outputs/bundle/release/app-release.aab
-          if-no-files-found: error
-          retention-days: 14
+          gradle assembleRelease "-Pversao=$SGE_VERSAO" -Pcodigo=${{ github.run_number }} --no-daemon --stacktrace 2>&1 | tee build.log
       - name: Resumo dos erros
         if: failure()
         run: |
@@ -131,8 +140,43 @@ jobs:
           gh release create "v$SGE_VERSAO" "SGE-Diario-$SGE_VERSAO.apk" "SGE-Diario-Desktop-$SGE_VERSAO.exe" atualizacao.json --latest --target "$GITHUB_SHA" \
             --title "SGE Diário $SGE_VERSAO" \
             --notes-file release/NOTAS.md
+  android-play:
+    needs: versao
+    if: github.ref == 'refs/heads/main' && (needs.versao.outputs.estavel == 'true' || vars.PLAY_PUBLICAR_AUTOMATICAMENTE == 'true')
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.5.0'
+      - name: Restaurar chave de assinatura
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+        run: echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
+      - name: Gerar AAB assinado para a Play Store
+        env:
+          SGE_VERSAO: ${{ needs.versao.outputs.numero }}
+          KEYSTORE_FILE: ${{ runner.temp }}/release.jks
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          set -o pipefail
+          gradle testDebugUnitTest bundleRelease -PdistribuicaoPlay=true "-Pversao=$SGE_VERSAO" -Pcodigo=${{ github.run_number }} --no-daemon --stacktrace 2>&1 | tee build.log
+          LC_ALL=C jarsigner -verify app/build/outputs/bundle/release/app-release.aab | grep -F 'jar verified.'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-play-estavel
+          path: app/build/outputs/bundle/release/app-release.aab
+          if-no-files-found: error
+          retention-days: 14
+
   play-store:
-    needs: [versao, release]
+    needs: [versao, android-play]
     if: vars.PLAY_PUBLICAR_AUTOMATICAMENTE == 'true'
     runs-on: ubuntu-22.04
     permissions:
@@ -141,12 +185,12 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: android-play-estavel
-      - name: Enviar versão estável para produção
+      - name: Enviar versão para o teste fechado
         uses: r0adkll/upload-google-play@e738b9dd8f2476ea806d921b64aacd24f34515a5
         with:
           serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
           packageName: br.to.seduc.sgediariowidget
           releaseFiles: app-release.aab
           releaseName: ${{ needs.versao.outputs.numero }}
-          tracks: production
+          tracks: alpha
           status: completed
