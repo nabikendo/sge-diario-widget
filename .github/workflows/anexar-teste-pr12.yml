@@ -1,0 +1,23 @@
+name: Anexar APK de teste (PR 12)
+
+on:
+  push:
+    branches: [ teste-pr12 ]
+    paths: [ '.github/workflows/anexar-teste-pr12.yml' ]
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  anexar:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Baixar APK do build e anexar ao pré-lançamento
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          gh run download 43134099549 --repo "$REPO" -n sge-diario-widget-apk -D apk
+          cp apk/*.apk SGE-Diario-teste-pr12.apk
+          gh release upload teste-pr12-login SGE-Diario-teste-pr12.apk --repo "$REPO" --clobber
