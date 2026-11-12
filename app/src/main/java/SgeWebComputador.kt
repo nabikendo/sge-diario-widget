@@ -64,51 +64,34 @@ object SgeWebComputador {
             else{var o=m.getAttribute('$ATRIBUTO_ORIGINAL');if(o!==null){m.setAttribute('content',o);m.removeAttribute('$ATRIBUTO_ORIGINAL');}}}"""
         }
         view.evaluateJavascript("(function(){$ajuste})()", null)
-        if (login) {
-            view.evaluateJavascript(SCRIPT_CENTRALIZAR_LOGIN, null)
-            view.scrollTo(0, 0)
-        }
+        if (login) view.evaluateJavascript(SCRIPT_CENTRALIZAR_LOGIN, null)
     }
 
-    /**
-     * Força o formulário de login a ficar no centro da tela, sobrepondo o layout original do SGE:
-     * 1) CSS com !important em html/body e #content_login; 2) neutraliza floats, margens e larguras dos ancestrais
-     * e esconde colunas vazias (decorativas) que empurram o formulário; 3) se, medido na tela, o centro ainda
-     * estiver fora do centro, fixa o formulário no meio da janela. Repete algumas vezes porque o SGE monta a página aos poucos.
-     */
+    /** Mantém o formulário no fluxo da página para permitir rolagem com o teclado aberto. */
     internal const val SCRIPT_CENTRALIZAR_LOGIN = """(function(){
-var tent=0;
+var tentativas=0;
 function ajustar(){
-  var alvo=document.getElementById('content_login')||document.getElementById('login-form');
-  if(!alvo){if(tent++<15)setTimeout(ajustar,200);return;}
-  var st=document.getElementById('sge-login-centro');
-  if(!st){st=document.createElement('style');st.id='sge-login-centro';(document.head||document.documentElement).appendChild(st);}
-  st.textContent='html,body{max-width:100vw!important;overflow-x:hidden!important;min-width:0!important;margin:0!important;padding-left:0!important;padding-right:0!important}'
-   +'#content_login{float:none!important;left:auto!important;right:auto!important;margin-left:auto!important;margin-right:auto!important;width:min(92vw,420px)!important;max-width:100%!important;min-width:0!important;box-sizing:border-box!important}';
-  var el=alvo.parentElement;
-  while(el&&el!==document.documentElement){
-    var s=el.style;
-    s.setProperty('float','none','important');s.setProperty('left','auto','important');s.setProperty('right','auto','important');
-    s.setProperty('width','100%','important');s.setProperty('max-width','100%','important');s.setProperty('min-width','0','important');
-    s.setProperty('margin-left','0','important');s.setProperty('margin-right','0','important');
-    s.setProperty('padding-left','0','important');s.setProperty('padding-right','0','important');
-    var irmaos=el.children;
-    for(var i=0;i<irmaos.length;i++){var c=irmaos[i];
-      if(c.contains(alvo)||/^(SCRIPT|STYLE|LINK|META)${'$'}/.test(c.tagName))continue;
-      if(!c.querySelector('input,form,button')&&(c.innerText||'').trim()==='')c.style.setProperty('display','none','important');}
-    el=el.parentElement;
+  var painel=document.getElementById('content_login');
+  var formulario=document.getElementById('login-form')||(painel&&painel.querySelector('form'));
+  if(!formulario){if(tentativas++<15)setTimeout(ajustar,200);return;}
+  var cartao=painel&&painel.contains(formulario)?painel:formulario;
+  var estilo=document.getElementById('sge-login-centro');
+  if(!estilo){
+    estilo=document.createElement('style');
+    estilo.id='sge-login-centro';
+    estilo.textContent=
+      'html,body{margin:0!important;padding:0!important;min-width:0!important;max-width:100%!important}'
+      +'.sge-login-fluxo,.sge-login-cartao{display:block!important;position:static!important;'
+      +'float:none!important;transform:none!important;translate:none!important;box-sizing:border-box!important;'
+      +'min-width:0!important;max-width:100%!important}'
+      +'.sge-login-fluxo{width:100%!important;margin-inline:0!important;padding-inline:0!important}'
+      +'.sge-login-cartao{width:min(92vw,420px)!important;margin-inline:auto!important}';
+    (document.head||document.documentElement).appendChild(estilo);
   }
-  var r=alvo.getBoundingClientRect(),vw=document.documentElement.clientWidth||window.innerWidth;
-  if(Math.abs((r.left+r.right)/2-vw/2)>16){
-    var fundo=getComputedStyle(document.body).backgroundColor;
-    var t=alvo.style;
-    t.setProperty('position','fixed','important');t.setProperty('top','50%','important');t.setProperty('left','50%','important');
-    t.setProperty('transform','translate(-50%,-50%)','important');t.setProperty('margin','0','important');
-    t.setProperty('max-height','96vh','important');t.setProperty('overflow','auto','important');t.setProperty('z-index','2147483000','important');
-    if(!fundo||fundo==='rgba(0, 0, 0, 0)'||fundo==='transparent')t.setProperty('background-color','#fff','important');
+  cartao.classList.add('sge-login-cartao');
+  for(var el=formulario;el&&el!==document.documentElement;el=el.parentElement){
+    if(el!==cartao)el.classList.add('sge-login-fluxo');
   }
-  window.scrollTo(0,0);
-  if(tent++<4)setTimeout(ajustar,400);
 }
 ajustar();})()"""
 }
