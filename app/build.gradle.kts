@@ -16,6 +16,8 @@ val codigoFinal: Int = (findProperty("codigo") as String?)?.toIntOrNull()
     ?: versaoFinal.replace(Regex("[^0-9]"), "").take(6).toIntOrNull()
     ?: 0
 
+val distribuicaoPlay = providers.gradleProperty("distribuicaoPlay").map(String::toBoolean).getOrElse(false)
+
 android {
     namespace = "br.to.seduc.sgediariowidget"
     compileSdk = 37
@@ -31,6 +33,9 @@ android {
 
     sourceSets["main"].manifest.srcFile("../AndroidManifest.xml")
     sourceSets["main"].res.srcDirs("src/main/res")
+    if (distribuicaoPlay) {
+        sourceSets["release"].manifest.srcFile("src/play/AndroidManifest.xml")
+    }
 
     signingConfigs {
         getByName("debug") {
@@ -54,10 +59,12 @@ android {
 
     buildTypes {
         debug {
+            buildConfigField("boolean", "DISTRIBUICAO_PLAY", "false")
             applicationIdSuffix = ".teste"
             resValue("string", "app_name", "SGE Diário (teste)")
         }
         release {
+            buildConfigField("boolean", "DISTRIBUICAO_PLAY", distribuicaoPlay.toString())
             require(versaoFinal.isNotBlank()) {
                 "Versão não definida. Passe -Pversao=X.Y ou crie release/versao.txt."
             }
@@ -77,7 +84,7 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    buildFeatures { compose = true; resValues = true }
+    buildFeatures { compose = true; resValues = true; buildConfig = true }
 }
 
 kotlin {
