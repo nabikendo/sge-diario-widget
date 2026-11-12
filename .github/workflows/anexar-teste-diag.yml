@@ -1,0 +1,23 @@
+name: Anexar APK de teste (vertical)
+
+on:
+  push:
+    branches: [ anexar-diag ]
+    paths: [ '.github/workflows/anexar-teste-diag.yml' ]
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  anexar:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Baixar APK do build e anexar ao pré-lançamento
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          gh run download 43136450718 --repo "$REPO" -n sge-diario-widget-apk -D apk
+          cp apk/*.apk SGE-Diario-teste-vertical.apk
+          gh release upload teste-login-vertical SGE-Diario-teste-vertical.apk --repo "$REPO" --clobber
