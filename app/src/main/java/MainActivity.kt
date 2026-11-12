@@ -247,7 +247,7 @@ class MainActivity : FragmentActivity() {
             val scope = rememberCoroutineScope()
             DisposableEffect(this@MainActivity, webVisivel) {
                 val observer = androidx.lifecycle.LifecycleEventObserver { _, evento ->
-                    if (evento == Lifecycle.Event.ON_RESUME && !webVisivel && prefs.getBoolean("introducao_v2",false)) scope.launch { atualizador.verificar(false) }
+                    if (!BuildConfig.DISTRIBUICAO_PLAY && evento == Lifecycle.Event.ON_RESUME && !webVisivel && prefs.getBoolean("introducao_v2",false)) scope.launch { atualizador.verificar(false) }
                 }
                 lifecycle.addObserver(observer)
                 onDispose { lifecycle.removeObserver(observer) }
@@ -275,7 +275,7 @@ class MainActivity : FragmentActivity() {
                 onDispose { prefs.unregisterOnSharedPreferenceChangeListener(listener) }
             }
             LaunchedEffect(Unit) { SgeWidgets.atualizar(this@MainActivity) }
-            LaunchedEffect(webVisivel) { if (!webVisivel && prefs.getBoolean("introducao_v2",false)) atualizador.verificar(false) }
+            LaunchedEffect(webVisivel) { if (!BuildConfig.DISTRIBUICAO_PLAY && !webVisivel && prefs.getBoolean("introducao_v2",false)) atualizador.verificar(false) }
             LaunchedEffect(webVisivel) {
                 while (webVisivel) { extrairEscola(); instalarHook(); lerPerfilDaPagina(); delay(4000) }
             }
@@ -309,7 +309,14 @@ class MainActivity : FragmentActivity() {
                         { SgeOrganizacao.salvar(this@MainActivity,it) }, { SgeEconomia.salvar(this@MainActivity,it); reagendar(); aviso("Preferências de sincronização salvas") },
                         { comProtecao { criarBackup.launch("SGE-Diario-backup-${java.time.LocalDate.now()}.json") } },
                         { comProtecao { abrirBackup.launch(arrayOf("application/json", "text/plain", "application/octet-stream")) } },
-                        { atualizador.aberto = true; scope.launch { atualizador.verificar(true) } },
+                        {
+                            if (BuildConfig.DISTRIBUICAO_PLAY) {
+                                abrirUrl("https://play.google.com/store/apps/details?id=$packageName")
+                            } else {
+                                atualizador.aberto = true
+                                scope.launch { atualizador.verificar(true) }
+                            }
+                        },
                         { gs,escola,responsavel,recorte -> gerarLote(gs,escola,responsavel,recorte) },
                         filtros, { fonte, f -> SgeFiltrosStore.salvar(this@MainActivity,fonte,f) }, filtrosSalvos,
                         { fonte, salvo ->
@@ -340,7 +347,7 @@ class MainActivity : FragmentActivity() {
                     semana = semanaSelecionada, aoSemana = { semanaSelecionada = it },
                     pedidoHandoff = handoffRecebido,
                     aoContextoHandoff = ::atualizarHandoff)
-                AtualizacoesDialog(atualizador) { lifecycleScope.launch {
+                if (!BuildConfig.DISTRIBUICAO_PLAY) AtualizacoesDialog(atualizador) { lifecycleScope.launch {
                     try { val arquivo = atualizador.prepararInstalacao(); lifecycle.withResumed { if(atualizador.aberto) atualizador.instalar(arquivo) } }
                     catch (e: CancellationException) { throw e }
                     catch (e: Exception) { atualizador.falha(e.message ?: "Não foi possível conferir a atualização.") }

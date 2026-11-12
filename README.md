@@ -124,3 +124,15 @@ O fluxo estável usa [release/versao.txt](release/versao.txt) ou a versão infor
 ## Licença
 
 MIT. Consulte [LICENSE](LICENSE).
+
+
+## Publicação na Google Play
+
+O workflow **Release estável** gera o APK do GitHub e um AAB assinado para a loja. Ambos usam a mesma versão e o mesmo `versionCode` (número da execução do workflow). O AAB fica no artefato `android-play-estavel`, na execução em **Actions**.
+
+1. No Play Console, cadastre o app `br.to.seduc.sgediariowidget` e configure o Play App Signing. Use como chave de upload a chave que já assina os builds do workflow, ou ajuste a assinatura antes de enviar. Se quiser que a Play atualize instalações do APK do GitHub, confirme que a **chave de assinatura do app** da Play corresponde à do APK já distribuído.
+2. Envie o primeiro AAB pelo Play Console e conclua a configuração do app e os testes exigidos. Confirme que o app tem acesso à faixa de produção. Se já houver versões na Play, o próximo número de execução do workflow precisa superar o maior `versionCode` já enviado.
+3. No Google Cloud, habilite a **Google Play Android Developer API** e crie uma conta de serviço. No Play Console, conceda a essa conta permissão de publicar em produção para este app. Salve o JSON da conta em **Settings → Secrets and variables → Actions → Secrets** como `PLAY_SERVICE_ACCOUNT_JSON`.
+4. Em **Settings → Secrets and variables → Actions → Variables**, defina `PLAY_PUBLICAR_AUTOMATICAMENTE` como `true`. A partir daí, quando o workflow publicar um release estável no GitHub, ele enviará o AAB para produção. A disponibilidade na loja depende do processamento e da revisão do Google Play.
+
+Se o GitHub Releases já estiver publicado e apenas o envio à Play falhar, corrija a configuração e use **Re-run failed jobs** na mesma execução, enquanto o artefato estiver disponível. Confira no Play Console se o envio anterior chegou antes de tentar novamente.

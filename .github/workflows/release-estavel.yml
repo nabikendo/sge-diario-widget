@@ -82,6 +82,23 @@ jobs:
         run: |
           set -o pipefail
           gradle testDebugUnitTest assembleRelease "-Pversao=$SGE_VERSAO" -Pcodigo=${{ github.run_number }} --no-daemon --stacktrace 2>&1 | tee build.log
+      - name: Gerar AAB assinado para a Play Store
+        env:
+          SGE_VERSAO: ${{ needs.versao.outputs.numero }}
+          KEYSTORE_FILE: ${{ runner.temp }}/release.jks
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          set -o pipefail
+          gradle bundleRelease -PdistribuicaoPlay=true "-Pversao=$SGE_VERSAO" -Pcodigo=${{ github.run_number }} --no-daemon --stacktrace 2>&1 | tee build.log
+          LC_ALL=C jarsigner -verify app/build/outputs/bundle/release/app-release.aab | grep -F 'jar verified.'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-play-estavel
+          path: app/build/outputs/bundle/release/app-release.aab
+          if-no-files-found: error
+          retention-days: 14
       - name: Resumo dos erros
         if: failure()
         run: |
@@ -114,3 +131,22 @@ jobs:
           gh release create "v$SGE_VERSAO" "SGE-Diario-$SGE_VERSAO.apk" "SGE-Diario-Desktop-$SGE_VERSAO.exe" atualizacao.json --latest --target "$GITHUB_SHA" \
             --title "SGE Diário $SGE_VERSAO" \
             --notes-file release/NOTAS.md
+  play-store:
+    needs: [versao, release]
+    if: vars.PLAY_PUBLICAR_AUTOMATICAMENTE == 'true'
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: android-play-estavel
+      - name: Enviar versão estável para produção
+        uses: r0adkll/upload-google-play@eb49699984a39f23558439581660aa6f088acfd6
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: br.to.seduc.sgediariowidget
+          releaseFiles: app-release.aab
+          releaseName: ${{ needs.versao.outputs.numero }}
+          tracks: production
+          status: completed
