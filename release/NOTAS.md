@@ -1,8 +1,8 @@
-SGE Diário 2.6.2
+SGE Diário 2.6.3
 
 ### Correções
-- A barra superior do SGE Web não esmaga mais o título em telas estreitas; "Celular" e "Copiar página" ficam no menu **Opções** nesses casos.
-- O formulário de login do SGE passa a ser centralizado na tela, no celular e no tablet, e o viewport se adapta ao tamanho do aparelho e à rotação.
-- **Copiar página** inclui, na tela de login, o layout calculado do formulário, para diagnóstico caso ele ainda apareça fora do centro.
+- Tela de login do SGE Web: o formulário fica centralizado na horizontal e deixa de ser empurrado para baixo e cortado. O SGE reservava cerca de 300 px de folga vertical acima e abaixo do cartão; essas folgas agora são reduzidas.
+- O formulário permanece no fluxo normal da página, então dá para rolar com o teclado aberto e alcançar o botão Entrar.
+- **Copiar página** na tela de login inclui mais dados de layout (árvore do cartão, elementos sobrepostos, tamanho da tela), úteis para diagnóstico.
 
 Instala por cima da versão anterior.
