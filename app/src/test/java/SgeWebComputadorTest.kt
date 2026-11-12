@@ -32,6 +32,7 @@ class SgeWebComputadorTest {
         assertTrue(js.contains("content_login") && js.contains("login-form"))
         assertTrue(js.contains("sge-login-centro"))
         assertTrue(js.contains("position:static") && js.contains("margin-inline:auto"))
+        assertTrue(js.contains("enxugar") && js.contains("margin-top") && js.contains("padding-bottom"))
         assertFalse(js.contains("position:fixed") || js.contains("scrollTo"))
         assertFalse("não deve sobrar interpolação de Kotlin", js.contains("\${"))
     }

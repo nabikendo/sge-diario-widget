@@ -67,7 +67,7 @@ object SgeWebComputador {
         if (login) view.evaluateJavascript(SCRIPT_CENTRALIZAR_LOGIN, null)
     }
 
-    /** Mantém o formulário no fluxo da página para permitir rolagem com o teclado aberto. */
+    /** Mantém o formulário no fluxo da página (rolagem com teclado aberto) e remove folgas verticais exageradas do desenho de desktop. */
     internal const val SCRIPT_CENTRALIZAR_LOGIN = """(function(){
 var tentativas=0;
 function ajustar(){
@@ -91,6 +91,22 @@ function ajustar(){
   cartao.classList.add('sge-login-cartao');
   for(var el=formulario;el&&el!==document.documentElement;el=el.parentElement){
     if(el!==cartao)el.classList.add('sge-login-fluxo');
+  }
+  enxugar(formulario);
+}
+/* O SGE reserva ~300 px de margem ou preenchimento vertical (desenho de desktop) acima e abaixo do cartão.
+   Reduz espaços verticais exagerados do formulário, dos contêineres acima dele e dos irmãos desses contêineres. */
+function enxugar(formulario){
+  var ignorar='|SCRIPT|STYLE|LINK|META|TITLE|BR|';
+  function reduzir(e){
+    var cs=getComputedStyle(e);
+    ['margin-top','margin-bottom','padding-top','padding-bottom'].forEach(function(p){
+      if(parseFloat(cs.getPropertyValue(p))>48)e.style.setProperty(p,'16px','important');
+    });
+  }
+  for(var e=formulario;e&&e!==document.documentElement;e=e.parentElement){
+    reduzir(e);
+    for(var i=0;i<e.children.length;i++){if(ignorar.indexOf('|'+e.children[i].tagName+'|')<0)reduzir(e.children[i]);}
   }
 }
 ajustar();})()"""
