@@ -750,6 +750,11 @@ class MainActivity : FragmentActivity() {
                 cs.push({tag:e.tagName,id:e.id,cls:(e.className||'').toString().slice(0,80),box:[Math.round(bb.left),Math.round(bb.top),Math.round(bb.width),Math.round(bb.height)],disp:c.display,pos:c.position,flt:c.cssFloat,ml:c.marginLeft,mr:c.marginRight,w:c.width,tx:c.transform==='none'?'':c.transform});e=e.parentElement}
                 r.loginLayout={vw:document.documentElement.clientWidth,dpr:window.devicePixelRatio,meta:(document.querySelector('meta[name=viewport]')||{}).content||'',cadeia:cs,
                 irmaos:A(al.parentElement?al.parentElement.children:[]).map(function(s){var q=s.getBoundingClientRect();return {tag:s.tagName,id:s.id,cls:(s.className||'').toString().slice(0,60),w:Math.round(q.width),l:Math.round(q.left)}})}}
+            if(al){function no(e){var c=getComputedStyle(e),q=e.getBoundingClientRect();return {tag:e.tagName,id:e.id,cls:(e.className||'').toString().slice(0,50),pos:c.position,top:c.top,bot:c.bottom,tx:c.transform==='none'?'':c.transform,disp:c.display,h:c.height,ov:c.overflow,op:c.opacity,vis:c.visibility,box:[Math.round(q.left),Math.round(q.top),Math.round(q.width),Math.round(q.height)]}}
+                var fila=[[al,0]],arv=[];while(fila.length&&arv.length<30){var it=fila.shift(),x=it[0],d=it[1];var o=no(x);o.nv=d;arv.push(o);if(d<5)A(x.children).forEach(function(f){if(!/^(SCRIPT|STYLE|LINK|META)$/.test(f.tagName))fila.push([f,d+1])})}
+                r.loginArvore=arv;
+                r.loginSobrepostos=A(document.querySelectorAll('body *')).filter(function(e){var c=getComputedStyle(e),q=e.getBoundingClientRect();return (c.position==='fixed'||c.position==='absolute'||c.position==='sticky')&&q.width*q.height>2000}).slice(0,15).map(no);
+                r.loginTela={w:innerWidth,h:innerHeight,rolagemY:Math.round(window.scrollY),altura:document.documentElement.scrollHeight,filhosBody:A(document.body.children).slice(0,12).map(function(e){return e.tagName+'#'+e.id+'.'+(e.className||'').toString().slice(0,30)})}}
             r.xhr=(window.__xhr||[]).slice(-40);
             return JSON.stringify(r)})()"""
         web.evaluateJavascript(js) { raw ->
