@@ -61,6 +61,17 @@ jobs:
             --title "Canal de testes (última versão)" \
             --notes "APK de teste gerado automaticamente. Baixe SGE-Diario-teste.apk abaixo, em Assets. Para uso diário, prefira a versão estável (tag vX.Y)."
 
+      - name: Publicar teste do branch de diagnóstico
+        if: github.ref == 'refs/heads/feat/diagnostico-lancamento'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp app/build/outputs/apk/debug/app-debug.apk SGE-Diario-teste-diagnostico.apk
+          gh release delete teste-diagnostico-lancamento --cleanup-tag --yes || true
+          gh release create teste-diagnostico-lancamento SGE-Diario-teste-diagnostico.apk --prerelease --target "$GITHUB_SHA" \
+            --title "Teste: diagnóstico do lançamento" \
+            --notes "APK de teste; instala ao lado do app normal. Use Opções > Copiar página na tela quebrada do Conteúdo Aplicado."
+
   ui-previews:
     if: startsWith(github.ref, 'refs/heads/feat/') || github.event_name == 'pull_request'
     needs: build
