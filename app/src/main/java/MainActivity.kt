@@ -869,13 +869,16 @@ class MainActivity : FragmentActivity() {
             jq();setTimeout(jq,1500);
             })()""", null)
         // Correção da tela cheia de Conteúdo Aplicado: o modal do SGE fica transparente e esmaecido no WebView.
-        web.evaluateJavascript("""(function(){if(document.getElementById('sge-fix-modal')||/\/Acesso\/Entrar/i.test(location.pathname))return;
-            var st=document.createElement('style');st.id='sge-fix-modal';
+        web.evaluateJavascript("""(function(){if(document.getElementById('sge-fix-modal-2')||/\/Acesso\/Entrar/i.test(location.pathname))return;
+            var st=document.createElement('style');st.id='sge-fix-modal-2';
             st.textContent='#ModalConteudoTelaCheia.in{background:#fff!important}'
               +'.modal.in .modal-dialog,.modal.in .modal-content{opacity:1!important}'
               +'.modal.in .modal-content{background-color:#fff!important}'
               +'.modal.in .fade{opacity:1!important}'
-              +'#ModalConteudoTelaCheia.in .modal-dialog{margin:0 auto!important;width:auto!important;max-width:100%!important}';
+              +'#ModalConteudoTelaCheia.in .modal-dialog{margin:0 auto!important;width:auto!important;max-width:100%!important;height:auto!important;min-height:100%!important}'
+              +'#ModalConteudoTelaCheia.in .modal-content{height:auto!important;min-height:100%!important;max-height:none!important}'
+              +'#ModalConteudoTelaCheia.in .modal-body{height:auto!important;max-height:none!important;overflow:visible!important;flex:none!important}'
+              +'#ModalConteudoTelaCheia.in .modal-footer{position:sticky!important;bottom:0!important;background:#fff!important;z-index:5!important;border-top:1px solid #ddd!important}';
             (document.head||document.documentElement).appendChild(st);})()""", null)
     }
     private fun verificarSessao() {
