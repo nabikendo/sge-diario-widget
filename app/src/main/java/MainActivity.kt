@@ -167,6 +167,11 @@ class MainActivity : FragmentActivity() {
         downloadPendente = null
         if (ok) arquivo?.let(::baixarWeb) else aviso("Permita acesso aos arquivos para salvar em Downloads.")
     }
+    private var retornoArquivosWeb: android.webkit.ValueCallback<Array<Uri>>? = null
+    private val escolherArquivosWeb = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { r ->
+        val retorno = retornoArquivosWeb; retornoArquivosWeb = null
+        retorno?.onReceiveValue(android.webkit.WebChromeClient.FileChooserParams.parseResult(r.resultCode, r.data))
+    }
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge(
@@ -190,6 +195,8 @@ class MainActivity : FragmentActivity() {
             settings.domStorageEnabled = true
             settings.allowFileAccess = false
             settings.allowContentAccess = false
+            settings.javaScriptCanOpenWindowsAutomatically = true
+            settings.setSupportMultipleWindows(false)
             val agenteCelular = settings.userAgentString.orEmpty()
             prefs.edit().putString("web_user_agent_celular", agenteCelular).apply()
             modoComputadorWeb.value = prefs.getBoolean("web_computador", true)
@@ -206,7 +213,24 @@ class MainActivity : FragmentActivity() {
                     pedirArmazenamento.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
                 } else baixarWeb(arquivo)
             }
+            // Sem WebChromeClient o SGE não mostra alert/confirm/prompt nem abre o seletor de arquivos:
+            // era isso que travava o lançamento de Conteúdo e Frequência.
+            webChromeClient = SgeWebChromeClient(this@MainActivity) { retorno, intent ->
+                retornoArquivosWeb?.onReceiveValue(null)
+                retornoArquivosWeb = retorno
+                runCatching { escolherArquivosWeb.launch(intent) }.onFailure { retornoArquivosWeb = null }.isSuccess
+            }
             webViewClient = object : WebViewClient() {
+                override fun shouldOverrideUrlLoading(view: WebView?, request: android.webkit.WebResourceRequest?): Boolean {
+                    val destino = request?.url ?: return false
+                    if (destino.scheme == "http" || destino.scheme == "https" || destino.scheme == "about" || destino.scheme == "blob" || destino.scheme == "data") return false
+                    runCatching { startActivity(Intent(Intent.ACTION_VIEW, destino).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+                    return true
+                }
+                override fun onRenderProcessGone(view: WebView?, detail: android.webkit.RenderProcessGoneDetail?): Boolean {
+                    runOnUiThread { Toast.makeText(this@MainActivity, "O SGE Web foi reiniciado pelo sistema.", Toast.LENGTH_SHORT).show(); recreate() }
+                    return true
+                }
                 override fun onPageCommitVisible(view: WebView?, url: String?) { SgeWebComputador.viewport(view, modoComputadorWeb.value, url) }
                 override fun onPageFinished(view: WebView?, url: String?) {
                     SgeWebComputador.viewport(view, modoComputadorWeb.value, url)

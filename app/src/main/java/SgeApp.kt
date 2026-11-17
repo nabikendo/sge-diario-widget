@@ -316,7 +316,7 @@ fun AppDiario(
                 }
                 } }
             }
-            if (!largo && !tecladoAberto && pagina == null && detalhe == null) DockDiario(aba, visiveis) { focus.clearFocus(); aba = it }
+            if (!largo && !tecladoAberto && pagina == null && detalhe == null) DockVidro(aba, visiveis) { focus.clearFocus(); aba = it }
         }
         }
         if (intro) TelaIntroducao { abrirSge ->
@@ -351,38 +351,14 @@ fun AppDiario(
 }
 
 @Composable private fun RailDiario(aba: Int, visiveis: Set<Int>, escolher: (Int) -> Unit) {
-    NavigationRail(containerColor = MaterialTheme.colorScheme.surface) {
+    NavigationRail(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = .92f)) {
         Spacer(Modifier.height(12.dp))
         listOf("Meu diário", "Coordenação", "SGE Web").forEachIndexed { i, label ->
             if (i !in visiveis) return@forEachIndexed
             NavigationRailItem(selected = i == aba, onClick = { escolher(i) }, alwaysShowLabel = true,
+                colors = NavigationRailItemDefaults.colors(indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = .16f), selectedIconColor = MaterialTheme.colorScheme.primary, selectedTextColor = MaterialTheme.colorScheme.primary),
                 icon = { Icon(listOf(SgeIcons.Cards, SgeIcons.People, SgeIcons.Globe)[i], null, Modifier.size(22.dp)) },
                 label = { Text(label, style = MaterialTheme.typography.labelSmall, maxLines = 1) })
-        }
-    }
-}
-
-/** Navegação inferior flutuante em pílula: só ícones (rótulos ficam na acessibilidade) e indicador circular no item ativo. */
-@Composable private fun DockDiario(aba: Int, visiveis: Set<Int>, escolher: (Int) -> Unit) {
-    val escuro = MaterialTheme.colorScheme.background.luminance() < .5f
-    val baixa = LocalConfiguration.current.screenHeightDp < 480
-    Box(Modifier.fillMaxWidth().padding(horizontal = 32.dp, vertical = if (baixa) 6.dp else 18.dp), contentAlignment = Alignment.Center) {
-        Surface(shape = RoundedCornerShape(50), color = (if (escuro) PilulaNavOled else MaterialTheme.colorScheme.surface).copy(alpha = .92f),
-            border = BorderStroke(1.dp, if (escuro) PilulaNavBorda else MaterialTheme.colorScheme.outlineVariant), shadowElevation = 4.dp) {
-            Row(Modifier.padding(if (baixa) 4.dp else 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                listOf("Meu diário", "Coordenação", "SGE Web").forEachIndexed { i, label ->
-                    if (i !in visiveis) return@forEachIndexed
-                    val ativa = i == aba
-                    val fundo by animateColorAsState(if (ativa) (if (escuro) PilulaNavBorda else MaterialTheme.colorScheme.primaryContainer) else Color.Transparent,
-                        tween(SgeMotion.duration(160)), label = "fundoAba$i")
-                    val corIcone by animateColorAsState(if (ativa) (if (escuro) Color.White else MaterialTheme.colorScheme.primary) else MaterialTheme.colorScheme.onSurfaceVariant,
-                        tween(SgeMotion.duration(160)), label = "iconeAba$i")
-                    Box(Modifier.size(if (baixa) 44.dp else 52.dp).clip(CircleShape).background(fundo)
-                        .selectable(ativa, role = Role.Tab, onClick = { escolher(i) }), contentAlignment = Alignment.Center) {
-                        Icon(listOf(SgeIcons.Cards, SgeIcons.People, SgeIcons.Globe)[i], label, Modifier.size(24.dp), tint = corIcone)
-                    }
-                }
-            }
         }
     }
 }
