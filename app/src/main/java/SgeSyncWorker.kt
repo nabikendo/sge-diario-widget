@@ -130,6 +130,9 @@ class SgeSyncWorker(private val ctx: Context, params: WorkerParameters) : Corout
                 if (falhas > 0) "$falhas consultas não verificadas. Toque na turma para conferir os detalhes." else
                     if (parciais > 0) "$parciais consultas com cobertura parcial (*). Confira os detalhes." else
                         "Documentos ausentes e registros não enviados/reprovados conferidos nos períodos iniciados.", false, true, mudancas = mudancas))
+            // Dados novos substituem as marcas "feito" do widget e disparam os alertas opcionais.
+            SgeResolvidas.limpar(ctx)
+            runCatching { SgeNotificacoes.aoConcluirConsulta(ctx, antigo.turmas, resultados) }
             return Result.success()
         } catch (e: TimeoutCancellationException) {
             guardarDiagnostico("Tempo limite de 90s excedido", cliente)

@@ -42,6 +42,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.CancellationException
 import br.to.seduc.sgediariowidget.worker.SgeNoturnoWorker
+import br.to.seduc.sgediariowidget.worker.SgeExtrasWorker
 import java.io.File
 import java.io.IOException
 import java.time.LocalDate
@@ -188,6 +189,7 @@ class MainActivity : FragmentActivity() {
         SgeSyncWorker.agendarPeriodico(this)
         SgeNoturnoWorker.agendar(this, prefs.getBoolean("coord_noturna", false))
         LembreteWorker.agendar(this, prefs.getBoolean("lembrete", false))
+        SgeExtrasWorker.agendar(this)
         // Cookies permanecem no CookieManager; o app nunca copia a senha do formulário.
         prefs.edit().remove("sge_cookies").apply()
         web = WebView(this).apply {
@@ -196,6 +198,7 @@ class MainActivity : FragmentActivity() {
             settings.allowFileAccess = false
             settings.allowContentAccess = false
             settings.javaScriptCanOpenWindowsAutomatically = true
+            settings.blockNetworkImage = SgeExtras.ler(this@MainActivity).economiaDados
             settings.setSupportMultipleWindows(false)
             val agenteCelular = settings.userAgentString.orEmpty()
             prefs.edit().putString("web_user_agent_celular", agenteCelular).apply()
@@ -288,6 +291,7 @@ class MainActivity : FragmentActivity() {
                     if (chave == null || chave == "painel_v2") lifecycleScope.launch(Dispatchers.IO) { val p = SgePainelStore.ler(this@MainActivity); withContext(Dispatchers.Main) { painel = p } }
                     if (chave == null || chave == "painel_coord_v2") lifecycleScope.launch(Dispatchers.IO) { val c = SgeCoordStore.ler(this@MainActivity); withContext(Dispatchers.Main) { coord = c } }
                     filaCoord = SgeFila.ler(this@MainActivity)
+                    if (::web.isInitialized) web.settings.blockNetworkImage = SgeExtras.ler(this@MainActivity).economiaDados
                     pausaDiario = SgePausaPessoal.ler(this@MainActivity)
                     docentes = SgeDocentesStore.ler(this@MainActivity)
                     conhecidas = SgeWidgetStore.conhecidas(this@MainActivity)
@@ -370,7 +374,9 @@ class MainActivity : FragmentActivity() {
                     aoAtalhoSge = { id, turma, componente, modulo, datas, horario -> abrirAtalhoSge(id, turma, componente, modulo, datas, horario) },
                     semana = semanaSelecionada, aoSemana = { semanaSelecionada = it },
                     pedidoHandoff = handoffRecebido,
-                    aoContextoHandoff = ::atualizarHandoff)
+                    aoContextoHandoff = ::atualizarHandoff,
+                    aoCsv = { exportarCsv(it) },
+                    aoTrocarPerfil = { trocarPerfil() })
                 if (!BuildConfig.DISTRIBUICAO_PLAY) AtualizacoesDialog(atualizador) { lifecycleScope.launch {
                     try { val arquivo = atualizador.prepararInstalacao(); lifecycle.withResumed { if(atualizador.aberto) atualizador.instalar(arquivo) } }
                     catch (e: CancellationException) { throw e }
@@ -487,6 +493,32 @@ class MainActivity : FragmentActivity() {
             catch (e: Exception) { aviso("Não foi possível gerar o lote de relatórios.") }
             finally { operando = false }
         } }
+    }
+    /** Planilha (CSV, separador ";" e BOM) do cartão aberto, para reunião pedagógica. */
+    private fun exportarCsv(g: GrupoPendencias) {
+        comProtecao {
+            lifecycleScope.launch {
+                runCatching {
+                    val arquivo = withContext(Dispatchers.IO) {
+                        val pasta = File(cacheDir, "relatorios").apply { mkdirs() }
+                        File(pasta, "SGE-pendencias-${LocalDate.now()}.csv").also {
+                            it.writeText(SgeCsv.gerar(listOf(SgeEscopo.filtrarGrupo(this@MainActivity, g)), java.time.LocalDateTime.now()), Charsets.UTF_8)
+                        }
+                    }
+                    compartilharArquivo(arquivo, "text/csv")
+                }.onFailure { if (it is CancellationException) throw it; aviso("Não foi possível gerar a planilha.") }
+            }
+        }
+    }
+    /** Tenta clicar em "Trocar/Alterar perfil" na página do SGE; se não achar, orienta o usuário. */
+    private fun trocarPerfil() {
+        if (!::web.isInitialized) return
+        web.evaluateJavascript("""(function(){var r=/(trocar|alterar|mudar).{0,12}perfil|perfil.{0,12}(trocar|alterar)/i;
+            var els=Array.prototype.slice.call(document.querySelectorAll('a,button,li,span'));
+            for(var i=0;i<els.length;i++){var t=(els[i].textContent||'').replace(/\s+/g,' ').trim();if(t.length<60&&r.test(t)){els[i].click();return 'ok';}}
+            return 'nao';})()""") { raw ->
+            if (raw?.contains("ok") != true) Toast.makeText(this, "Abra o menu do seu usuário no SGE e escolha Trocar de perfil.", Toast.LENGTH_LONG).show()
+        }
     }
     private fun compartilharArquivo(arquivo: File, tipo: String) {
         comProtecao {

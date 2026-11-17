@@ -183,13 +183,14 @@ fun TelaAjustes(tema: Int, cor: Int, versao: String, aoTema: (Int) -> Unit, aoCo
     aoHistorico: () -> Unit = {}, bloqueio: Boolean = false, aoBloqueio: (Boolean) -> Unit = {},
     noturna: Boolean = false, aoNoturna: (Boolean) -> Unit = {}, statusNoturno: String = "", aoEconomia: ()->Unit = {}, aoBackup: ()->Unit = {}, aoAtualizacoes: ()->Unit = {},
     horarioLembrete: String = "17:00", aoEscolherHorarioLembrete: () -> Unit = {},
-    bimestre: Int = 0, aoBimestre: (Int) -> Unit = {}) {
+    bimestre: Int = 0, aoBimestre: (Int) -> Unit = {}, aoRascunhos: () -> Unit = {}) {
     var confirmar by remember { mutableStateOf(0) }
     var bimestreEscolhido by remember { mutableStateOf(bimestre) }
     var saude by remember { mutableStateOf(false) }
     val ctxUi = LocalContext.current
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
         Text("Do seu jeito.", style = MaterialTheme.typography.displaySmall)
+        SecaoExtras(aoRascunhos)
         Surface(color = MaterialTheme.colorScheme.surface, shape = MaterialTheme.shapes.large) {
             val ctxTurmas = androidx.compose.ui.platform.LocalContext.current
             Column(Modifier.padding(19.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {

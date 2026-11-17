@@ -72,6 +72,15 @@ object SgeWidgets {
 }
 
 private val deltaKey = ActionParameters.Key<Int>("sge_delta")
+private val chaveGrupoKey = ActionParameters.Key<String>("sge_chave_grupo")
+/** Marca/desmarca uma pendência como feita no widget. A marca vale até a próxima consulta: se o SGE ainda mostrar pendência, ela cai. */
+class MarcarFeitoAction : ActionCallback {
+    override suspend fun onAction(context: Context, glanceId: GlanceId, parameters: ActionParameters) {
+        val chave = parameters[chaveGrupoKey] ?: return
+        if (chave in SgeResolvidas.ler(context)) SgeResolvidas.desmarcar(context, chave) else SgeResolvidas.marcar(context, chave)
+        SgeWidgets.atualizar(context)
+    }
+}
 class AlternarFocoAction : ActionCallback {
     override suspend fun onAction(context: Context, glanceId: GlanceId, parameters: ActionParameters) {
         val id = GlanceAppWidgetManager(context).getAppWidgetId(glanceId)
@@ -115,9 +124,9 @@ private fun cores(context: Context): CoresWidget {
     val tema = context.getSharedPreferences(SgePainelStore.PREFS_NAME, Context.MODE_PRIVATE).getInt("tema", 0)
     val escuro = when(tema) { 1 -> false; 2 -> true; else -> (context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES }
     return if (escuro) CoresWidget(R.drawable.widget_fundo_escuro, R.drawable.widget_cartao_escuro, Color(0xFFF2F3F6), Color(0xFFA7AFBD),
-        Color(0xFF2B323D), Color(0xFF9DBFFF), Color(0xFFF3A698), Color(0xFFE0BB78), Color(0xFF9DCEB4))
+        Color(0xFF2B323D), Color(0xFF64D2FF), Color(0xFFFF8A80), Color(0xFFFFD60A), Color(0xFF30D158))
     else CoresWidget(R.drawable.widget_fundo_claro, R.drawable.widget_cartao_claro, Color(0xFF171B23), Color(0xFF6C7583),
-        Color(0xFFECEFF4), Color(0xFF316BCD), Color(0xFFB34A42), Color(0xFF92651E), Color(0xFF347B5C))
+        Color(0xFFECEFF4), Color(0xFF0A7AFF), Color(0xFFD70015), Color(0xFFB25000), Color(0xFF248A3D))
 }
 private fun estadoTexto(e: EstadoGrupo) = when(e) {
     EstadoGrupo.PENDENTE -> "Pendências"; EstadoGrupo.CONFERIR -> "A conferir"; EstadoGrupo.EM_DIA -> "Em dia"; else -> "Sem consulta"
@@ -189,7 +198,7 @@ open class SgeBaseWidget(private val tipo: TipoWidget) : GlanceAppWidget(R.layou
             val focoIndice = grupos.indexOfFirst { it.chave == SgeWidgetStore.foco(context, widgetId) }.coerceAtLeast(0)
             val ajustar = actionStartActivity(Intent(context, WidgetConfigActivity::class.java).putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId))
             // Somente referências a shapes e vetores XML. Nenhum bitmap entra no RemoteViews.
-            Column(GlanceModifier.fillMaxSize().background(ImageProvider(c.fundo)).cornerRadius(28.dp).padding(12.dp)) {
+            Column(GlanceModifier.fillMaxSize().background(ImageProvider(c.fundo)).cornerRadius(32.dp).padding(13.dp)) {
                 Row(GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Column(GlanceModifier.defaultWeight().clickable(abrir(context, config))) {
                         Text(if (config.fonte == FontePainel.COORDENACAO) "SGE · ESCOLA" else "SGE · MEU DIÁRIO",
@@ -261,13 +270,18 @@ open class SgeBaseWidget(private val tipo: TipoWidget) : GlanceAppWidget(R.layou
 }
 
 @Composable private fun CartaoWidget(grupo: GrupoPendencias, titulo: String, config: ConfigWidget, c: CoresWidget, context: Context, compacto: Boolean) {
-    Column(GlanceModifier.fillMaxWidth().background(ImageProvider(c.cartao)).cornerRadius(20.dp).clickable(abrir(context, config, grupo.chave)).padding(13.dp)) {
+    Column(GlanceModifier.fillMaxWidth().background(ImageProvider(c.cartao)).cornerRadius(24.dp).clickable(abrir(context, config, grupo.chave)).padding(14.dp)) {
         Row(GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text(titulo, GlanceModifier.defaultWeight(), style = TextStyle(color = ColorProvider(c.texto), fontSize = if (compacto) 14.sp else 17.sp, fontWeight = FontWeight.Bold), maxLines = 2)
             Text("›", GlanceModifier.padding(start = 5.dp), style = TextStyle(color = ColorProvider(c.secundario), fontSize = 20.sp))
         }
         if (!config.ocultarNomes && !compacto) Text(grupo.subtitulo, style = TextStyle(color = ColorProvider(c.secundario), fontSize = 10.sp), maxLines = 1)
-        Text(estadoTexto(grupo.estado), GlanceModifier.padding(top = 5.dp), style = TextStyle(color = ColorProvider(corEstado(grupo.estado, c)), fontSize = 11.sp, fontWeight = FontWeight.Medium))
+        val feito = grupo.chave in SgeResolvidas.ler(context)
+        Text(if (feito) "Marcado como feito · confirma na próxima consulta" else estadoTexto(grupo.estado), GlanceModifier.padding(top = 5.dp),
+            style = TextStyle(color = ColorProvider(if (feito) c.ok else corEstado(grupo.estado, c)), fontSize = 11.sp, fontWeight = FontWeight.Medium))
+        if (grupo.estado == EstadoGrupo.PENDENTE || feito) Text(if (feito) "☑ Desfazer" else "☐ Marcar como feito",
+            GlanceModifier.padding(top = 4.dp, bottom = 2.dp).clickable(actionRunCallback<MarcarFeitoAction>(actionParametersOf(chaveGrupoKey to grupo.chave))),
+            style = TextStyle(color = ColorProvider(c.acento), fontSize = 11.sp, fontWeight = FontWeight.Medium))
         val ms = grupo.modulos
         if (!compacto) {
             Row(GlanceModifier.fillMaxWidth().padding(top = 10.dp)) { ValorWidget("Conteúdos", ms[0], c, abrir(context, config, grupo.chave, 0)); ValorWidget("Frequência", ms[1], c, abrir(context, config, grupo.chave, 1)) }

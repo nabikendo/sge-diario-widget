@@ -21,6 +21,9 @@ import androidx.compose.foundation.lazy.grid.*
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -92,9 +95,10 @@ fun CartaoGrupo(grupo: GrupoPendencias, por: Agrupamento, selecionado: Boolean =
         horasDado?.let { append(". Dados ").append(SgeIdade.texto(it)) }
         append(". Toque para ver detalhes.")
     }
-    Surface(onClick = abrir, modifier = Modifier.semantics(mergeDescendants = true) { contentDescription = descricao },
-        color = MaterialTheme.colorScheme.surface, shape = RoundedCornerShape(RaioCartao),
-        border = BorderStroke(if (selecionado) 1.5.dp else 1.dp, if (selecionado) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant), shadowElevation = .5.dp) {
+    val escuroCartao = MaterialTheme.colorScheme.background.luminance() < .5f
+    Surface(onClick = abrir, modifier = Modifier.vidro(RoundedCornerShape(RaioCartao), escuroCartao, 5.dp).semantics(mergeDescendants = true) { contentDescription = descricao },
+        color = Color.Transparent, shape = RoundedCornerShape(RaioCartao),
+        border = if (selecionado) BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary) else null) {
         Column(Modifier.fillMaxWidth().padding(22.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(13.dp)) {
                 Surface(color = MaterialTheme.colorScheme.surfaceVariant, shape = RoundedCornerShape(22.dp)) {
@@ -259,8 +263,10 @@ fun TelaCartoes(
     val mostrarResumo = mudancas.isNotEmpty() && !falhaRecente
     // Esqueleto só na primeira consulta (sem nenhum dado para mostrar); nas atualizações os cartões permanecem.
     val mostrarEsqueleto = carregando && resultados.isEmpty() && (!escola || conhecidas.isEmpty())
+    val estadoGrade = rememberLazyGridState()
+    Box(Modifier.fillMaxSize()) {
     Crossfade(targetState = mostrarEsqueleto, animationSpec = tween(SgeMotion.duration(220)), label = "esqueletoPainel") { esqueleto ->
-    if (esqueleto) DashboardSkeleton() else LazyVerticalGrid(columns = GridCells.Adaptive(285.dp), contentPadding = PaddingValues(20.dp, 10.dp, 20.dp, 26.dp),
+    if (esqueleto) DashboardSkeleton() else LazyVerticalGrid(state = estadoGrade, columns = GridCells.Adaptive(285.dp), contentPadding = PaddingValues(20.dp, 10.dp, 20.dp, 26.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
         item(span = { GridItemSpan(maxLineSpan) }) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -317,6 +323,7 @@ fun TelaCartoes(
                 }
             }
         }
+        if (!escola) item(span = { GridItemSpan(maxLineSpan) }) { BannerFalhas(painel.turmas, carregando, aoSincronizar) }
         if (escola && filaCoord != null) item(span = { GridItemSpan(maxLineSpan) }) {
             val fila = filaCoord!!
             val nomesFalhas = fila.falhas.mapNotNull { id -> coord.turmas.firstOrNull { it.id == id }?.nome }.distinct()
@@ -480,6 +487,15 @@ fun TelaCartoes(
         item(span = { GridItemSpan(maxLineSpan) }) {
             Text("As contagens se referem à última consulta. Aguardando avaliação aparece nos detalhes e não conta como pendência do professor.",
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+    }
+    // Título grande que encolhe: ao rolar, o cabeçalho sai da grade e uma barra compacta aparece no topo.
+    val tituloRecolhido by remember { derivedStateOf { estadoGrade.firstVisibleItemIndex > 0 } }
+    AnimatedVisibility(visible = tituloRecolhido && !mostrarEsqueleto, modifier = Modifier.align(Alignment.TopCenter),
+        enter = fadeIn(tween(SgeMotion.duration(150))), exit = fadeOut(tween(SgeMotion.duration(120)))) {
+        Surface(color = MaterialTheme.colorScheme.background.copy(alpha = .94f), modifier = Modifier.fillMaxWidth()) {
+            Text(if (escola) "Coordenação" else "Seu diário", Modifier.padding(horizontal = 20.dp, vertical = 10.dp), style = MaterialTheme.typography.titleMedium)
         }
     }
     }

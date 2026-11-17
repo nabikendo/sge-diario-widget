@@ -1,4 +1,4 @@
-@file:OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@file:OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class, androidx.compose.material3.ExperimentalMaterial3Api::class)
 package br.to.seduc.sgediariowidget
 
 import androidx.compose.foundation.*
@@ -43,7 +43,10 @@ data class RecursosSge(
 @Composable fun FiltrosDialog(atual: FiltroAvancado, rs: List<ResultadoTurma>, org: Map<String,DadosTurma>, docentes: PainelDocentes, fechar: ()->Unit, aplicar: (FiltroAvancado)->Unit) {
     var f by remember(atual) { mutableStateOf(atual) }
     fun opcoes(xs: List<String>) = listOf("" to "Todos") + xs.filter { it.isNotBlank() }.distinct().sorted().map { it to it }
-    AlertDialog(onDismissRequest=fechar,title={ Text("Filtros avançados") },text={ Column(Modifier.verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(8.dp)) {
+    ModalBottomSheet(onDismissRequest = fechar) {
+        Column(Modifier.fillMaxWidth().padding(horizontal = 22.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text("Filtros avançados", style = MaterialTheme.typography.headlineSmall)
+            Box(Modifier.weight(1f, fill = false)) { Column(Modifier.verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(8.dp)) {
         Text("O recorte vale para cartões, mapa e relatórios em lote. Série e turno vêm da organização local, sem deduzir pelo código da turma.",style=MaterialTheme.typography.bodySmall)
         EscolhaFiltro("Escola",f.escola,opcoes(rs.map { SgeOrganizacao.dados(it,org).escola })) { f=f.copy(escola=it) }
         EscolhaFiltro("Série / etapa",f.serie,opcoes(org.values.map { it.serie })) { f=f.copy(serie=it) }
@@ -53,7 +56,13 @@ data class RecursosSge(
         EscolhaFiltro("Módulo",f.modulo.toString(),listOf("-1" to "Todos") + SgeDashboard.nomes.mapIndexed { i,n-> i.toString() to n }) { f=f.copy(modulo=it.toInt()) }
         EscolhaFiltro("Situação",f.estado.toString(),listOf("0" to "Todas", "1" to "Com pendências", "2" to "A conferir", "3" to "Em dia no módulo/recorte")) { f=f.copy(estado=it.toInt()) }
         TextButton(onClick={ f=FiltroAvancado() }) { Text("Limpar filtros") }
-    } },confirmButton={ Button(onClick={ aplicar(f);fechar() }) { Text("Aplicar filtros") } },dismissButton={ TextButton(onClick=fechar) { Text("Cancelar") } })
+    } }
+            Row(Modifier.fillMaxWidth().padding(bottom = 18.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick = fechar, modifier = Modifier.weight(1f)) { Text("Cancelar") }
+                Button(onClick = { aplicar(f); fechar() }, modifier = Modifier.weight(1f)) { Text("Aplicar filtros") }
+            }
+        }
+    }
 }
 
 @Composable fun BarraRecorte(f: FiltroAvancado, filtrar: ()->Unit, escopo: String = "Toda a escola") {

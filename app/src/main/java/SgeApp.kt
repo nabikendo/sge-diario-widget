@@ -47,7 +47,7 @@ fun paresDoProfessor(g: GrupoPendencias, docentes: PainelDocentes): Map<String, 
 
 @Composable
 fun AppDiario(
-    web: WebView, painel: PainelSge, coord: CoordPainel, docentes: PainelDocentes, conhecidas: List<Pair<String, String>>,
+    web: WebView, painel: PainelSge, coordTotal: CoordPainel, docentes: PainelDocentes, conhecidas: List<Pair<String, String>>,
     introduzir: Boolean, pedido: PedidoWidget?, tema: Int, cor: Int, versao: String,
     aoTema: (Int) -> Unit, aoCor: (Int) -> Unit, aoIntroduzido: () -> Unit,
     aoSincronizarPessoal: () -> Unit, aoVerificarTurmas: (List<String>) -> Unit, aoCarregarTurmas: () -> Unit,
@@ -66,12 +66,23 @@ fun AppDiario(
     modoComputador: Boolean = true, aoModoComputador: (Boolean) -> Unit = {},
     aoAtalhoSge: (String, String, String, Int, List<String>, String) -> Unit = { _, _, _, _, _, _ -> },
     pedidoHandoff: PedidoHandoff? = null, aoContextoHandoff: (ContextoHandoff?) -> Unit = {},
-    semana: LocalDate = LocalDate.now(), aoSemana: (LocalDate) -> Unit = {}
+    semana: LocalDate = LocalDate.now(), aoSemana: (LocalDate) -> Unit = {},
+    aoCsv: (GrupoPendencias) -> Unit = {}, aoTrocarPerfil: () -> Unit = {}
 ) {
     val visiveis = remember(papel) { when (papel) { 1 -> setOf(0, 2); 2 -> setOf(1, 2); else -> setOf(0, 1, 2) } }
     var aba by rememberSaveable { mutableStateOf(if (papel == 2) 1 else 0) }
     LaunchedEffect(papel, aba) { if (aba !in visiveis) aba = visiveis.first() }
     var pagina by rememberSaveable { mutableStateOf<String?>(null) }
+    // "Só o que é meu": na Coordenação, só turmas/componentes que também estão no diário pessoal.
+    val ctxExtras = LocalContext.current
+    var soMeu by remember { mutableStateOf(SgeExtras.ler(ctxExtras).soMeu) }
+    LaunchedEffect(pagina) { soMeu = SgeExtras.ler(ctxExtras).soMeu }
+    val coord = remember(coordTotal, painel, soMeu) {
+        val meus = painel.turmas.map(::chaveResultado).toSet()
+        if (!soMeu || meus.isEmpty()) coordTotal
+        else coordTotal.copy(turmas = coordTotal.turmas.map { t -> t.copy(disciplinas = t.disciplinas.filter { chaveResultado(it) in meus }) }
+            .filter { it.disciplinas.isNotEmpty() })
+    }
     var intro by rememberSaveable { mutableStateOf(introduzir) }
     var porPessoal by rememberSaveable { mutableStateOf(Agrupamento.TURMA) }
     var porCoord by rememberSaveable { mutableStateOf(Agrupamento.TURMA) }
@@ -155,7 +166,7 @@ fun AppDiario(
             else -> aba = 0 }
     }
     val titulo = when {
-        pagina == "mapa" -> "Mapa da escola"; pagina == "lote" -> "Relatórios"; pagina == "organizacao" -> "Organizar turmas"; pagina == "economia" -> "Sincronização"; pagina == "backup" -> "Backup"; pagina == "ajustes" -> "Ajustes"; pagina == "ajuda" -> "Como interpretar"
+        pagina == "mapa" -> "Mapa da escola"; pagina == "lote" -> "Relatórios"; pagina == "organizacao" -> "Organizar turmas"; pagina == "economia" -> "Sincronização"; pagina == "backup" -> "Backup"; pagina == "rascunhos" -> "Lançamentos offline"; pagina == "ajustes" -> "Ajustes"; pagina == "ajuda" -> "Como interpretar"
         pagina == "semana" -> "Conferência semanal"; pagina == "historico" -> "Histórico"; pagina == "widgets" -> "Widgets"; pagina == "sobre" -> "Sobre"; detalhe != null && !largo -> "Pendências por módulo"; aba == 2 -> "SGE Web"; else -> "Diário"
     }
     val cabecalhoNaTela = pagina == null && detalhe == null && aba != 2
@@ -207,6 +218,7 @@ fun AppDiario(
                             DropdownMenuItem(text = { Text("Texto / WhatsApp") }, onClick = { menuTopo = false; detalhe?.let { aoCompartilhar(it, recorteTopo) } })
                             DropdownMenuItem(text = { Text("Relatório em PDF") }, onClick = { menuTopo = false; detalhe?.let { aoPdf(it, fonteDetalhe, recorteTopo) } })
                             DropdownMenuItem(text = { Text("PDF para contato") }, onClick = { menuTopo = false; detalhe?.let { aoPdfContato(it, fonteDetalhe, recorteTopo) } })
+                            DropdownMenuItem(text = { Text("Planilha (CSV)") }, onClick = { menuTopo = false; detalhe?.let { aoCsv(it) } })
                         }
                     }
                 } else {
@@ -221,7 +233,13 @@ fun AppDiario(
             }
             if (avisoPerfil != null && pagina == null && detalhe == null) Surface(color = Color(0xFFFF9500).copy(alpha = .14f), shape = MaterialTheme.shapes.medium,
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp).fillMaxWidth()) {
-                Text(avisoPerfil, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(10.dp))
+                Column(Modifier.padding(10.dp)) {
+                    Text(avisoPerfil, style = MaterialTheme.typography.bodySmall)
+                    TextButton(onClick = { aba = 2; aoTrocarPerfil() }) { Text("Trocar de perfil") }
+                }
+            }
+            if (aba == 1 && pagina == null && detalhe == null && painel.turmas.isNotEmpty()) Row(Modifier.padding(horizontal = 12.dp, vertical = 2.dp)) {
+                PilulaFiltro(soMeu, { soMeu = !soMeu; SgeExtras.salvar(ctxExtras, SgeExtras.ler(ctxExtras).copy(soMeu = soMeu)) }) { Text("Só o que é meu") }
             }
             Box(Modifier.weight(1f)) {
                 // O documento do SGE permanece anexado para preservar sessão, rolagem e navegação.
@@ -241,7 +259,8 @@ fun AppDiario(
                             { fonteHistorico = if (aba == 1) FontePainel.COORDENACAO else FontePainel.PESSOAL; pagina = "historico" },
                             bloqueioCoord, aoBloqueio, noturna, aoNoturna, statusNoturno, { pagina = "economia" }, { pagina = "backup" }, recursos.aoAtualizacoes,
                             horarioLembrete, aoEscolherHorarioLembrete,
-                            bimestre = SgeBimestre.ler(ctxApp), aoBimestre = { SgeBimestre.salvar(ctxApp, it) })
+                            bimestre = SgeBimestre.ler(ctxApp), aoBimestre = { SgeBimestre.salvar(ctxApp, it) },
+                            aoRascunhos = { pagina = "rascunhos" })
                         rota.pagina == "mapa" -> TelaMapa(rsCoord, conhecidas, docentes, filtroCoord, recursos.organizacao,
                             { filtrosAbertos = true }, { pagina = "organizacao" }) { g, m -> fonteDetalhe = FontePainel.COORDENACAO; detalhe = g; moduloDetalhe = m; aba = 1; origemDetalhe = "mapa"; pagina = null }
                         rota.pagina == "lote" -> TelaLote(rsCoord, docentes, filtroCoord, recursos.organizacao, { filtrosAbertos = true }, recursos.aoLote)
@@ -250,6 +269,7 @@ fun AppDiario(
                         rota.pagina == "backup" -> TelaBackup(recursos.aoBackup, recursos.aoRestaurar, recursos.aoBackupNuvem, recursos.aoRestaurarNuvem)
                         rota.pagina == "semana" -> TelaConferenciaSemanal(coord, conhecidas, docentes, semana, aoSemana)
                         rota.pagina == "historico" -> TelaHistorico(historico, fonteHistorico, { fonteHistorico = it }, !autorizado, aoDesbloquear, docentes = docentes)
+                        rota.pagina == "rascunhos" -> TelaRascunhos { pagina = null; detalhe = null; aba = 2 }
                         rota.pagina == "sobre" -> TelaSobre(versao, aoUrl)
                         rota.pagina == "ajuda" -> TelaAjuda()
                         rota.pagina == "widgets" -> TelaWidgets(aoAdicionarWidget)
