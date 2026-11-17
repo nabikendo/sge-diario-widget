@@ -825,6 +825,10 @@ class MainActivity : FragmentActivity() {
             r.sobrepostos=A(document.querySelectorAll('body *')).filter(function(e){var c=getComputedStyle(e),q=e.getBoundingClientRect();return (c.position==='fixed'||c.position==='sticky'||(c.position==='absolute'&&c.zIndex!=='auto'))&&c.display!=='none'&&c.visibility!=='hidden'&&q.width*q.height>4000}).slice(0,15).map(function(e){var c=getComputedStyle(e),q=e.getBoundingClientRect();return {tag:e.tagName,id:e.id,cls:(e.className||'').toString().slice(0,60),pos:c.position,z:c.zIndex,box:[Math.round(q.left),Math.round(q.top),Math.round(q.width),Math.round(q.height)],ov:c.overflowY,h:c.height,maxh:c.maxHeight,bg:c.backgroundColor}});
             r.tela={w:innerWidth,h:innerHeight,vw:document.documentElement.clientWidth,dpr:window.devicePixelRatio,zoom:window.visualViewport?Math.round(visualViewport.scale*100)/100:null,rolagemY:Math.round(scrollY),altura:document.documentElement.scrollHeight,meta:(document.querySelector('meta[name=viewport]')||{}).content||''};
             r.modais=A(document.querySelectorAll('.modal.in,.modal.show,.ui-dialog,.bootbox,.popover')).slice(0,5).map(function(e){var q=e.getBoundingClientRect();return {cls:(e.className||'').toString().slice(0,60),id:e.id,box:[Math.round(q.top),Math.round(q.height)],txt:t(e.textContent)}});
+            r.cliques=(window.__cliques||[]).slice(-15);
+            r.modalArvore=A(document.querySelectorAll('.modal.in')).slice(0,1).map(function(m){var fila=[[m,0]],out=[];while(fila.length&&out.length<45){var it=fila.shift(),x=it[0],d=it[1];var c=getComputedStyle(x),q=x.getBoundingClientRect();
+                out.push({nv:d,tag:x.tagName,id:x.id,cls:(x.className||'').toString().slice(0,50),disp:c.display,vis:c.visibility,op:c.opacity,pos:c.position,z:c.zIndex,bg:c.backgroundColor,box:[Math.round(q.top),Math.round(q.height)]});
+                if(d<6)A(x.children).forEach(function(f){if(!/^(SCRIPT|STYLE|LINK|META|OPTION|BR|I|SPAN|LABEL)$/.test(f.tagName))fila.push([f,d+1])})}return out;})[0]||[];
             r.erros=(window.__erros||[]).slice(-20);
             r.xhr=(window.__xhr||[]).slice(-40);
             return JSON.stringify(r)})()"""
@@ -860,7 +864,19 @@ class MainActivity : FragmentActivity() {
             var o=XMLHttpRequest.prototype.open,sd=XMLHttpRequest.prototype.send;XMLHttpRequest.prototype.open=function(m,u){this.__sgeU=m+' '+String(u).split('?')[0].slice(0,80);return o.apply(this,arguments);};
             XMLHttpRequest.prototype.send=function(){var x=this;try{x.addEventListener('loadend',function(){window.__xhr.push(x.__sgeU+' -> '+x.status);if(window.__xhr.length>60)window.__xhr.shift();});}catch(e){}return sd.apply(this,arguments);};
             if(window.fetch){var f=window.fetch;window.fetch=function(u,op){var d=((op&&op.method)||'GET')+' '+String(u&&u.url||u).split('?')[0].slice(0,80);return f.apply(this,arguments).then(function(r){window.__xhr.push('fetch '+d+' -> '+r.status);return r;},function(e){window.__xhr.push('fetch '+d+' -> falhou');throw e;});};}
+            window.__cliques=window.__cliques||[];document.addEventListener('click',function(ev){try{var e=ev.target.closest('button,a,input,[onclick],td');if(!e)return;window.__cliques.push(e.tagName+'#'+(e.id||'')+' '+(e.textContent||e.value||'').replace(/\s+/g,' ').trim().slice(0,30)+' | '+(e.getAttribute('onclick')||'').slice(0,90));if(window.__cliques.length>30)window.__cliques.shift();}catch(x){}},true);
+            function jq(){var J=window.jQuery;if(!J||J.__sgeHook){return;}J.__sgeHook=true;J(document).ajaxComplete(function(e,x,o){window.__xhr.push('jq '+(o.type||'GET')+' '+String(o.url).split('?')[0].slice(0,80)+' -> '+x.status);if(window.__xhr.length>60)window.__xhr.shift();});}
+            jq();setTimeout(jq,1500);
             })()""", null)
+        // Correção da tela cheia de Conteúdo Aplicado: o modal do SGE fica transparente e esmaecido no WebView.
+        web.evaluateJavascript("""(function(){if(document.getElementById('sge-fix-modal')||/\/Acesso\/Entrar/i.test(location.pathname))return;
+            var st=document.createElement('style');st.id='sge-fix-modal';
+            st.textContent='#ModalConteudoTelaCheia.in{background:#fff!important}'
+              +'.modal.in .modal-dialog,.modal.in .modal-content{opacity:1!important}'
+              +'.modal.in .modal-content{background-color:#fff!important}'
+              +'.modal.in .fade{opacity:1!important}'
+              +'#ModalConteudoTelaCheia.in .modal-dialog{margin:0 auto!important;width:auto!important;max-width:100%!important}';
+            (document.head||document.documentElement).appendChild(st);})()""", null)
     }
     private fun verificarSessao() {
         if (!::web.isInitialized) return
