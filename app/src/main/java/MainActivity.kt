@@ -240,8 +240,19 @@ class MainActivity : FragmentActivity() {
                     SgeAtalhoWeb.aoPaginaPronta(view, url)
                     if (SgeWebComputador.ehLogin(url)) SgeSessaoStore.salvar(this@MainActivity, PerfilSge.EXPIRADO)
                     CookieManager.getInstance().flush(); verificarSessao(); extrairEscola(); instalarHook()
+                    SgeAutomacaoHost.injetor?.aoMudarUrl(url)
+                }
+                override fun doUpdateVisitedHistory(view: WebView?, url: String?, isReload: Boolean) {
+                    SgeAutomacaoHost.injetor?.aoMudarUrl(url)
                 }
             }
+        }
+        // Automação do Conteúdo Aplicado: a ponte JS precisa existir antes da primeira carga.
+        val injetor = SgeInjetor(web, this)
+        SgeAutomacaoHost.injetor = injetor
+        SgeAutomacaoHost.escopo = lifecycleScope
+        lifecycleScope.launch {
+            SgeLancamentoSync.acompanhar(this@MainActivity, injetor) { Toast.makeText(this@MainActivity, it, Toast.LENGTH_LONG).show() }
         }
         val state = savedInstanceState?.getBundle("web_state")
         if (state == null || web.restoreState(state) == null) web.loadUrl(SgeSyncWorker.BASE + "/")

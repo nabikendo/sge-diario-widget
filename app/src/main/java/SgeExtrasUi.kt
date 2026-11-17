@@ -76,7 +76,7 @@ fun BannerFalhas(rs: List<ResultadoTurma>, carregando: Boolean, aoTentar: () -> 
 
 /** Rascunhos de Conteúdo/Frequência feitos sem internet. O lançamento no SGE é manual: copie o texto e cole no SGE Web. */
 @Composable
-fun TelaRascunhos(aoAbrirSge: () -> Unit) {
+fun TelaRascunhos(aoAbrirSge: () -> Unit, aoMatriz: () -> Unit = {}) {
     val ctx = LocalContext.current
     var lista by remember { mutableStateOf(SgeRascunhos.ler(ctx)) }
     var tipo by remember { mutableStateOf(SgeRascunhos.tipos.first()) }
@@ -90,6 +90,7 @@ fun TelaRascunhos(aoAbrirSge: () -> Unit) {
                 Text("Lançamentos offline", style = MaterialTheme.typography.displaySmall)
                 Text("Escreva agora, sem internet, e lance depois no SGE. O app guarda o rascunho no aparelho; ele não envia nada sozinho.",
                     style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Button(onClick = aoMatriz, modifier = Modifier.fillMaxWidth()) { Text("Conteúdo com a Matriz (preenche o SGE)") }
             }
         }
         item {

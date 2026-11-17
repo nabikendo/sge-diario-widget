@@ -166,7 +166,7 @@ fun AppDiario(
             else -> aba = 0 }
     }
     val titulo = when {
-        pagina == "mapa" -> "Mapa da escola"; pagina == "lote" -> "Relatórios"; pagina == "organizacao" -> "Organizar turmas"; pagina == "economia" -> "Sincronização"; pagina == "backup" -> "Backup"; pagina == "rascunhos" -> "Lançamentos offline"; pagina == "ajustes" -> "Ajustes"; pagina == "ajuda" -> "Como interpretar"
+        pagina == "mapa" -> "Mapa da escola"; pagina == "lote" -> "Relatórios"; pagina == "organizacao" -> "Organizar turmas"; pagina == "economia" -> "Sincronização"; pagina == "backup" -> "Backup"; pagina == "rascunhos" -> "Lançamentos offline"; pagina == "lancamento" -> "Conteúdo com a Matriz"; pagina == "ajustes" -> "Ajustes"; pagina == "ajuda" -> "Como interpretar"
         pagina == "semana" -> "Conferência semanal"; pagina == "historico" -> "Histórico"; pagina == "widgets" -> "Widgets"; pagina == "sobre" -> "Sobre"; detalhe != null && !largo -> "Pendências por módulo"; aba == 2 -> "SGE Web"; else -> "Diário"
     }
     val cabecalhoNaTela = pagina == null && detalhe == null && aba != 2
@@ -194,6 +194,15 @@ fun AppDiario(
                         TextButton(onClick = aoCopiarPagina, contentPadding = compacto, modifier = Modifier.heightIn(min = 48.dp)) {
                             Text("Copiar página", maxLines = 1, softWrap = false, style = MaterialTheme.typography.labelMedium)
                         }
+                        var menuAutomacao by remember { mutableStateOf(false) }
+                        Box {
+                            TextButton(onClick = { menuAutomacao = true }, contentPadding = compacto, modifier = Modifier.heightIn(min = 48.dp)) {
+                                Text("Matriz", maxLines = 1, softWrap = false, style = MaterialTheme.typography.labelMedium)
+                            }
+                            DropdownMenu(expanded = menuAutomacao, onDismissRequest = { menuAutomacao = false }) {
+                                ItensMenuAutomacao({ menuAutomacao = false }) { pagina = "lancamento" }
+                            }
+                        }
                     } else {
                         // Em telas estreitas, as duas ações ficam num único menu e o título mantém o espaço dele.
                         var menuWeb by remember { mutableStateOf(false) }
@@ -204,6 +213,7 @@ fun AppDiario(
                             DropdownMenu(expanded = menuWeb, onDismissRequest = { menuWeb = false }) {
                                 DropdownMenuItem(text = { Text(if (modoComputador) "Modo celular" else "Modo computador") }, onClick = { menuWeb = false; aoModoComputador(!modoComputador) })
                                 DropdownMenuItem(text = { Text("Copiar página") }, onClick = { menuWeb = false; aoCopiarPagina() })
+                                ItensMenuAutomacao({ menuWeb = false }) { pagina = "lancamento" }
                             }
                         }
                     }
@@ -269,7 +279,8 @@ fun AppDiario(
                         rota.pagina == "backup" -> TelaBackup(recursos.aoBackup, recursos.aoRestaurar, recursos.aoBackupNuvem, recursos.aoRestaurarNuvem)
                         rota.pagina == "semana" -> TelaConferenciaSemanal(coord, conhecidas, docentes, semana, aoSemana)
                         rota.pagina == "historico" -> TelaHistorico(historico, fonteHistorico, { fonteHistorico = it }, !autorizado, aoDesbloquear, docentes = docentes)
-                        rota.pagina == "rascunhos" -> TelaRascunhos { pagina = null; detalhe = null; aba = 2 }
+                        rota.pagina == "rascunhos" -> TelaRascunhos({ pagina = null; detalhe = null; aba = 2 }, { pagina = "lancamento" })
+                        rota.pagina == "lancamento" -> TelaLancamentoMatriz { pagina = null; detalhe = null; aba = 2 }
                         rota.pagina == "sobre" -> TelaSobre(versao, aoUrl)
                         rota.pagina == "ajuda" -> TelaAjuda()
                         rota.pagina == "widgets" -> TelaWidgets(aoAdicionarWidget)

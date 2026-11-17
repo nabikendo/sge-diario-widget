@@ -1,0 +1,409 @@
+{
+ "fonte": "Matriz de Recomposição das Aprendizagens 2026 - Ciências da Natureza - Ensino Médio (SEDUC-TO)",
+ "habilidades": [
+  {
+   "id": "1-EM13CNT201-1",
+   "serie": "1ª",
+   "codigo": "EM13CNT201",
+   "unidadeTematica": "Vida, Terra e Cosmos",
+   "texto": "Analisar e discutir modelos, teorias e leis propostos em diferentes épocas e culturas para comparar distintas explicações sobre o surgimento e a evolução da Vida, da Terra e do Universo com as teorias científicas aceitas atualmente.",
+   "observacao": "Biologia, Física e Química desenvolvem a mesma temática da habilidade.",
+   "objetos": {
+    "BIOLOGIA": [
+     "Estudo da vida, Teorias sobre o surgimento da vida na terra, Conhecimento científico e Métodos científico, biogênese e abiogênese",
+     "Teoria dos coacervados"
+    ],
+    "FISICA": [
+     "Conceitos básicos: Unidades de Medida",
+     "Grandezas Físicas",
+     "Notação Científica e Ordem de Grandeza",
+     "Cinemática: Movimento Uniforme e Movimento Uniformemente Variado"
+    ],
+    "QUIMICA": [
+     "Normas de Biossegurança do Laboratório",
+     "Conceitos Fundamentais da Química: Conceitos químicos, a matéria e suas representações",
+     "Propriedades da matéria: Gerais e Específicas",
+     "Matéria e Energia"
+    ]
+   }
+  },
+  {
+   "id": "1-EM13CNT301-1",
+   "serie": "1ª",
+   "codigo": "EM13CNT301",
+   "unidadeTematica": "Vida, Terra e Cosmos",
+   "texto": "Construir questões, elaborar hipóteses, previsões e estimativas, empregar instrumentos de medição e representar e interpretar modelos explicativos, dados e/ou resultados experimentais para construir, avaliar e justificar conclusões no enfrentamento de situações problema sob uma perspectiva científica.",
+   "observacao": null,
+   "objetos": {
+    "BIOLOGIA": [
+     "Elaboração de diferentes teorias e hipóteses, Investigação científica, Leitura de contexto e pesquisas, Elaboração de modelo de análises tais como: esgotamento sanitário, desmatamento, queimadas e demais ações antrópicas"
+    ],
+    "FISICA": [
+     "Dinâmica: Princípio da Inércia",
+     "Princípio Fundamental da Dinâmica",
+     "Princípio da Ação e Reação",
+     "Lei de Hooke",
+     "Atrito Estático e Dinâmico"
+    ],
+    "QUIMICA": [
+     "Estrutura da Matéria: Teoria atômica: modelo atômico de Dalton, Thomson, Rutherford e Bohr",
+     "Atomística"
+    ]
+   }
+  },
+  {
+   "id": "1-EM13CNT101-1",
+   "serie": "1ª",
+   "codigo": "EM13CNT101",
+   "unidadeTematica": "Matéria e Energia",
+   "texto": "Analisar e representar, com ou sem o uso de dispositivos e de aplicativos digitais específicos, as transformações e conservações em sistemas que envolvam quantidade de matéria, de energia e de movimento para realizar previsões sobre seus comportamentos em situações cotidianas e em processos produtivos que priorizem o desenvolvimento sustentável, o uso consciente dos recursos naturais e a preservação da vida em todas as suas formas.",
+   "observacao": null,
+   "objetos": {
+    "BIOLOGIA": [
+     "Metabolismo energético, transformações e conservação de energia"
+    ],
+    "FISICA": [
+     "Trabalho e Energia: Tipos de energia",
+     "transformações de energia",
+     "Princípios de funcionamento de algumas fontes de energia",
+     "Propriedades de transformação e conservação de energia"
+    ],
+    "QUIMICA": [
+     "Composição da Matéria: Elementos químicos, substâncias, tabela periódica",
+     "Distribuição eletrônica"
+    ]
+   }
+  },
+  {
+   "id": "1-EM13CNT209-1",
+   "serie": "1ª",
+   "codigo": "EM13CNT209",
+   "unidadeTematica": "Vida, Terra e Cosmos",
+   "texto": "Analisar a evolução estelar associando-a aos modelos de origem e distribuição dos elementos químicos no Universo, compreendendo suas relações com as condições necessárias ao surgimento de sistemas solares e planetários, suas estruturas e composições e as possibilidades de existência de vida, utilizando representações e simulações, com ou sem o uso de dispositivos e aplicativos digitais (como softwares de simulação e de realidade virtual, entre outros).",
+   "observacao": null,
+   "objetos": {
+    "BIOLOGIA": [
+     "Níveis de organização dos seres vivos: organização de átomos na biosfera, método científico, fundamentos da ecologia"
+    ],
+    "FISICA": [
+     "Movimento de Projéteis e de Satélites, as leis de Kepler do movimento planetário, lei da gravitação universal de Newton"
+    ],
+    "QUIMICA": [
+     "Transformações e Estados da Matéria: Estados de agregação da matéria",
+     "Transformações e conservação",
+     "Fenômenos químicos e físicos"
+    ]
+   }
+  },
+  {
+   "id": "1-EM13CNT102-1",
+   "serie": "1ª",
+   "codigo": "EM13CNT102",
+   "unidadeTematica": "Matéria e Energia",
+   "texto": "Realizar previsões, avaliar intervenções e/ou construir protótipos de sistemas térmicos que visem à sustentabilidade, considerando sua composição e os efeitos das variáveis termodinâmicas sobre seu funcionamento, considerando também o uso de tecnologias digitais que auxiliem no cálculo de estimativas e no apoio à construção dos protótipos.",
+   "observacao": "Biologia e Química desenvolvem a mesma temática da habilidade.",
+   "objetos": {
+    "BIOLOGIA": [
+     "Aquecimento global: causas e consequências"
+    ],
+    "FISICA": [
+     "Hidrostática: Densidade e massa específica",
+     "Pressão média",
+     "Pressão hidrostática",
+     "Teorema de Stevin",
+     "Teorema de Pascal"
+    ],
+    "QUIMICA": [
+     "Substâncias e misturas",
+     "Separação de misturas"
+    ]
+   }
+  },
+  {
+   "id": "1-EM13CNT301-2",
+   "serie": "1ª",
+   "codigo": "EM13CNT301",
+   "unidadeTematica": "Vida, Terra e Cosmos",
+   "texto": "Construir questões, elaborar hipóteses, previsões e estimativas, empregar instrumentos de medição e representar e interpretar modelos explicativos, dados e/ou resultados experimentais para construir, avaliar e justificar conclusões no enfrentamento de situações problema sob uma perspectiva científica.",
+   "observacao": null,
+   "objetos": {
+    "BIOLOGIA": [
+     "Transmissão da linguagem científica em popular por diferentes meios tecnológicos, podendo ser com diferentes temáticas: degradação e conservação dos ecossistemas"
+    ],
+    "FISICA": [
+     "Empuxo",
+     "Princípio de Arquimedes"
+    ],
+    "QUIMICA": [
+     "Funções Inorgânicas: Ácidos, Bases, Sais e Óxidos",
+     "Reações Químicas: Simples Troca, Dupla Troca, Adição, Decomposição e Combustão"
+    ]
+   }
+  },
+  {
+   "id": "2-EM13CNT103-1",
+   "serie": "2ª",
+   "codigo": "EM13CNT103",
+   "unidadeTematica": "Matéria e Energia",
+   "texto": "Utilizar o conhecimento sobre as radiações e suas origens para avaliar as potencialidades e os riscos de sua aplicação em equipamentos de uso cotidiano, na saúde, no ambiente, na indústria, na agricultura e na geração de energia elétrica.",
+   "observacao": null,
+   "objetos": {
+    "BIOLOGIA": [
+     "Efeitos biológicos das radiações: principais doenças causadas por radiações, causas, acidentes radioativos, benefícios e consequências dos efeitos radiológicos"
+    ],
+    "FISICA": [
+     "Ondulatória: Características das ondas",
+     "Classificação das ondas",
+     "Fenômenos ondulatórios",
+     "Ondas eletromagnéticas",
+     "Radiação",
+     "Acústica: Características do som",
+     "Fenômenos sonoros",
+     "Tubos sonoros",
+     "Efeito Doppler"
+    ],
+    "QUIMICA": [
+     "Radioatividade: Radiação e a Vida: Química Nuclear",
+     "Radioatividade Natural e Artificial",
+     "Uso da Radioatividade na Medicina, Indústria e Agricultura",
+     "Uso das Radiações para Diagnósticos de Doenças"
+    ]
+   }
+  },
+  {
+   "id": "2-EM13CNT206-1",
+   "serie": "2ª",
+   "codigo": "EM13CNT206",
+   "unidadeTematica": "Vida, Terra e Cosmos",
+   "texto": "Discutir a importância da preservação e conservação da biodiversidade, considerando parâmetros qualitativos e quantitativos, e avaliar os efeitos da ação humana e das políticas ambientais para a garantia da sustentabilidade do planeta.",
+   "observacao": null,
+   "objetos": {
+    "BIOLOGIA": [
+     "Força Gravitacional: Fases da Lua e Astrobiologia e ecossistemas marítimos"
+    ],
+    "FISICA": [
+     "Introdução ao estudo da Temperatura e Calor",
+     "Escalas Termométricas",
+     "Dilatação Térmica de sólidos e líquidos",
+     "Quantidade de Calor",
+     "Capacidade Térmica",
+     "Calor Específico",
+     "Calor Latente",
+     "Trocas de Calor"
+    ],
+    "QUIMICA": [
+     "Soluções químicas",
+     "propriedades coligativas"
+    ]
+   }
+  },
+  {
+   "id": "2-EM13CNT1203-1",
+   "serie": "2ª",
+   "codigo": "EM13CNT1203",
+   "unidadeTematica": "Matéria e Energia",
+   "texto": "Avaliar e prever efeitos de intervenções nos ecossistemas, e seus impactos nos seres vivos e no corpo humano, com base nos mecanismos de manutenção da vida, nos ciclos da matéria e nas transformações e transferências de energia, utilizando representações e simulações sobre tais fatores, com ou sem o uso de dispositivos e aplicativos digitais (como softwares de simulação e de realidade virtual, entre outros). Obs.: A parte não colorida desenvolve a mesma temática da habilidade nos componentes curriculares Biologia, Física e Química.",
+   "observacao": null,
+   "objetos": {
+    "BIOLOGIA": [
+     "Sistema imunológico e resposta imune",
+     "Radioatividade: material radioativo, exames de raio x, tomografias",
+     "descarte e tratamento de resíduos"
+    ],
+    "FISICA": [
+     "Termodinâmica: Estudo dos gases",
+     "Leis da Termodinâmica"
+    ],
+    "QUIMICA": [
+     "Fundamentos de Termoquímica - Entalpia, Tipos de Variação de Entalpia",
+     "Cálculos Teóricos da Variação de Entalpia em uma Reação",
+     "Espontaneidade de uma Reação"
+    ]
+   }
+  },
+  {
+   "id": "2-EM13CNT303-1",
+   "serie": "2ª",
+   "codigo": "EM13CNT303",
+   "unidadeTematica": "Vida, Terra e Cosmos",
+   "texto": "Interpretar textos de divulgação científica que tratem de temáticas das Ciências da Natureza, disponíveis em diferentes mídias, considerando a apresentação dos dados, tanto na forma de textos como em equações, gráficos e/ou tabelas, a consistência dos argumentos e a coerência das conclusões, visando construir estratégias de seleção de fontes confiáveis de informações.",
+   "observacao": null,
+   "objetos": {
+    "BIOLOGIA": [
+     "Argumentação fundamentada de diferentes áreas ex. Ecologia, microbiologia, imunologia",
+     "Educação e saúde, alimentação"
+    ],
+    "FISICA": [
+     "Óptica Geométrica: Fontes de luz",
+     "Princípios da óptica geométrica",
+     "Formas de propagação da luz",
+     "Fenômenos da óptica geométrica"
+    ],
+    "QUIMICA": [
+     "Cinética Química e Equilíbrio Químico"
+    ]
+   }
+  },
+  {
+   "id": "2-EM13CNT310-1",
+   "serie": "2ª",
+   "codigo": "EM13CNT310",
+   "unidadeTematica": "Vida, Terra e Cosmos",
+   "texto": "Investigar e analisar os efeitos de programas de infraestrutura e demais serviços básicos (saneamento, energia elétrica, transporte, telecomunicações, cobertura vacinal, atendimento primário à saúde e produção de alimentos, entre outros) e identificar necessidades locais e/ou regionais em relação a esses serviços, a fim de avaliar e/ou promover ações que contribuam para a melhoria na qualidade de vida e nas condições de saúde da população.",
+   "observacao": null,
+   "objetos": {
+    "BIOLOGIA": [
+     "Sistemas do corpo humano (digestório, respiratório, circulatório, excretor, nervoso, endócrino, reprodutor, etc.) Saúde Pública, Epidemiologia, vacinação e Noções de bioestatística",
+     "Saúde e vulnerabilidade: sistema nervoso, vulnerabilidade da juventude, puberdade, automedicação e uso excessivo de medicamentos"
+    ],
+    "FISICA": [
+     "Espelhos planos",
+     "Espelhos esféricos",
+     "Lentes esféricas"
+    ],
+    "QUIMICA": [
+     "Eletroquímica - Reações de Oxirredução (redox)",
+     "Células Galvânicas - Pilhas e Baterias",
+     "Espontaneidade na Reação Redox",
+     "Eletrólise"
+    ]
+   }
+  },
+  {
+   "id": "2-EM13CNT305-1",
+   "serie": "2ª",
+   "codigo": "EM13CNT305",
+   "unidadeTematica": "Vida, Terra e Cosmos",
+   "texto": "Investigar e discutir o uso indevido de conhecimentos das Ciências da Natureza na justificativa de processos de discriminação, segregação e privação de direitos individuais e coletivos, em diferentes contextos sociais e históricos, para promover a equidade e o respeito à diversidade.",
+   "observacao": "Biologia, Física e Química desenvolvem a mesma temática da habilidade.",
+   "objetos": {
+    "BIOLOGIA": [
+     "A relação do homem com o meio ambiente, Métodos de monitoramento da superfície terrestre, Racismo ambiental, violação de direitos"
+    ],
+    "FISICA": [
+     "Recursos Energéticos e Ambientais: Recursos Renováveis e Não-renováveis",
+     "Fontes de Energia Renováveis",
+     "Matriz Energética Global",
+     "Matriz Energética do Brasil"
+    ],
+    "QUIMICA": [
+     "Impactos Ambientais Causados por Descarte, Lixo Eletrônico, e Rejeitos Radioativos",
+     "Descarte Responsável e Danos ao Meio Ambiente"
+    ]
+   }
+  },
+  {
+   "id": "3-EM13CNT101-1",
+   "serie": "3ª",
+   "codigo": "EM13CNT101",
+   "unidadeTematica": "Matéria e Energia",
+   "texto": "Analisar e representar, com ou sem o uso de dispositivos e de aplicativos digitais específicos, as transformações e conservações em sistemas que envolvam quantidade de matéria, de energia e de movimento para realizar previsões sobre seus comportamentos em situações cotidianas e em processos produtivos que priorizem o desenvolvimento sustentável, o uso consciente dos recursos naturais e a preservação da vida em todas as suas formas.",
+   "observacao": "Biologia, Física e Química desenvolvem a mesma temática da habilidade.",
+   "objetos": {
+    "BIOLOGIA": [
+     "Genética, Herança mendeliana, noções de probabilidade e herança mendeliana"
+    ],
+    "FISICA": [
+     "Eletrostática: Conceitos básicos de eletrostática",
+     "Carga elétrica",
+     "Processos de eletrização",
+     "Lei de Coulomb",
+     "Campo elétrico",
+     "Potencial elétrico"
+    ],
+    "QUIMICA": [
+     "Introdução à Química Orgânica: Estudo do Carbono: Características",
+     "Hidrocarbonetos"
+    ]
+   }
+  },
+  {
+   "id": "3-EM13CNT101-2",
+   "serie": "3ª",
+   "codigo": "EM13CNT101",
+   "unidadeTematica": "Matéria e Energia",
+   "texto": "Analisar e representar, com ou sem o uso de dispositivos e de aplicativos digitais específicos, as transformações e conservações em sistemas que envolvam quantidade de matéria, de energia e de movimento para realizar previsões sobre seus comportamentos em situações cotidianas e em processos produtivos que priorizem o desenvolvimento sustentável, o uso consciente dos recursos naturais e a preservação da vida em todas as suas formas.",
+   "observacao": null,
+   "objetos": {
+    "BIOLOGIA": [
+     "O Código genético, replicação, transcrição e tradução. Mutação e recombinação genética. Agentes mutagênicos"
+    ],
+    "FISICA": [
+     "Eletrodinâmica: Corrente Elétrica",
+     "Potência e consumo de energia elétrica",
+     "Leis de Ohm"
+    ],
+    "QUIMICA": [
+     "Funções Orgânicas Oxigenadas: álcool, éter, éster, cetona, aldeído, ácido carboxílico, fenol",
+     "Funções Orgânicas Nitrogenadas: amina e amida"
+    ]
+   }
+  },
+  {
+   "id": "3-EM13CNT303-1",
+   "serie": "3ª",
+   "codigo": "EM13CNT303",
+   "unidadeTematica": "Vida, Terra e Cosmos",
+   "texto": "Interpretar textos de divulgação científica que tratem de temáticas das Ciências da Natureza, disponíveis em diferentes mídias, considerando a apresentação dos dados, tanto na forma de textos como em equações, gráficos e/ou tabelas, a consistência dos argumentos e a coerência das conclusões, visando construir estratégias de seleção de fontes confiáveis de informações.",
+   "observacao": null,
+   "objetos": {
+    "BIOLOGIA": [
+     "Engenharia genética e transgênicos, Clonagem e terapias gênicas, Bioética e questões éticas na biotecnologia"
+    ],
+    "FISICA": [
+     "Eletrodinâmica: Circuitos elétricos",
+     "Geradores e receptores elétricos",
+     "Capacitores elétricos"
+    ],
+    "QUIMICA": [
+     "Reações Orgânicas: adição, substituição, eliminação e oxidação"
+    ]
+   }
+  },
+  {
+   "id": "3-EM13CNT201-1",
+   "serie": "3ª",
+   "codigo": "EM13CNT201",
+   "unidadeTematica": "Vida, Terra e Cosmos",
+   "texto": "Analisar e discutir modelos, teorias e leis propostos em diferentes épocas e culturas para comparar distintas explicações sobre o surgimento e a evolução da Vida, da Terra e do Universo com as teorias científicas aceitas atualmente.",
+   "observacao": null,
+   "objetos": {
+    "BIOLOGIA": [
+     "Teorias evolutivas (Lamarck, Darwin e teoria sintética), Seleção natural e adaptação, Especiação e mecanismos evolutivos"
+    ],
+    "FISICA": [
+     "Eletromagnetismo: Campo magnético",
+     "Força magnética",
+     "Fluxo magnético",
+     "Lei de Faraday-Lenz"
+    ],
+    "QUIMICA": [
+     "Isomeria das cadeias carbônicas: Isomeria plana, espacial, geométrica e óptica"
+    ]
+   }
+  },
+  {
+   "id": "3-EM13CNT104-1",
+   "serie": "3ª",
+   "codigo": "EM13CNT104",
+   "unidadeTematica": "Matéria e Energia",
+   "texto": "Avaliar os benefícios e os riscos à saúde e ao ambiente, considerando a composição, a toxicidade e a reatividade de diferentes materiais e produtos, como também o nível de exposição a eles, posicionando-se criticamente e propondo soluções individuais e/ou coletivas para seus usos e descartes responsáveis.",
+   "observacao": null,
+   "objetos": {
+    "BIOLOGIA": [
+     "Ecossistemas e suas dinâmicas, Relações ecológicas (predação, competição, mutualismo, etc.), Ciclos biogeoquímicos. Sustentabilidade e impactos ambientais. Poluição do meio ambiente, Benefícios e malefícios da hidrelétricas. Bioacumulação e biomagnificação trófica"
+    ],
+    "FISICA": [
+     "Física moderna: Relatividade geral e restrita",
+     "Teoria quântica",
+     "Física nuclear"
+    ],
+    "QUIMICA": [
+     "Aplicações em Saúde - Química das Drogas e Medicamentos: Princípios Ativos das Drogas (Medicamentos) e seus Efeitos",
+     "Quimioterapia",
+     "Substâncias presentes no cigarro eletrônico nocivos à saúde"
+    ]
+   }
+  }
+ ]
+}

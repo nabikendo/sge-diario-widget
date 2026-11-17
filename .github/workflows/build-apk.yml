@@ -2,7 +2,7 @@ name: Build SGE Widget APK
 
 on:
   push:
-    branches: [ main, master, feat/ios-inspired-neutral-ui, feat/tablet-history-coordination, feat/inapp-updates-school-tools, feat/android17-desktop-2-5-5 ]
+    branches: [ main, master, feat/ios-inspired-neutral-ui, feat/tablet-history-coordination, feat/inapp-updates-school-tools, feat/android17-desktop-2-5-5, feat/diagnostico-lancamento, feat/lancamento-matriz ]
   pull_request:
     branches: [ main ]
     paths: ['app/**', 'AndroidManifest.xml', '**.gradle.kts', 'gradle.properties', '.github/workflows/build-apk.yml']
@@ -71,6 +71,17 @@ jobs:
           gh release create teste-diagnostico-lancamento SGE-Diario-teste-diagnostico.apk --prerelease --target "$GITHUB_SHA" \
             --title "Teste: diagnóstico do lançamento" \
             --notes "APK de teste; instala ao lado do app normal. Use Opções > Copiar página na tela quebrada do Conteúdo Aplicado."
+
+      - name: Publicar teste do lançamento com a Matriz
+        if: github.ref == 'refs/heads/feat/lancamento-matriz'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp app/build/outputs/apk/debug/app-debug.apk SGE-Diario-teste-matriz.apk
+          gh release delete teste-lancamento-matriz --cleanup-tag --yes || true
+          gh release create teste-lancamento-matriz SGE-Diario-teste-matriz.apk --prerelease --target "$GITHUB_SHA" \
+            --title "Teste: Conteúdo com a Matriz (prévia ${{ github.run_number }})" \
+            --notes "APK de teste; instala ao lado do app normal. SGE Web > Opções > Atualizar aulas da turma; depois Ajustes > Lançamentos offline > Conteúdo com a Matriz."
 
   ui-previews:
     if: startsWith(github.ref, 'refs/heads/feat/') || github.event_name == 'pull_request'
