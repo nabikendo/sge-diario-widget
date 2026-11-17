@@ -5,6 +5,7 @@ import android.net.Uri
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import android.widget.Toast
+import br.to.seduc.sgediariowidget.worker.SgeSyncWorker
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
