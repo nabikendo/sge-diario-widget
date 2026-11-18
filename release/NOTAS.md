@@ -1,15 +1,13 @@
-SGE Diário 2.8.0
+SGE Diário 2.9.0
 
 ### Novidades
-- **Alertas e extras** (Ajustes): aviso de pendência antiga (3, 7, 15 ou 30 dias), aviso quando uma turma zera, resumo semanal às segundas, lembrete de planejamento uma semana antes de cada bimestre (datas aproximadas) e economia de dados (Wi‑Fi e SGE Web sem imagens). Tudo vem desligado.
-- **Coordenação: só o que é meu** — filtra as turmas e componentes que também estão no seu diário.
-- **Planilha (CSV)** no menu de compartilhar de cada cartão, para reunião pedagógica.
-- **Widget:** marque uma pendência como feita direto no widget; a marca vale até a próxima consulta e cai se o SGE ainda mostrar pendência.
-- **Perfil errado:** o aviso agora tem o botão "Trocar de perfil", que tenta abrir a troca no SGE Web.
-- **Falhas de consulta:** o painel explica o motivo em linguagem simples (conexão interrompida, tempo esgotado, sessão expirada) e tem o botão "Tentar de novo".
-- **Lançamentos offline:** rascunhos de Conteúdo e Frequência feitos sem internet (Ajustes). O app guarda e você copia o texto e lança no SGE; o envio automático ainda não existe.
+- **Ajustes reorganizados** em cinco grupos, no estilo dos ajustes do iOS e do Android: Conta e dados, Sincronização, Personalização, Ajuda e diagnóstico e Sobre.
+- **Conteúdo com a Matriz (preenchimento automático, em teste):** escolha a turma, a data, a habilidade da Matriz de Recomposição de Ciências da Natureza (1ª a 3ª série) e escreva as atividades. No SGE Web, o app abre a aula pelo Mapa de Registros e preenche a janela de Conteúdo Aplicado. Ele nunca toca em Salvar: você confere e salva.
+  - Antes de usar, no SGE Web, abra a turma em Conteúdo Aplicado e toque em Opções › Atualizar aulas da turma.
+  - Quando o texto do objeto de conhecimento não bate com as opções do SGE, o campo fica com borda vermelha para você escolher.
+  - Turmas fora do padrão 13.xx / 23.xx / 33.xx (EJA, multisseriadas): escolha a série na tela.
 
-### Visual
-- Cartões em vidro, título que encolhe ao rolar, filtros em folha deslizante e widgets com as cores e cantos do iOS.
+### Correções
+- A janela "Adicionar Conteúdo Aplicado" do SGE Web abria transparente e sem altura; agora mostra todos os campos e o botão Salvar fixo no rodapé.
 
 Instala por cima da versão anterior.
