@@ -329,7 +329,9 @@ fun AppDiario(
                                 val filtroAtual = if (rota.fonte == FontePainel.COORDENACAO) filtroCoord else filtroPessoal
                                 val recorte = if (filtroAtual.ativo) descreverFiltro(filtroAtual, docentes) else ""
                                 TelaDetalhes(g, rota.fonte, docentes,
-                                    { if (rota.fonte == FontePainel.COORDENACAO) {
+                                    { if ((if (rota.fonte == FontePainel.COORDENACAO) coord.sincronizando else painel.sincronizando)) {
+                                        android.widget.Toast.makeText(ctxApp, "Já há uma consulta em andamento. Aguarde terminar.", android.widget.Toast.LENGTH_SHORT).show()
+                                    } else if (rota.fonte == FontePainel.COORDENACAO) {
                                         // Grupo de um professor: sincroniza só as disciplinas dele.
                                         val pares = if (g.professorIds.size == 1) paresDoProfessor(g, docentes) else emptyMap()
                                         if (pares.isNotEmpty()) br.to.seduc.sgediariowidget.worker.SgeSyncWorker.verificarComponentes(ctxApp, pares)
