@@ -1,13 +1,14 @@
-SGE Diário 2.9.0
+SGE Diário 2.9.1
 
 ### Novidades
-- **Ajustes reorganizados** em cinco grupos, no estilo dos ajustes do iOS e do Android: Conta e dados, Sincronização, Personalização, Ajuda e diagnóstico e Sobre.
-- **Conteúdo com a Matriz (preenchimento automático, em teste):** escolha a turma, a data, a habilidade da Matriz de Recomposição de Ciências da Natureza (1ª a 3ª série) e escreva as atividades. No SGE Web, o app abre a aula pelo Mapa de Registros e preenche a janela de Conteúdo Aplicado. Ele nunca toca em Salvar: você confere e salva.
-  - Antes de usar, no SGE Web, abra a turma em Conteúdo Aplicado e toque em Opções › Atualizar aulas da turma.
-  - Quando o texto do objeto de conhecimento não bate com as opções do SGE, o campo fica com borda vermelha para você escolher.
-  - Turmas fora do padrão 13.xx / 23.xx / 33.xx (EJA, multisseriadas): escolha a série na tela.
+- **Sincronizar uma turma só**, no diário e na coordenação: corrigiu uma pendência no SGE? Abra a turma e toque em "Sincronizar turma" para conferir se mudou, sem refazer tudo.
+- **Coordenação mais simples:** ao sincronizar, os professores também são carregados automaticamente. Não precisa mais ir em Professores.
+- **Ajustes organizados em categorias:** a tela inicial mostra só cinco linhas (Conta e dados, Sincronização, Personalização, Ajuda e diagnóstico, Sobre); as opções ficam dentro de cada uma.
+- **Mais transições** ao abrir e fechar turmas, trocar de aba e navegar pelas telas.
 
 ### Correções
-- A janela "Adicionar Conteúdo Aplicado" do SGE Web abria transparente e sem altura; agora mostra todos os campos e o botão Salvar fixo no rodapé.
+- O selo de "online" no cabeçalho fica verde mais rápido depois do login, no diário e na coordenação.
+- Fim do travamento ao entrar e sair dos Ajustes.
+- Ao voltar de uma página dos Ajustes, o app volta para os Ajustes e não mais para o painel inicial.
 
 Instala por cima da versão anterior.
