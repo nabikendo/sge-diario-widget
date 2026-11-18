@@ -2,7 +2,7 @@ name: Build SGE Widget APK
 
 on:
   push:
-    branches: [ main, master, feat/ios-inspired-neutral-ui, feat/tablet-history-coordination, feat/inapp-updates-school-tools, feat/android17-desktop-2-5-5, feat/diagnostico-lancamento, feat/lancamento-matriz, fix/coord-sincroniza-tudo ]
+    branches: [ main, master, feat/ios-inspired-neutral-ui, feat/tablet-history-coordination, feat/inapp-updates-school-tools, feat/android17-desktop-2-5-5, feat/diagnostico-lancamento, feat/lancamento-matriz, fix/coord-sincroniza-tudo, feat/ajustes-navegacao ]
   pull_request:
     branches: [ main ]
     paths: ['app/**', 'AndroidManifest.xml', '**.gradle.kts', 'gradle.properties', '.github/workflows/build-apk.yml']
@@ -93,6 +93,17 @@ jobs:
           gh release create teste-coordenacao SGE-Diario-teste-coordenacao.apk --prerelease --target "$GITHUB_SHA" \
             --title "Teste: Coordenação sincroniza professores (prévia ${{ github.run_number }})" \
             --notes "APK de teste; instala ao lado do app normal. Na Coordenação, toque em Sincronizar: ao fim da fila, o app atualiza também os professores e vínculos (se tiverem mais de 20 h)."
+
+      - name: Publicar teste de Ajustes e navegação
+        if: github.ref == 'refs/heads/feat/ajustes-navegacao'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp app/build/outputs/apk/debug/app-debug.apk SGE-Diario-teste-ajustes.apk
+          gh release delete teste-ajustes --cleanup-tag --yes || true
+          gh release create teste-ajustes SGE-Diario-teste-ajustes.apk --prerelease --target "$GITHUB_SHA" \
+            --title "Teste: Ajustes, navegação e sincronizar turma (prévia ${{ github.run_number }})" \
+            --notes "APK de teste; instala ao lado do app normal. Inclui a sincronização dos professores na Coordenação."
 
   ui-previews:
     if: startsWith(github.ref, 'refs/heads/feat/') || github.event_name == 'pull_request'
