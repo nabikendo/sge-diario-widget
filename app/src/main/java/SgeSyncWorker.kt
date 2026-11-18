@@ -46,7 +46,8 @@ class SgeSyncWorker(private val ctx: Context, params: WorkerParameters) : Corout
         val inicioWorker = System.currentTimeMillis()
         val retomando = inputData.getBoolean("retomar", false) || runAttemptCount > 0
         if (!coordenacao && !manual && SgePausaPessoal.ler(ctx)?.pausada == true) return Result.success()
-        if (!coordenacao && !retomando) {
+        // Sincronizar uma turma não desfaz a pausa de uma consulta completa.
+        if (!coordenacao && !retomando && inputData.getStringArray("alvos_pessoal") == null) {
             SgePausaPessoal.limpar(ctx)
         }
         if (!coordenacao) mostrar(antigo.copy(sincronizando = true, inicioConsulta = System.currentTimeMillis(), mensagem = "Consultando o horário do professor…"))
@@ -81,6 +82,10 @@ class SgeSyncWorker(private val ctx: Context, params: WorkerParameters) : Corout
                 return Result.success()
             }
 
+            // Uma turma só (o professor corrigiu algo e quer conferir): não relê o horário inteiro.
+            inputData.getStringArray("alvos_pessoal")?.toSet()?.takeIf { it.isNotEmpty() }?.let { alvos ->
+                return sincronizarAlvosPessoal(client, alvos, antigo)
+            }
             val turmas = withTimeout(90_000L) {
                 withContext(Dispatchers.IO) { client.turmas(SgeEscopo.incluidas(ctx)) }
             }
@@ -300,6 +305,46 @@ class SgeSyncWorker(private val ctx: Context, params: WorkerParameters) : Corout
         return novo
     }
     private fun pausaPedida() = SgePausaPessoal.ler(ctx)?.pausada == true
+
+    /** Diário: reconsulta só as turmas/componentes indicados e mantém as demais como estavam. */
+    private suspend fun sincronizarAlvosPessoal(client: SgeReadClient, alvos: Set<String>, antigo: PainelSge): Result {
+        val conhecidas = antigo.turmas.map { it.turma }.filter { chaveVinculo(it.id, it.disciplina) in alvos || it.id in alvos }
+        val turmas = conhecidas.ifEmpty {
+            withTimeout(90_000L) { withContext(Dispatchers.IO) { client.turmas(SgeEscopo.incluidas(ctx)) } }
+                .filter { chaveVinculo(it.id, it.disciplina) in alvos || it.id in alvos }
+        }
+        if (turmas.isEmpty()) {
+            mostrar(antigo.copy(sincronizando = false, inicioConsulta = 0L, mensagem = "Essa turma não está no seu horário atual."))
+            return Result.success()
+        }
+        val nomes = turmas.map { it.nome.substringBefore('/') }.distinct().joinToString(", ")
+        val inicio = System.currentTimeMillis()
+        val novos = mutableListOf<ResultadoTurma>()
+        for (turma in turmas) {
+            val modulos = withTimeout(90_000L) {
+                consultarModulos(client, turma, antigo.turmas) { etapa ->
+                    SgePainelStore.salvar(ctx, antigo.copy(sincronizando = true, inicioConsulta = inicio,
+                        mensagem = "Sincronizando ${turma.nome.substringBefore('/')} · ${turma.disciplina} · $etapa"))
+                }
+            } ?: break
+            novos += ResultadoTurma(turma, modulos, LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd/MM HH:mm")))
+        }
+        val chavesNovas = novos.map(::chaveResultado).toSet()
+        val resultados = antigo.turmas.map { r -> novos.firstOrNull { chaveResultado(it) == chaveResultado(r) } ?: r } +
+            novos.filter { n -> antigo.turmas.none { chaveResultado(it) == chaveResultado(n) } }
+        val idsNovos = novos.map { it.turma.id }.toSet()
+        val mudancas = antigo.mudancas.filter { it.turmaId !in idsNovos } + SgeComparacao.calcular(antigo.turmas, novos)
+        val pendencias = novos.sumOf { r -> r.modulos.sumOf { it.quantidade ?: 0 } }
+        val falhas = novos.sumOf { r -> r.modulos.count { it.quantidade == null } }
+        guardarDiagnostico("Sincronização de turma: $nomes", client, resultados)
+        mostrar(PainelSge(resultados, "Turma $nomes sincronizada agora: " + when {
+            falhas > 0 -> "$falhas consulta(s) não verificada(s)."
+            pendencias == 0 -> "nenhuma pendência."
+            else -> "$pendencias pendência(s)."
+        }, false, true, mudancas = mudancas))
+        if (chavesNovas.isNotEmpty()) SgeResolvidas.limpar(ctx)
+        return Result.success()
+    }
     private fun ResultadoModulo.carimbar() = copy(atualizadoMs = System.currentTimeMillis())
     private fun guardarDiagnostico(titulo: String, c: SgeReadClient?, resultados: List<ResultadoTurma> = emptyList()) {
         val t = buildString {
@@ -398,6 +443,16 @@ class SgeSyncWorker(private val ctx: Context, params: WorkerParameters) : Corout
         /** Sincroniza só as disciplinas indicadas: turmaId → componentes. */
         fun verificarComponentes(context: Context, pares: Map<String, Set<String>>) {
             verificarTurmas(context, pares.keys.toList(), componentes = pares)
+        }
+        /** Diário: sincroniza só as turmas/componentes indicados (chaves turmaId|componente ou ids de turma). */
+        fun sincronizarTurmasPessoal(context: Context, alvos: Collection<String>) {
+            if (alvos.isEmpty()) return
+            val p = SgePainelStore.ler(context)
+            if (p.sincronizando) return
+            SgePainelStore.salvar(context, p.copy(sincronizando = true, inicioConsulta = System.currentTimeMillis(), mensagem = "Sincronizando a turma…"))
+            WorkManager.getInstance(context).enqueueUniqueWork("sge_sync_turma", ExistingWorkPolicy.REPLACE,
+                OneTimeWorkRequestBuilder<SgeSyncWorker>().setConstraints(rede())
+                    .setInputData(workDataOf("manual" to true, "alvos_pessoal" to alvos.toTypedArray())).build())
         }
         fun sincronizarAgora(context: Context) {
             WorkManager.getInstance(context).enqueueUniqueWork("sge_sync_now", ExistingWorkPolicy.REPLACE,

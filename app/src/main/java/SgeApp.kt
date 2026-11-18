@@ -7,6 +7,7 @@ import android.webkit.WebView
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.selection.selectable
@@ -31,6 +32,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.viewinterop.AndroidView
@@ -73,6 +75,23 @@ fun AppDiario(
     var aba by rememberSaveable { mutableStateOf(if (papel == 2) 1 else 0) }
     LaunchedEffect(papel, aba) { if (aba !in visiveis) aba = visiveis.first() }
     var pagina by rememberSaveable { mutableStateOf<String?>(null) }
+    // Pilha das páginas abertas a partir de outra página (ex.: Ajustes › Sincronização › Economia), separadas por "|".
+    var pilhaPaginas by rememberSaveable { mutableStateOf("") }
+    var categoriaAjustes by rememberSaveable { mutableStateOf<String?>(null) }
+    var avancando by remember { mutableStateOf(true) }
+    fun abrirPagina(destino: String) {
+        avancando = true
+        pagina?.let { atual -> pilhaPaginas = if (pilhaPaginas.isEmpty()) atual else "$pilhaPaginas|$atual" }
+        pagina = destino
+    }
+    /** Volta um nível: categoria dos Ajustes → raiz dos Ajustes; subpágina → página de origem. */
+    fun voltarPagina() {
+        avancando = false
+        if (pagina == "ajustes" && categoriaAjustes != null) { categoriaAjustes = null; return }
+        val anterior = pilhaPaginas.substringAfterLast('|').ifEmpty { null }
+        pilhaPaginas = if ('|' in pilhaPaginas) pilhaPaginas.substringBeforeLast('|') else ""
+        pagina = anterior
+    }
     // "Só o que é meu": na Coordenação, só turmas/componentes que também estão no diário pessoal.
     val ctxExtras = LocalContext.current
     var soMeu by remember { mutableStateOf(SgeExtras.ler(ctxExtras).soMeu) }
@@ -103,6 +122,7 @@ fun AppDiario(
     val focus = LocalFocusManager.current
     val largo = LocalConfiguration.current.screenWidthDp >= 840
     val ctxApp = LocalContext.current
+    var bimestreAjustes by remember { mutableStateOf(SgeBimestre.ler(ctxApp)) }
     // Com o teclado aberto (login no SGE Web) a pílula sai de cena para não espremer a página.
     val tecladoAberto = WindowInsets.ime.getBottom(LocalDensity.current) > 0
     val saveable = rememberSaveableStateHolder()
@@ -158,15 +178,16 @@ fun AppDiario(
         }
         aoContextoHandoff(contexto)
     }
+    LaunchedEffect(pagina) { if (pagina == null) { pilhaPaginas = ""; categoriaAjustes = null } }
     BackHandler(enabled = intro || pagina != null || detalhe != null || aba != 0) {
         when { intro -> { intro = false; aoIntroduzido() }
-            pagina != null -> pagina = null
+            pagina != null -> voltarPagina()
             detalhe != null -> { detalhe = null; pagina = origemDetalhe; origemDetalhe = null }
             aba == 2 && web.canGoBack() -> web.goBack()
             else -> aba = 0 }
     }
     val titulo = when {
-        pagina == "mapa" -> "Mapa da escola"; pagina == "lote" -> "Relatórios"; pagina == "organizacao" -> "Organizar turmas"; pagina == "economia" -> "Sincronização"; pagina == "backup" -> "Backup"; pagina == "rascunhos" -> "Lançamentos offline"; pagina == "lancamento" -> "Conteúdo com a Matriz"; pagina == "ajustes" -> "Ajustes"; pagina == "ajuda" -> "Como interpretar"
+        pagina == "mapa" -> "Mapa da escola"; pagina == "lote" -> "Relatórios"; pagina == "organizacao" -> "Organizar turmas"; pagina == "economia" -> "Sincronização"; pagina == "backup" -> "Backup"; pagina == "rascunhos" -> "Lançamentos offline"; pagina == "lancamento" -> "Conteúdo com a Matriz"; pagina == "ajustes" -> CategoriaAjustes.titulo(categoriaAjustes) ?: "Ajustes"; pagina == "ajuda" -> "Como interpretar"
         pagina == "semana" -> "Conferência semanal"; pagina == "historico" -> "Histórico"; pagina == "widgets" -> "Widgets"; pagina == "sobre" -> "Sobre"; detalhe != null && !largo -> "Pendências por módulo"; aba == 2 -> "SGE Web"; else -> "Diário"
     }
     val cabecalhoNaTela = pagina == null && detalhe == null && aba != 2
@@ -176,7 +197,7 @@ fun AppDiario(
         if (largo) RailDiario(aba, visiveis) { focus.clearFocus(); pagina = null; detalhe = null; aba = it }
         Column(Modifier.weight(1f).fillMaxHeight()) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 3.dp), verticalAlignment = Alignment.CenterVertically) {
-                if (pagina != null || detalhe != null) IconButton(onClick = { if (pagina != null) pagina = null else { detalhe = null; pagina = origemDetalhe; origemDetalhe = null } }) {
+                if (pagina != null || detalhe != null) IconButton(onClick = { if (pagina != null) voltarPagina() else { detalhe = null; pagina = origemDetalhe; origemDetalhe = null } }) {
                     Icon(SgeIcons.Back, "Voltar", Modifier.size(21.dp))
                 } else if (!cabecalhoNaTela) Icon(SgeIcons.Book, null, Modifier.padding(12.dp).size(22.dp), tint = MaterialTheme.colorScheme.primary)
                 val emDetalhe = detalhe != null && pagina == null && !largo
@@ -232,8 +253,8 @@ fun AppDiario(
                         }
                     }
                 } else {
-                IconButton(onClick = { focus.clearFocus(); pagina = "ajuda" }) { Icon(SgeIcons.Info, "Legendas e ajuda", Modifier.size(21.dp)) }
-                IconButton(onClick = { focus.clearFocus(); pagina = "ajustes" }) { Icon(SgeIcons.Settings, "Ajustes", Modifier.size(21.dp)) }
+                IconButton(onClick = { focus.clearFocus(); if (pagina != "ajuda") abrirPagina("ajuda") }) { Icon(SgeIcons.Info, "Legendas e ajuda", Modifier.size(21.dp)) }
+                IconButton(onClick = { focus.clearFocus(); if (pagina != "ajustes") abrirPagina("ajustes") }) { Icon(SgeIcons.Settings, "Ajustes", Modifier.size(21.dp)) }
                 }
             }
             val avisoPerfil = when {
@@ -257,33 +278,32 @@ fun AppDiario(
                     it.visibility = if (webVisivel) View.VISIBLE else View.INVISIBLE
                     it.importantForAccessibility = if (webVisivel) View.IMPORTANT_FOR_ACCESSIBILITY_AUTO else View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
                 })
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) { Box(Modifier.widthIn(max = if (pagina != null || (detalhe != null && !largo)) 820.dp else 1440.dp).fillMaxSize()) {
-                if (protegida) TelaCoordenacaoProtegida(aoDesbloquear) else AnimatedContent(targetState = RotaSge(aba, pagina, detalhe, fonteDetalhe),
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) { Box(Modifier.widthIn(max = if (detalhe != null && !largo) 820.dp else 1440.dp).fillMaxSize()) {
+                if (protegida) TelaCoordenacaoProtegida(aoDesbloquear) else AnimatedContent(targetState = RotaSge(aba, null, detalhe, fonteDetalhe),
                     contentKey = { it.pagina ?: if (largo && it.aba != 2) "aba:${it.aba}" else it.grupo?.let { g -> "detalhe:${g.chave}" } ?: "aba:${it.aba}" },
-                    transitionSpec = { (fadeIn(tween(SgeMotion.duration(170))) + slideInHorizontally(tween(SgeMotion.duration(200))) { it / 14 }) togetherWith fadeOut(tween(SgeMotion.duration(100))) },
+                    transitionSpec = {
+                        val d = SgeMotion.duration(270)
+                        val curva = tween<IntOffset>(d, easing = FastOutSlowInEasing)
+                        when {
+                            // Abrir uma turma: entra pela direita, como uma página nova.
+                            !largo && initialState.grupo == null && targetState.grupo != null ->
+                                (slideInHorizontally(curva) { it } + fadeIn(tween(d / 2))) togetherWith
+                                    (slideOutHorizontally(curva) { -it / 4 } + fadeOut(tween(d)))
+                            // Voltar da turma: o painel volta da esquerda e a turma sai pela direita.
+                            !largo && initialState.grupo != null && targetState.grupo == null ->
+                                (slideInHorizontally(curva) { -it / 4 } + fadeIn(tween(d))) togetherWith
+                                    (slideOutHorizontally(curva) { it } + fadeOut(tween(d / 2)))
+                            // Trocar de aba: desliza para o lado da aba escolhida.
+                            initialState.aba != targetState.aba -> {
+                                val dir = if (targetState.aba > initialState.aba) 1 else -1
+                                (slideInHorizontally(curva) { dir * it / 6 } + fadeIn(tween(d))) togetherWith
+                                    (slideOutHorizontally(curva) { -dir * it / 10 } + fadeOut(tween(d / 2)))
+                            }
+                            else -> (fadeIn(tween(SgeMotion.duration(170))) + slideInHorizontally(tween(SgeMotion.duration(200))) { it / 14 }) togetherWith fadeOut(tween(SgeMotion.duration(100)))
+                        }
+                    },
                     label = "navegacao") { rota ->
                     when {
-                        rota.pagina == "ajustes" -> TelaAjustes(tema, cor, versao, aoTema, aoCor, { pagina = "widgets" }, { pagina = "ajuda" },
-                            { intro = true }, { aoCopiarDiagnostico(aba == 1) },
-                            papel, aoPapel, lembrete, aoLembrete, { pagina = "sobre" }, aoSair, aoLimpar,
-                            { fonteHistorico = if (aba == 1) FontePainel.COORDENACAO else FontePainel.PESSOAL; pagina = "historico" },
-                            bloqueioCoord, aoBloqueio, noturna, aoNoturna, statusNoturno, { pagina = "economia" }, { pagina = "backup" }, recursos.aoAtualizacoes,
-                            horarioLembrete, aoEscolherHorarioLembrete,
-                            bimestre = SgeBimestre.ler(ctxApp), aoBimestre = { SgeBimestre.salvar(ctxApp, it) },
-                            aoRascunhos = { pagina = "rascunhos" }, aoPreenchimento = { pagina = "lancamento" })
-                        rota.pagina == "mapa" -> TelaMapa(rsCoord, conhecidas, docentes, filtroCoord, recursos.organizacao,
-                            { filtrosAbertos = true }, { pagina = "organizacao" }) { g, m -> fonteDetalhe = FontePainel.COORDENACAO; detalhe = g; moduloDetalhe = m; aba = 1; origemDetalhe = "mapa"; pagina = null }
-                        rota.pagina == "lote" -> TelaLote(rsCoord, docentes, filtroCoord, recursos.organizacao, { filtrosAbertos = true }, recursos.aoLote)
-                        rota.pagina == "organizacao" -> TelaOrganizacao(conhecidas, rsCoord, recursos.organizacao, recursos.aoOrganizacao)
-                        rota.pagina == "economia" -> TelaEconomia(recursos.economia, recursos.aoEconomia)
-                        rota.pagina == "backup" -> TelaBackup(recursos.aoBackup, recursos.aoRestaurar, recursos.aoBackupNuvem, recursos.aoRestaurarNuvem)
-                        rota.pagina == "semana" -> TelaConferenciaSemanal(coord, conhecidas, docentes, semana, aoSemana)
-                        rota.pagina == "historico" -> TelaHistorico(historico, fonteHistorico, { fonteHistorico = it }, !autorizado, aoDesbloquear, docentes = docentes)
-                        rota.pagina == "rascunhos" -> TelaRascunhos({ pagina = null; detalhe = null; aba = 2 }, { pagina = "lancamento" })
-                        rota.pagina == "lancamento" -> TelaLancamentoMatriz { pagina = null; detalhe = null; aba = 2 }
-                        rota.pagina == "sobre" -> TelaSobre(versao, aoUrl)
-                        rota.pagina == "ajuda" -> TelaAjuda()
-                        rota.pagina == "widgets" -> TelaWidgets(aoAdicionarWidget)
                         rota.aba != 2 -> {
                             val fonte = if (rota.aba == 1) FontePainel.COORDENACAO else FontePainel.PESSOAL
                             @Composable fun lista() {
@@ -314,6 +334,11 @@ fun AppDiario(
                                         val pares = if (g.professorIds.size == 1) paresDoProfessor(g, docentes) else emptyMap()
                                         if (pares.isNotEmpty()) br.to.seduc.sgediariowidget.worker.SgeSyncWorker.verificarComponentes(ctxApp, pares)
                                         else aoVerificarTurmas(g.turmaIds.toList())
+                                        android.widget.Toast.makeText(ctxApp, "Sincronizando ${g.titulo}…", android.widget.Toast.LENGTH_SHORT).show()
+                                    } else if (g.resultados.isNotEmpty() || g.turmaIds.isNotEmpty()) {
+                                        br.to.seduc.sgediariowidget.worker.SgeSyncWorker.sincronizarTurmasPessoal(ctxApp,
+                                            g.resultados.map(::chaveResultado).ifEmpty { g.turmaIds.toList() })
+                                        android.widget.Toast.makeText(ctxApp, "Sincronizando ${g.titulo}…", android.widget.Toast.LENGTH_SHORT).show()
                                     } else aoSincronizarPessoal() },
                                     { detalhe = null; pagina = null; aba = 2 }, { vincular = it }, { aoCompartilhar(g, recorte) }, { aoPdf(g, rota.fonte, recorte) }, { aoPdfContato(g, rota.fonte, recorte) }, moduloDetalhe,
                                     mudancas = if (rota.fonte == FontePainel.COORDENACAO) coord.mudancas else painel.mudancas,
@@ -346,6 +371,44 @@ fun AppDiario(
                     }
                 }
                 } }
+                // Páginas (Ajustes, Mapa, Relatórios…) abrem POR CIMA do painel: o painel não é descartado,
+                // então voltar é instantâneo e mantém a rolagem, sem recalcular agrupamentos e filtros.
+                if (!protegida) AnimatedContent(targetState = pagina, label = "paginas",
+                    transitionSpec = {
+                        val abrindo = when { targetState == null -> false; initialState == null -> true; else -> avancando }
+                        val d = SgeMotion.duration(280)
+                        (slideInHorizontally(tween(d, easing = FastOutSlowInEasing)) { if (abrindo) it else -it / 4 } + fadeIn(tween(d / 2))) togetherWith
+                            (slideOutHorizontally(tween(d, easing = FastOutSlowInEasing)) { if (abrindo) -it / 4 else it } + fadeOut(tween(d)))
+                    }) { p ->
+                    if (p != null) Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background), contentAlignment = Alignment.TopCenter) {
+                        Box(Modifier.widthIn(max = 820.dp).fillMaxSize()) {
+                            when (p) {
+                        "ajustes" -> TelaAjustes(tema, cor, versao, aoTema, aoCor, { abrirPagina("widgets") }, { abrirPagina("ajuda") },
+                            { intro = true }, { aoCopiarDiagnostico(aba == 1) },
+                            papel, aoPapel, lembrete, aoLembrete, { abrirPagina("sobre") }, aoSair, aoLimpar,
+                            { fonteHistorico = if (aba == 1) FontePainel.COORDENACAO else FontePainel.PESSOAL; abrirPagina("historico") },
+                            bloqueioCoord, aoBloqueio, noturna, aoNoturna, statusNoturno, { abrirPagina("economia") }, { abrirPagina("backup") }, recursos.aoAtualizacoes,
+                            horarioLembrete, aoEscolherHorarioLembrete,
+                            bimestre = bimestreAjustes, aoBimestre = { bimestreAjustes = it; SgeBimestre.salvar(ctxApp, it) },
+                            aoRascunhos = { abrirPagina("rascunhos") }, aoPreenchimento = { abrirPagina("lancamento") },
+                            categoria = categoriaAjustes, aoCategoria = { categoriaAjustes = it })
+                        "mapa" -> TelaMapa(rsCoord, conhecidas, docentes, filtroCoord, recursos.organizacao,
+                            { filtrosAbertos = true }, { pagina = "organizacao" }) { g, m -> fonteDetalhe = FontePainel.COORDENACAO; detalhe = g; moduloDetalhe = m; aba = 1; origemDetalhe = "mapa"; pagina = null }
+                        "lote" -> TelaLote(rsCoord, docentes, filtroCoord, recursos.organizacao, { filtrosAbertos = true }, recursos.aoLote)
+                        "organizacao" -> TelaOrganizacao(conhecidas, rsCoord, recursos.organizacao, recursos.aoOrganizacao)
+                        "economia" -> TelaEconomia(recursos.economia, recursos.aoEconomia)
+                        "backup" -> TelaBackup(recursos.aoBackup, recursos.aoRestaurar, recursos.aoBackupNuvem, recursos.aoRestaurarNuvem)
+                        "semana" -> TelaConferenciaSemanal(coord, conhecidas, docentes, semana, aoSemana)
+                        "historico" -> TelaHistorico(historico, fonteHistorico, { fonteHistorico = it }, !autorizado, aoDesbloquear, docentes = docentes)
+                        "rascunhos" -> TelaRascunhos({ pagina = null; detalhe = null; aba = 2 }, { abrirPagina("lancamento") })
+                        "lancamento" -> TelaLancamentoMatriz { pagina = null; detalhe = null; aba = 2 }
+                        "sobre" -> TelaSobre(versao, aoUrl)
+                        "ajuda" -> TelaAjuda()
+                        "widgets" -> TelaWidgets(aoAdicionarWidget)
+                            }
+                        }
+                    }
+                }
             }
             if (!largo && !tecladoAberto && pagina == null && detalhe == null) DockVidro(aba, visiveis) { focus.clearFocus(); aba = it }
         }

@@ -234,7 +234,7 @@ class MainActivity : FragmentActivity() {
                     runOnUiThread { Toast.makeText(this@MainActivity, "O SGE Web foi reiniciado pelo sistema.", Toast.LENGTH_SHORT).show(); recreate() }
                     return true
                 }
-                override fun onPageCommitVisible(view: WebView?, url: String?) { SgeWebComputador.viewport(view, modoComputadorWeb.value, url) }
+                override fun onPageCommitVisible(view: WebView?, url: String?) { SgeWebComputador.viewport(view, modoComputadorWeb.value, url); verificarSessao() }
                 override fun onPageFinished(view: WebView?, url: String?) {
                     SgeWebComputador.viewport(view, modoComputadorWeb.value, url)
                     SgeAtalhoWeb.aoPaginaPronta(view, url)
@@ -592,6 +592,29 @@ class MainActivity : FragmentActivity() {
         }
         if (fonte == FontePainel.COORDENACAO) comProtecao(iniciar) else iniciar()
     }
+    /** Saiu da tela de login: confirma o perfil já, para o selo ficar verde sem esperar a consulta de fundo. */
+    private var acabouDeEntrar = false
+    private var ultimaConfirmacaoPerfil = 0L
+    private fun confirmarPerfilRapido() {
+        val perfilAtual = SgeSessaoStore.perfil(this)
+        val conhecido = perfilAtual == PerfilSge.PROFESSOR || perfilAtual == PerfilSge.COORDENACAO
+        if (conhecido && !acabouDeEntrar) return
+        val agora = System.currentTimeMillis()
+        if (agora - ultimaConfirmacaoPerfil < 15_000L) return
+        ultimaConfirmacaoPerfil = agora; acabouDeEntrar = false
+        val cookies = CookieManager.getInstance().getCookie(SgeSyncWorker.BASE) ?: return
+        val prefs = getSharedPreferences(SgePainelStore.PREFS_NAME, MODE_PRIVATE)
+        val agente = prefs.getString("web_user_agent", null) ?: web.settings.userAgentString
+        val contexto = prefs.getString("turmas_contexto", null)
+        lifecycleScope.launch {
+            val perfil = withContext(Dispatchers.IO) {
+                runCatching { kotlinx.coroutines.withTimeout(15_000L) {
+                    SgeReadClient(cookies, agente, contexto) {}.let { c -> runCatching { c.ehPerfilEscola() }; c.perfilObservado }
+                } }.getOrNull()
+            }
+            if (perfil == PerfilSge.PROFESSOR || perfil == PerfilSge.COORDENACAO) SgeSessaoStore.salvar(this@MainActivity, perfil)
+        }
+    }
     private fun lerPerfilDaPagina() {
         if (!::web.isInitialized || web.url?.startsWith(SgeSyncWorker.BASE + "/") != true) return
         web.evaluateJavascript("""(function(){var e=document.querySelector('#ehPerfilEscola'),p=document.querySelector('#ehPerfilProfessor');if(!e||!p)return null;return JSON.stringify({escola:e.value,professor:p.value});})()""") { raw ->
@@ -896,7 +919,8 @@ class MainActivity : FragmentActivity() {
         if (!::web.isInitialized) return
         web.evaluateJavascript("Boolean(document.querySelector('#TurmaContextoId') || document.querySelector('#ProfessorId') || document.querySelector('#left-panel'))") { raw ->
             val active = runCatching { JSONTokener(raw).nextValue() == true }.getOrDefault(false)
-            if (active) { SgeSyncWorker.agendarPeriodico(this); SgeNoturnoWorker.agendar(this, getSharedPreferences(SgePainelStore.PREFS_NAME, MODE_PRIVATE).getBoolean("coord_noturna", false)); lerPerfilDaPagina(); CookieManager.getInstance().flush(); extrairTurmas {}; web.postDelayed({ extrairTurmas {} }, 3000) }
+            if (active) { SgeSyncWorker.agendarPeriodico(this); SgeNoturnoWorker.agendar(this, getSharedPreferences(SgePainelStore.PREFS_NAME, MODE_PRIVATE).getBoolean("coord_noturna", false)); lerPerfilDaPagina(); CookieManager.getInstance().flush(); confirmarPerfilRapido(); extrairTurmas {}; web.postDelayed({ extrairTurmas {} }, 3000) }
+            else if (web.url?.contains("/Acesso", ignoreCase = true) == true) acabouDeEntrar = true
         }
     }
     override fun onPause() { CookieManager.getInstance().flush(); super.onPause() }

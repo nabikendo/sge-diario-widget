@@ -101,12 +101,21 @@ fun TelaDetalhes(grupo: GrupoPendencias, fonte: FontePainel, docentes: PainelDoc
     }
     Surface(color = MaterialTheme.colorScheme.surface, shadowElevation = 10.dp) {
         Row(Modifier.fillMaxWidth().padding(16.dp, 12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-            Button(onClick = aoAbrirSge, Modifier.weight(1f).height(52.dp), shape = RoundedCornerShape(18.dp)) {
-                Icon(SgeIcons.Link, null, Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)); Text("Abrir SGE")
+            // Corrigiu algo no SGE? Reconsulta só esta turma para conferir.
+            val umaTurma = grupo.turmaIds.size == 1
+            FilledTonalButton(onClick = aoAtualizar, Modifier.weight(1f).height(52.dp), shape = RoundedCornerShape(18.dp),
+                contentPadding = PaddingValues(horizontal = 12.dp)) {
+                Icon(SgeIcons.Refresh, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp))
+                Text(if (umaTurma) "Sincronizar turma" else "Sincronizar", maxLines = 1, softWrap = false)
+            }
+            Button(onClick = aoAbrirSge, Modifier.weight(1f).height(52.dp), shape = RoundedCornerShape(18.dp),
+                contentPadding = PaddingValues(horizontal = 12.dp)) {
+                Icon(SgeIcons.Link, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text("Abrir SGE", maxLines = 1, softWrap = false)
             }
             Box {
-                OutlinedButton(onClick = { menuCompartilhar = true }, enabled = grupo.resultados.isNotEmpty(), modifier = Modifier.height(52.dp), shape = RoundedCornerShape(18.dp)) {
-                    Icon(SgeIcons.Export, null, Modifier.size(17.dp)); Spacer(Modifier.width(6.dp)); Text("Compartilhar")
+                OutlinedButton(onClick = { menuCompartilhar = true }, enabled = grupo.resultados.isNotEmpty(), modifier = Modifier.size(52.dp),
+                    shape = RoundedCornerShape(18.dp), contentPadding = PaddingValues(0.dp)) {
+                    Icon(SgeIcons.Export, "Compartilhar", Modifier.size(19.dp))
                 }
                 DropdownMenu(expanded = menuCompartilhar, onDismissRequest = { menuCompartilhar = false }) {
                     DropdownMenuItem(text = { Text("Texto / WhatsApp") }, onClick = { menuCompartilhar = false; aoCompartilhar() })

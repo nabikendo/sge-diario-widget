@@ -2,6 +2,14 @@ package br.to.seduc.sgediariowidget
 
 import android.os.Build
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.fadeIn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -183,140 +191,172 @@ fun TelaAjustes(tema: Int, cor: Int, versao: String, aoTema: (Int) -> Unit, aoCo
     aoHistorico: () -> Unit = {}, bloqueio: Boolean = false, aoBloqueio: (Boolean) -> Unit = {},
     noturna: Boolean = false, aoNoturna: (Boolean) -> Unit = {}, statusNoturno: String = "", aoEconomia: ()->Unit = {}, aoBackup: ()->Unit = {}, aoAtualizacoes: ()->Unit = {},
     horarioLembrete: String = "17:00", aoEscolherHorarioLembrete: () -> Unit = {},
-    bimestre: Int = 0, aoBimestre: (Int) -> Unit = {}, aoRascunhos: () -> Unit = {}, aoPreenchimento: () -> Unit = {}) {
+    bimestre: Int = 0, aoBimestre: (Int) -> Unit = {}, aoRascunhos: () -> Unit = {}, aoPreenchimento: () -> Unit = {},
+    categoria: String? = null, aoCategoria: (String?) -> Unit = {}) {
     var confirmar by remember { mutableStateOf(0) }
     var bimestreEscolhido by remember { mutableStateOf(bimestre) }
     var saude by remember { mutableStateOf(false) }
     val ctxUi = LocalContext.current
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(26.dp)) {
-        Text("Do seu jeito.", style = MaterialTheme.typography.displaySmall)
-
-        // 1 · Conta e dados
-        GrupoAjustes("Conta e dados") {
-            CartaoAjustes {
-                LinhaAjuste("Backup e restauração", "Salvar e recuperar dados sem senha ou sessão", SgeIcons.Export, aoBackup)
-                DivisorAjuste()
-                LinhaAjuste("Lançamentos offline", "Rascunhos de conteúdo e frequência para lançar depois", SgeIcons.Document, aoRascunhos)
-                DivisorAjuste()
-                LinhaAjuste("Histórico e ranking semanal", "Comparação por módulo nas últimas quatro semanas", SgeIcons.Clock, aoHistorico)
-            }
-            CartaoAjustes {
-                LinhaChave("Proteger coordenação", "Biometria e, no Android 11+, credencial do aparelho. Protege a coordenação, o SGE Web, os diagnósticos e os widgets. Bloqueia novamente em segundo plano.", bloqueio, aoBloqueio)
-                DivisorAjuste()
-                LinhaAjuste("Sair do SGE", "Encerra a sessão neste aparelho", SgeIcons.Globe) { confirmar = 1 }
-                DivisorAjuste()
-                LinhaAjuste("Apagar dados locais", "Painéis, histórico, vínculos e diagnósticos guardados aqui", SgeIcons.Close) { confirmar = 2 }
-            }
-        }
-
-        // 2 · Sincronização
-        GrupoAjustes("Sincronização") {
-            CartaoAjustes {
-                LinhaAjuste("Sincronização econômica", "Intervalo, rede, bateria e horário noturno", SgeIcons.Refresh, aoEconomia)
-                DivisorAjuste()
-                LinhaAjuste("Preenchimento automático", "Conteúdo com a Matriz: o app preenche a janela do SGE e você salva", SgeIcons.Book, aoPreenchimento)
-                DivisorAjuste()
-                LinhaChave("Verificação noturna", "No horário e nas condições escolhidos em Sincronização econômica, consulta as turmas conhecidas da escola. Exige sessão Unidade escolar. O Android pode adiar a execução.", noturna, aoNoturna)
-                if (statusNoturno.isNotBlank()) Text(statusNoturno, Modifier.padding(12.dp, 0.dp, 12.dp, 10.dp),
-                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            CartaoAjustes(Modifier.padding(11.dp), Arrangement.spacedBy(12.dp)) {
-                val ctxTurmas = LocalContext.current
-                Text("Outras turmas", style = MaterialTheme.typography.titleMedium)
-                Text("Escolarização (1 ou 2 dígitos, ex.: 13.01) fica sempre na verificação. As demais ficam de fora até você ativar.", style = MaterialTheme.typography.bodySmall)
-                listOf("DIVERSIFICADA" to "Diversificadas (3 dígitos, ex.: 115.09)", "AEE" to "AEE (4 dígitos, ex.: 1111.01)").forEach { (categoria, titulo) ->
-                    var ativa by remember { mutableStateOf(br.to.seduc.sgediariowidget.data.SgeEscopo.ativa(ctxTurmas, categoria)) }
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Text(titulo, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
-                        Switch(checked = ativa, onCheckedChange = {
-                            ativa = it
-                            br.to.seduc.sgediariowidget.data.SgeEscopo.salvar(ctxTurmas, categoria, it)
-                            br.to.seduc.sgediariowidget.worker.SgeSyncWorker.sincronizarAgora(ctxTurmas)
-                        })
+    // Tela inicial curta (só as categorias); cada categoria abre a própria página.
+    AnimatedContent(targetState = categoria, label = "ajustes",
+        transitionSpec = {
+            val avancar = targetState != null
+            val d = SgeMotion.duration(260)
+            (slideInHorizontally(tween(d, easing = FastOutSlowInEasing)) { if (avancar) it / 3 else -it / 3 } + fadeIn(tween(d))) togetherWith
+                (slideOutHorizontally(tween(d, easing = FastOutSlowInEasing)) { if (avancar) -it / 5 else it / 5 } + fadeOut(tween(SgeMotion.duration(140))))
+        }) { cat ->
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(22.dp)) {
+        when (cat) {
+            null -> {
+                Text("Do seu jeito.", style = MaterialTheme.typography.displaySmall)
+                CartaoAjustes {
+                    CategoriasAjustes.forEachIndexed { i, c ->
+                        if (i > 0) DivisorAjuste()
+                        LinhaAjuste(c.titulo, if (c.id == CategoriaAjustes.SOBRE) "SGE Diário $versao · atualizações" else c.resumo, c.icone) { aoCategoria(c.id) }
                     }
                 }
-                HorizontalDivider()
-                Text("Bimestre do painel", style = MaterialTheme.typography.titleMedium)
-                Text("Conteúdos e Frequência mostram só o bimestre escolhido. Por padrão, o bimestre atual. Depois de trocar, toque em atualizar.", style = MaterialTheme.typography.bodySmall)
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf(0 to "Atual", 1 to "1º", 2 to "2º", 3 to "3º", 4 to "4º", 5 to "Todos").forEach { (valor, rotulo) ->
-                        FilterChip(selected = bimestreEscolhido == valor, onClick = {
-                            bimestreEscolhido = valor; aoBimestre(valor)
-                            android.widget.Toast.makeText(ctxUi, "Bimestre: $rotulo. Toque em atualizar para carregar.", android.widget.Toast.LENGTH_SHORT).show()
-                        }, label = { Text(rotulo) })
+                NotaAjustes("O aplicativo consulta os dados do SGE. Lançamentos e correções são feitos pelo usuário no próprio SGE.")
+            }
+
+            CategoriaAjustes.CONTA -> {
+                GrupoAjustes("Dados") {
+                    CartaoAjustes {
+                        LinhaAjuste("Backup e restauração", "Salvar e recuperar dados sem senha ou sessão", SgeIcons.Export, aoBackup)
+                        DivisorAjuste()
+                        LinhaAjuste("Lançamentos offline", "Rascunhos de conteúdo e frequência para lançar depois", SgeIcons.Document, aoRascunhos)
+                        DivisorAjuste()
+                        LinhaAjuste("Histórico e ranking semanal", "Comparação por módulo nas últimas quatro semanas", SgeIcons.Clock, aoHistorico)
+                    }
+                }
+                GrupoAjustes("Sessão e segurança") {
+                    CartaoAjustes {
+                        LinhaChave("Proteger coordenação", "Biometria ou credencial do aparelho para a coordenação, o SGE Web, os diagnósticos e os widgets.", bloqueio, aoBloqueio)
+                        DivisorAjuste()
+                        LinhaAjuste("Sair do SGE", "Encerra a sessão neste aparelho", SgeIcons.Globe) { confirmar = 1 }
+                        DivisorAjuste()
+                        LinhaAjuste("Apagar dados locais", "Painéis, histórico, vínculos e diagnósticos guardados aqui", SgeIcons.Close) { confirmar = 2 }
                     }
                 }
             }
-            SecaoExtras()
-            CartaoAjustes {
-                Row(Modifier.padding(11.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                        Text("Lembrete diário", style = MaterialTheme.typography.titleMedium)
-                        Text("Com o resumo da última consulta. Só avisa quando há pendências; não consulta o SGE.",
+
+            CategoriaAjustes.SINCRONIZACAO -> {
+                GrupoAjustes("Consultas") {
+                    CartaoAjustes {
+                        LinhaAjuste("Sincronização econômica", "Intervalo, rede, bateria e horário noturno", SgeIcons.Refresh, aoEconomia)
+                        DivisorAjuste()
+                        LinhaChave("Verificação noturna", "Consulta as turmas da escola no horário escolhido em Sincronização econômica. Exige o perfil Unidade escolar.", noturna, aoNoturna)
+                        if (statusNoturno.isNotBlank()) Text(statusNoturno, Modifier.padding(12.dp, 0.dp, 12.dp, 10.dp),
                             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        TextButton(onClick = aoEscolherHorarioLembrete, modifier = Modifier.heightIn(min = 48.dp)) {
-                            Text("Horário preferido: $horarioLembrete")
+                    }
+                }
+                GrupoAjustes("Lançamento") {
+                    CartaoAjustes {
+                        LinhaAjuste("Preenchimento automático", "Conteúdo com a Matriz: o app preenche a janela do SGE e você salva", SgeIcons.Book, aoPreenchimento)
+                    }
+                }
+                GrupoAjustes("Turmas e bimestre") {
+                    CartaoAjustes(Modifier.padding(11.dp), Arrangement.spacedBy(12.dp)) {
+                        val ctxTurmas = LocalContext.current
+                        Text("Escolarização (ex.: 13.01) entra sempre. As demais só se você ativar.", style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        listOf("DIVERSIFICADA" to "Diversificadas (ex.: 115.09)", "AEE" to "AEE (ex.: 1111.01)").forEach { (categoriaTurma, titulo) ->
+                            var ativa by remember { mutableStateOf(br.to.seduc.sgediariowidget.data.SgeEscopo.ativa(ctxTurmas, categoriaTurma)) }
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                Text(titulo, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                                Switch(checked = ativa, onCheckedChange = {
+                                    ativa = it
+                                    br.to.seduc.sgediariowidget.data.SgeEscopo.salvar(ctxTurmas, categoriaTurma, it)
+                                    br.to.seduc.sgediariowidget.worker.SgeSyncWorker.sincronizarAgora(ctxTurmas)
+                                })
+                            }
                         }
-                        Text("O Android pode adiar alguns minutos para poupar bateria.",
-                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        HorizontalDivider()
+                        Text("Bimestre do painel", style = MaterialTheme.typography.titleSmall)
+                        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            listOf(0 to "Atual", 1 to "1º", 2 to "2º", 3 to "3º", 4 to "4º", 5 to "Todos").forEach { (valor, rotulo) ->
+                                FilterChip(selected = bimestreEscolhido == valor, onClick = {
+                                    bimestreEscolhido = valor; aoBimestre(valor)
+                                    android.widget.Toast.makeText(ctxUi, "Bimestre: $rotulo. Toque em atualizar para carregar.", android.widget.Toast.LENGTH_SHORT).show()
+                                }, label = { Text(rotulo) })
+                            }
+                        }
                     }
-                    Switch(checked = lembrete, onCheckedChange = aoLembrete)
+                }
+                GrupoAjustes("Alertas") {
+                    SecaoExtras()
+                    CartaoAjustes {
+                        Row(Modifier.padding(11.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                Text("Lembrete diário", style = MaterialTheme.typography.titleSmall)
+                                Text("Resumo da última consulta, só quando há pendências.",
+                                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                TextButton(onClick = aoEscolherHorarioLembrete, modifier = Modifier.heightIn(min = 48.dp), contentPadding = PaddingValues(0.dp)) {
+                                    Text("Horário: $horarioLembrete")
+                                }
+                            }
+                            Switch(checked = lembrete, onCheckedChange = aoLembrete)
+                        }
+                    }
                 }
             }
-        }
 
-        // 3 · Personalização
-        GrupoAjustes("Personalização") {
-            CartaoAjustes {
-                LinhaAjuste("Galeria de widgets", "Seis formatos e recortes independentes", SgeIcons.Cards, aoWidgets)
+            CategoriaAjustes.PERSONALIZACAO -> {
+                GrupoAjustes("Tela inicial") {
+                    CartaoAjustes {
+                        LinhaAjuste("Galeria de widgets", "Seis formatos e recortes independentes", SgeIcons.Cards, aoWidgets)
+                    }
+                }
+                GrupoAjustes("Aparência") {
+                    CartaoAjustes(Modifier.padding(11.dp), Arrangement.spacedBy(12.dp)) {
+                        Text("Tema", style = MaterialTheme.typography.titleSmall)
+                        Segmentado(listOf("Sistema", "Claro", "Escuro"), tema, aoTema)
+                        Text("Cores", style = MaterialTheme.typography.titleSmall)
+                        Segmentado(listOf("Neutras", "Do sistema"), cor, aoCor)
+                    }
+                }
+                GrupoAjustes("Como você usa o app") {
+                    CartaoAjustes(Modifier.padding(11.dp), Arrangement.spacedBy(10.dp)) {
+                        Segmentado(listOf("Ambos", "Professor", "Coordenação"), papel, aoPapel)
+                        Text(when (papel) { 1 -> "Mostra só o seu diário. A aba Coordenação fica oculta."
+                            2 -> "Mostra só a coordenação. O seu diário pessoal fica oculto."
+                            else -> "Mostra o seu diário e a coordenação." },
+                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+                GrupoAjustes("Acessibilidade e privacidade") {
+                    CartaoAjustes {
+                        LinhaChave("Modo privacidade", "Esconde o app nos recentes, bloqueia capturas e mostra professores só com iniciais.", SgeUi.privacidade) { SgeUi.definir(ctxUi, SgeUi.PRIVACIDADE, it) }
+                        DivisorAjuste()
+                        LinhaChave("Fonte maior", "Aumenta os textos do app em cerca de 30%.", SgeUi.fonteGrande) { SgeUi.definir(ctxUi, SgeUi.FONTE_GRANDE, it) }
+                        DivisorAjuste()
+                        LinhaChave("Alto contraste", "Textos e contornos mais fortes.", SgeUi.altoContraste) { SgeUi.definir(ctxUi, SgeUi.ALTO_CONTRASTE, it) }
+                    }
+                    NotaAjustes("Teclado: Ctrl+R atualiza · Ctrl+F busca · Ctrl+1 Seu diário · Ctrl+2 Coordenação.")
+                }
             }
-            CartaoAjustes(Modifier.padding(11.dp), Arrangement.spacedBy(14.dp)) {
-                Text("Aparência", style = MaterialTheme.typography.titleMedium)
-                Text("Tema", style = MaterialTheme.typography.titleSmall)
-                Segmentado(listOf("Sistema", "Claro", "Escuro"), tema, aoTema)
-                Text("Cores", style = MaterialTheme.typography.titleSmall)
-                Segmentado(listOf("Neutras", "Do sistema"), cor, aoCor)
-                HorizontalDivider()
-                Text("Como você usa o app", style = MaterialTheme.typography.titleMedium)
-                Segmentado(listOf("Ambos", "Professor", "Coordenação"), papel, aoPapel)
-                Text(when (papel) { 1 -> "Mostra só o seu diário. A aba Coordenação fica oculta."
-                    2 -> "Mostra só a coordenação. O seu diário pessoal fica oculto."
-                    else -> "Mostra o seu diário e a coordenação." },
-                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            CartaoAjustes {
-                LinhaChave("Modo privacidade", "Esconde o app na tela de recentes, bloqueia capturas de tela e mostra professores só com iniciais.", SgeUi.privacidade) { SgeUi.definir(ctxUi, SgeUi.PRIVACIDADE, it) }
-                DivisorAjuste()
-                LinhaChave("Fonte maior", "Aumenta os textos do app em cerca de 30%.", SgeUi.fonteGrande) { SgeUi.definir(ctxUi, SgeUi.FONTE_GRANDE, it) }
-                DivisorAjuste()
-                LinhaChave("Alto contraste", "Textos e contornos mais fortes. A situação sempre aparece também em texto e ícone.", SgeUi.altoContraste) { SgeUi.definir(ctxUi, SgeUi.ALTO_CONTRASTE, it) }
-            }
-            NotaAjustes("Teclado (notebook ou tablet): Ctrl+R atualiza · Ctrl+F busca · Ctrl+1 Seu diário · Ctrl+2 Coordenação.")
-        }
 
-        // 4 · Ajuda e diagnóstico
-        GrupoAjustes("Ajuda e diagnóstico") {
-            CartaoAjustes {
-                LinhaAjuste("Como interpretar", "Módulos, estados e símbolos", SgeIcons.Info, aoAjuda)
-                DivisorAjuste()
-                LinhaAjuste("Ver introdução", "O funcionamento do app em três passos", SgeIcons.Book, aoIntroducao)
-                DivisorAjuste()
-                LinhaAjuste("Saúde do app", "Última consulta por módulo, falhas recentes e botão reparar", SgeIcons.Alert) { saude = true }
-                DivisorAjuste()
-                LinhaAjuste("Diagnóstico único", "Professor, coordenação, perfil e agendamentos em um só texto", SgeIcons.Settings, aoDiagnostico)
+            CategoriaAjustes.AJUDA -> {
+                CartaoAjustes {
+                    LinhaAjuste("Como interpretar", "Módulos, estados e símbolos", SgeIcons.Info, aoAjuda)
+                    DivisorAjuste()
+                    LinhaAjuste("Ver introdução", "O funcionamento do app em três passos", SgeIcons.Book, aoIntroducao)
+                    DivisorAjuste()
+                    LinhaAjuste("Saúde do app", "Última consulta por módulo, falhas recentes e botão reparar", SgeIcons.Alert) { saude = true }
+                    DivisorAjuste()
+                    LinhaAjuste("Diagnóstico único", "Professor, coordenação, perfil e agendamentos em um só texto", SgeIcons.Settings, aoDiagnostico)
+                }
             }
-        }
 
-        // 5 · Sobre
-        GrupoAjustes("Sobre") {
-            CartaoAjustes {
-                LinhaAjuste("Atualizações do app", "Verificar, baixar e instalar por aqui", SgeIcons.Refresh, aoAtualizacoes)
-                DivisorAjuste()
-                LinhaAjuste("Versão", "SGE Diário $versao · créditos, privacidade e licenças", SgeIcons.User, aoSobre)
+            CategoriaAjustes.SOBRE -> {
+                CartaoAjustes {
+                    LinhaAjuste("Atualizações do app", "Verificar, baixar e instalar por aqui", SgeIcons.Refresh, aoAtualizacoes)
+                    DivisorAjuste()
+                    LinhaAjuste("Versão", "SGE Diário $versao · créditos, privacidade e licenças", SgeIcons.User, aoSobre)
+                }
+                NotaAjustes("Atalho rápido: mantenha pressionado o ícone do app ou adicione “Meu diário” ao Painel rápido do Android.")
             }
-            NotaAjustes("Atalho rápido: mantenha pressionado o ícone do app ou adicione “Meu diário” ao Painel rápido do Android.")
-            NotaAjustes("O aplicativo consulta os dados do SGE. Lançamentos e correções são feitos pelo usuário no próprio SGE.")
         }
+    }
     }
     if (saude) SaudeDialog { saude = false }
     if (confirmar != 0) AlertDialog(onDismissRequest = { confirmar = 0 },
@@ -336,6 +376,25 @@ fun TelaAjustes(tema: Int, cor: Int, versao: String, aoTema: (Int) -> Unit, aoCo
         Switch(checked = marcado, onCheckedChange = aoMudar)
     }
 }
+
+data class CategoriaAjuste(val id: String, val titulo: String, val resumo: String, val icone: ImageVector)
+
+object CategoriaAjustes {
+    const val CONTA = "conta"
+    const val SINCRONIZACAO = "sincronizacao"
+    const val PERSONALIZACAO = "personalizacao"
+    const val AJUDA = "ajuda"
+    const val SOBRE = "sobre"
+    fun titulo(id: String?) = CategoriasAjustes.firstOrNull { it.id == id }?.titulo
+}
+
+val CategoriasAjustes = listOf(
+    CategoriaAjuste(CategoriaAjustes.CONTA, "Conta e dados", "Backup, lançamentos offline, histórico e sessão", SgeIcons.User),
+    CategoriaAjuste(CategoriaAjustes.SINCRONIZACAO, "Sincronização", "Economia, preenchimento automático, turmas e alertas", SgeIcons.Refresh),
+    CategoriaAjuste(CategoriaAjustes.PERSONALIZACAO, "Personalização", "Widgets, tema, uso do app e acessibilidade", SgeIcons.Cards),
+    CategoriaAjuste(CategoriaAjustes.AJUDA, "Ajuda e diagnóstico", "Legendas, introdução, saúde do app e diagnóstico", SgeIcons.Info),
+    CategoriaAjuste(CategoriaAjustes.SOBRE, "Sobre", "Atualizações e versão", SgeIcons.Book),
+)
 
 /** Grupo no estilo dos Ajustes do iOS/Android: título pequeno acima dos cartões. */
 @Composable private fun GrupoAjustes(titulo: String, conteudo: @Composable ColumnScope.() -> Unit) {
