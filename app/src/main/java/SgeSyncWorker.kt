@@ -197,8 +197,10 @@ class SgeSyncWorker(private val ctx: Context, params: WorkerParameters) : Corout
                     "Fila concluída: ${restante.concluidas.size} consulta(s) concluída(s), ${restante.falhas.size} falha(s). Toque em Tentar falhas para repetir."
                 else -> if (erro == null) "Fila concluída sem falhas." else atual.mensagem
             }
+            // Fila terminada: atualiza também os professores, sem o usuário ir em Professores.
+            val professores = !rodando && SgeDocentesWorker.atualizarSeAntigo(ctx)
             SgeCoordStore.salvar(ctx, atual.copy(sincronizando = rodando, inicioConsulta = if (rodando) System.currentTimeMillis() else 0L,
-                mensagem = mensagem))
+                mensagem = if (professores) "$mensagem Atualizando os professores em seguida." else mensagem))
         }
     }
     /** Coordenação: verifica UMA turma por vez (todas as disciplinas dela × 5 módulos), reaproveitando as consultas do professor. */
@@ -334,8 +336,10 @@ class SgeSyncWorker(private val ctx: Context, params: WorkerParameters) : Corout
             val plano = SgeFila.planejar(ids, SgeCoordStore.ler(context).turmas, System.currentTimeMillis(), pular = automatica)
             if (plano.ordem.isEmpty()) {
                 SgeFila.salvar(context, null)
+                val professores = SgeDocentesWorker.atualizarSeAntigo(context)
                 SgeCoordStore.salvar(context, SgeCoordStore.ler(context).copy(sincronizando = false, inicioConsulta = 0L,
-                    mensagem = "Todas as ${plano.puladas} turmas foram verificadas há menos de 3 horas. Nada a consultar agora."))
+                    mensagem = "Todas as ${plano.puladas} turmas foram verificadas há menos de 3 horas." +
+                        if (professores) " Atualizando os professores." else " Nada a consultar agora."))
                 kotlinx.coroutines.CoroutineScope(Dispatchers.Main).launch { SgeWidgets.atualizar(context) }; return
             }
             val fila = FilaCoord(plano.ordem, plano.ordem.size + plano.puladas, false, plano.puladas, SgeFila.media(context),

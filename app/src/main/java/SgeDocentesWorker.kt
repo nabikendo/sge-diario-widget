@@ -56,6 +56,7 @@ class SgeDocentesWorker(private val ctx: Context, params: WorkerParameters) : Co
                     diagnosticos = p.diagnosticos.filterNot { it.professorId == id } + leitura.diagnosticos,
                     sincronizando = !ultimo, inicio = if (ultimo) 0L else System.currentTimeMillis(), mensagem = if (ultimo) mensagemFinal(falhas)
                         else "Horários consultados: ${inputData.getInt("posicao", 0)}/${inputData.getInt("total", 0)}"))
+                if (ultimo) prefs.edit().putLong(CHAVE_ATUALIZADO, System.currentTimeMillis()).apply()
             }
             return Result.success()
         } catch (e: CancellationException) {
@@ -86,7 +87,22 @@ class SgeDocentesWorker(private val ctx: Context, params: WorkerParameters) : Co
     private fun mensagemFinal(falhas: Int) = if (falhas == 0) "Vínculos do horário atualizados."
         else "Vínculos atualizados com $falhas horário(s) não verificado(s). Vínculos anteriores são mantidos."
     companion object {
+        private const val CHAVE_ATUALIZADO = "docentes_atualizado_ms"
+        /** Vínculos mudam pouco: depois de uma sincronização da coordenação, relê no máximo uma vez a cada 20 h. */
+        private const val IDADE_MAXIMA_MS = 20 * 60 * 60 * 1000L
         private fun rede() = Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()
+
+        /** Relê professores e vínculos se estiverem vazios ou antigos. Devolve true se agendou. */
+        fun atualizarSeAntigo(context: Context): Boolean {
+            val prefs = context.getSharedPreferences(SgePainelStore.PREFS_NAME, Context.MODE_PRIVATE)
+            if (prefs.getString("turmas_escola", null).isNullOrBlank()) return false
+            val p = SgeDocentesStore.ler(context)
+            if (p.sincronizando) return false
+            val idade = System.currentTimeMillis() - prefs.getLong(CHAVE_ATUALIZADO, 0L)
+            if (p.professores.isNotEmpty() && p.vinculos.isNotEmpty() && idade < IDADE_MAXIMA_MS) return false
+            atualizar(context)
+            return true
+        }
         fun atualizar(context: Context) {
             val p = SgeDocentesStore.ler(context)
             SgeDocentesStore.salvar(context, p.copy(sincronizando = true, inicio = System.currentTimeMillis(), mensagem = "Lendo a lista de professores…"))
