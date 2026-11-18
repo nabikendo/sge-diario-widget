@@ -270,7 +270,7 @@ fun AppDiario(
                             bloqueioCoord, aoBloqueio, noturna, aoNoturna, statusNoturno, { pagina = "economia" }, { pagina = "backup" }, recursos.aoAtualizacoes,
                             horarioLembrete, aoEscolherHorarioLembrete,
                             bimestre = SgeBimestre.ler(ctxApp), aoBimestre = { SgeBimestre.salvar(ctxApp, it) },
-                            aoRascunhos = { pagina = "rascunhos" })
+                            aoRascunhos = { pagina = "rascunhos" }, aoPreenchimento = { pagina = "lancamento" })
                         rota.pagina == "mapa" -> TelaMapa(rsCoord, conhecidas, docentes, filtroCoord, recursos.organizacao,
                             { filtrosAbertos = true }, { pagina = "organizacao" }) { g, m -> fonteDetalhe = FontePainel.COORDENACAO; detalhe = g; moduloDetalhe = m; aba = 1; origemDetalhe = "mapa"; pagina = null }
                         rota.pagina == "lote" -> TelaLote(rsCoord, docentes, filtroCoord, recursos.organizacao, { filtrosAbertos = true }, recursos.aoLote)

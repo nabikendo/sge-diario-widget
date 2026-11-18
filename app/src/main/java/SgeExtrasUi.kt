@@ -31,13 +31,13 @@ private fun LinhaSwitch(titulo: String, descricao: String, ligado: Boolean, aoMu
 
 /** Ajustes → Alertas e extras. Cada chave grava na hora; os avisos periódicos são reagendados ao mudar. */
 @Composable
-fun SecaoExtras(aoRascunhos: () -> Unit) {
+fun SecaoExtras(aoRascunhos: (() -> Unit)? = null) {
     val ctx = LocalContext.current
     var e by remember { mutableStateOf(SgeExtras.ler(ctx)) }
     fun mudar(novo: ExtrasSge) { e = novo; SgeExtras.salvar(ctx, novo); SgeExtrasWorker.agendar(ctx) }
     Surface(color = MaterialTheme.colorScheme.surface, shape = MaterialTheme.shapes.large) {
         Column(Modifier.padding(19.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("Alertas e extras", style = MaterialTheme.typography.titleMedium)
+            Text("Alertas e economia", style = MaterialTheme.typography.titleMedium)
             LinhaSwitch("Alerta de pendência antiga", "Avisa, no máximo uma vez por dia, quando Conteúdos ou Frequência estão pendentes há ${e.diasAntiga} dias ou mais.",
                 e.alertaAntiga) { mudar(e.copy(alertaAntiga = it)) }
             if (e.alertaAntiga) Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -53,7 +53,7 @@ fun SecaoExtras(aoRascunhos: () -> Unit) {
                 e.soMeu) { mudar(e.copy(soMeu = it)) }
             LinhaSwitch("Economia de dados", "Consultas automáticas só no Wi‑Fi e sem imagens no SGE Web.",
                 e.economiaDados) { mudar(e.copy(economiaDados = it)) }
-            OutlinedButton(onClick = aoRascunhos, modifier = Modifier.fillMaxWidth()) { Text("Lançamentos offline (rascunhos)") }
+            if (aoRascunhos != null) OutlinedButton(onClick = aoRascunhos, modifier = Modifier.fillMaxWidth()) { Text("Lançamentos offline (rascunhos)") }
         }
     }
 }
