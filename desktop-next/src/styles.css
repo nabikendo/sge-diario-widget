@@ -1,0 +1,58 @@
+@import "tailwindcss";
+
+/* Tokens do visual "vidro" (glassmorphism), inspirados no painel de referência. */
+@theme {
+  --font-sans: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, "Inter", sans-serif;
+  --color-tinta: #14121c;
+  --color-tinta-suave: #5f5a78;
+  --color-lavanda: #6b54ee;
+  --color-lavanda-clara: #eee9ff;
+  --color-emdia: #1f9d6a;
+  --color-pendente: #e0574f;
+  --color-alerta: #e89a2c;
+  --ease-padrao: cubic-bezier(0.2, 0, 0, 1);
+  --ease-entrada: cubic-bezier(0.05, 0.7, 0.1, 1);
+}
+
+html, body, #root { height: 100%; }
+
+body {
+  margin: 0;
+  color: var(--color-tinta);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  /* Gradiente fluido: lilás no alto à esquerda, azul no alto à direita, rosa embaixo à direita, creme embaixo à esquerda. */
+  background:
+    radial-gradient(60% 55% at 0% 0%, #c9c4f7 0%, transparent 70%),
+    radial-gradient(55% 50% at 100% 0%, #bfe0fb 0%, transparent 70%),
+    radial-gradient(60% 60% at 100% 100%, #f7c4df 0%, transparent 70%),
+    radial-gradient(55% 55% at 0% 100%, #fbe7c2 0%, transparent 70%),
+    #eef0fb;
+  background-attachment: fixed;
+}
+
+/* Cartão de vidro: branco translúcido + desfoque do que está atrás. */
+@utility vidro {
+  background-color: rgb(255 255 255 / 0.62);
+  backdrop-filter: blur(24px) saturate(160%);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+  border: 1px solid rgb(255 255 255 / 0.75);
+  box-shadow: 0 1px 2px rgb(40 30 90 / 0.04), 0 12px 32px -12px rgb(60 45 140 / 0.18);
+}
+@utility vidro-forte {
+  background-color: rgb(255 255 255 / 0.82);
+  backdrop-filter: blur(28px) saturate(170%);
+  -webkit-backdrop-filter: blur(28px) saturate(170%);
+  border: 1px solid rgb(255 255 255 / 0.9);
+}
+
+/* Entrada dos cartões: sobe 8px e aparece, em cascata curta (definida por --atraso). */
+@keyframes surgir { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.surgir { animation: surgir 320ms var(--ease-entrada) both; animation-delay: var(--atraso, 0ms); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 1ms !important; animation-delay: 0ms !important; transition-duration: 1ms !important; }
+}
+
+::-webkit-scrollbar { width: 10px; }
+::-webkit-scrollbar-thumb { background: rgb(80 70 140 / 0.18); border-radius: 999px; border: 3px solid transparent; background-clip: content-box; }
