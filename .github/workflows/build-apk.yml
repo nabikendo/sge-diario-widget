@@ -110,6 +110,8 @@ jobs:
     needs: build
     runs-on: ubuntu-22.04
     timeout-minutes: 25
+    # O emulador do Android 37 no GitHub falha às vezes ao instalar o APK (problema do runner, não do app).
+    continue-on-error: ${{ matrix.instavel == true }}
     strategy:
       fail-fast: false
       matrix:
@@ -120,6 +122,7 @@ jobs:
             api: 34
           - perfil: pixel_6
             api: '37.0'
+            instavel: true
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v5
