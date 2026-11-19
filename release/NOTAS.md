@@ -1,14 +1,12 @@
-SGE Diário 2.9.1
+SGE Diário 2.9.2
 
 ### Novidades
-- **Sincronizar uma turma só**, no diário e na coordenação: corrigiu uma pendência no SGE? Abra a turma e toque em "Sincronizar turma" para conferir se mudou, sem refazer tudo.
-- **Coordenação mais simples:** ao sincronizar, os professores também são carregados automaticamente. Não precisa mais ir em Professores.
-- **Ajustes organizados em categorias:** a tela inicial mostra só cinco linhas (Conta e dados, Sincronização, Personalização, Ajuda e diagnóstico, Sobre); as opções ficam dentro de cada uma.
-- **Mais transições** ao abrir e fechar turmas, trocar de aba e navegar pelas telas.
+- **Tema Lavanda:** em Ajustes → Personalização → Aparência → Cores, escolha entre Verde, Lavanda ou as cores do sistema. O verde continua indicando "em dia".
+- **Nova barra de progresso em segmentos**, que acende conforme a sincronização avança e mostra a porcentagem. Aparece no painel, na fila da escola, no resumo de turmas em dia e no download de atualizações.
+- **Painel mais limpo:** saudação conforme o horário, título em destaque, brilho suave no topo e busca em formato de pílula.
+- **Animações mais naturais e consistentes:** telas que entram desaceleram e as que saem aceleram, a barra de abas não quica mais e a seta da fila gira ao abrir e fechar.
 
 ### Correções
-- O selo de "online" no cabeçalho fica verde mais rápido depois do login, no diário e na coordenação.
-- Fim do travamento ao entrar e sair dos Ajustes.
-- Ao voltar de uma página dos Ajustes, o app volta para os Ajustes e não mais para o painel inicial.
+- Com "Remover animações" ligado no Android, todas as animações ficam instantâneas, inclusive as da barra de abas.
 
 Instala por cima da versão anterior.
