@@ -33,6 +33,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.foundation.Canvas
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.CircleShape
@@ -267,16 +272,24 @@ fun TelaCartoes(
     val mostrarEsqueleto = carregando && resultados.isEmpty() && (!escola || conhecidas.isEmpty())
     val estadoGrade = rememberLazyGridState()
     Box(Modifier.fillMaxSize()) {
+    BrilhoTopo()
     Crossfade(targetState = mostrarEsqueleto, animationSpec = SgeMotion.padrao(SgeMotion.PADRAO), label = "esqueletoPainel") { esqueleto ->
     if (esqueleto) DashboardSkeleton() else LazyVerticalGrid(state = estadoGrade, columns = GridCells.Adaptive(285.dp), contentPadding = PaddingValues(20.dp, 10.dp, 20.dp, 26.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
         item(span = { GridItemSpan(maxLineSpan) }) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    perfil?.let { SeloPerfil(it) }
-                    Text(if (escola) "Coordenação" else "Seu diário", style = MaterialTheme.typography.displaySmall)
-                    Text(if (escola) "Uma escola inteira, em recortes mais claros." else "O que precisa de atenção, em um só lugar",
-                        style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(saudacaoAgora(), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        perfil?.let { SeloPerfil(it) }
+                    }
+                    // Título em duas linhas, com uma palavra no tom de destaque (estilo limpo, sem subtítulo longo).
+                    Text(buildAnnotatedString {
+                        append(if (escola) "Sua escola,\n" else "Seu diário,\n")
+                        withStyle(SpanStyle(color = MaterialTheme.colorScheme.primary)) { append(if (escola) "toda" else "já") }
+                        append(if (escola) " à vista." else " organizado.")
+                    }, style = MaterialTheme.typography.displaySmall.copy(fontSize = 36.sp, lineHeight = 40.sp),
+                        modifier = Modifier.semantics { heading() })
                 }
             }
         }
@@ -294,8 +307,7 @@ fun TelaCartoes(
                 AnimatedVisibility(visible = carregando, enter = SgeMotion.abrirBloco(),
                     exit = SgeMotion.fecharBloco()) {
                     val progresso = if (escola) filaCoord?.progresso else pausaDiario?.progresso
-                    if (progresso != null) LinearProgressIndicator(progress = progresso, modifier = Modifier.fillMaxWidth())
-                    else LinearProgressIndicator(Modifier.fillMaxWidth())
+                    BarraSegmentada(progresso, Modifier.fillMaxWidth().padding(top = 2.dp), segmentos = 32, altura = 10.dp)
                 }
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     AnimatedContent(targetState = if (mostrarResumo) {
@@ -345,7 +357,7 @@ fun TelaCartoes(
                         val giroChevron by animateFloatAsState(if (filaExpandida) 270f else 90f, SgeMotion.padrao(SgeMotion.PADRAO - 20), label = "chevronFila")
                         Icon(SgeIcons.Chevron, null, Modifier.size(18.dp).graphicsLayer { rotationZ = giroChevron })
                     }
-                    LinearProgressIndicator(progress = fila.progresso, modifier = Modifier.fillMaxWidth())
+                    BarraSegmentada(fila.progresso, Modifier.fillMaxWidth(), altura = 16.dp, rotuloInicio = "Início", rotuloFim = "Escola inteira", mostrarPercentual = true)
                     Text("Consultadas: ${fila.concluidas.size} · Ignoradas (recentes): ${fila.puladas} · Falhas: ${fila.falhas.size} · Restantes: ${fila.ids.size}",
                         style = MaterialTheme.typography.bodySmall)
                     AnimatedVisibility(visible = filaExpandida, enter = SgeMotion.abrirBloco(), exit = SgeMotion.fecharBloco()) {
@@ -458,7 +470,9 @@ fun TelaCartoes(
                 OutlinedTextField(value = busca, onValueChange = { busca = it }, modifier = Modifier.fillMaxWidth().focusRequester(focoBusca), singleLine = true,
                     placeholder = { Text("Buscar turma, disciplina ou professor") }, leadingIcon = { Icon(SgeIcons.Search, null, Modifier.size(19.dp)) },
                     trailingIcon = ({ IconButton(onClick = { busca = ""; mostrarBusca = false }) { Icon(SgeIcons.Close, "Fechar busca", Modifier.size(17.dp)) } }),
-                    shape = MaterialTheme.shapes.medium)
+                    shape = CircleShape, colors = OutlinedTextFieldDefaults.colors(
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surface, focusedContainerColor = MaterialTheme.colorScheme.surface,
+                        unfocusedBorderColor = Color.Transparent))
             }
         }
         item(span = { GridItemSpan(maxLineSpan) }, key = "resumoResultados:${fonte.name}") {
@@ -555,5 +569,21 @@ fun SeletorBimestre(fonte: FontePainel, turmasIds: List<String>) {
                 }
             }, label = { Text(rotulo, maxLines = 1, softWrap = false) })
         }
+    }
+}
+
+private fun saudacaoAgora(): String = when (java.time.LocalTime.now().hour) { in 5..11 -> "Bom dia"; in 12..17 -> "Boa tarde"; else -> "Boa noite" }
+
+/** Brilho suave no topo da tela, no tom da paleta escolhida (fica parado; não compete com o conteúdo). */
+@Composable
+private fun BrilhoTopo() {
+    val escuro = MaterialTheme.colorScheme.background.luminance() < .5f
+    val brilho = LocalPaleta.current.brilho
+    val intensidade = if (escuro) .10f else .55f
+    Canvas(Modifier.fillMaxWidth().height(340.dp)) {
+        drawRect(Brush.radialGradient(listOf(brilho.copy(alpha = intensidade), Color.Transparent),
+            center = Offset(size.width * .92f, size.height * .12f), radius = size.width * .85f))
+        drawRect(Brush.radialGradient(listOf(Color(0xFFBFD8FF).copy(alpha = intensidade * .6f), Color.Transparent),
+            center = Offset(size.width * .78f, size.height * .62f), radius = size.width * .55f))
     }
 }

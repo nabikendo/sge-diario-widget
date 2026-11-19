@@ -393,7 +393,7 @@ class MainActivity : FragmentActivity() {
                     catch (e: CancellationException) { throw e }
                     catch (e: Exception) { atualizador.falha(e.message ?: "Não foi possível conferir a atualização.") }
                 } }
-                if (operando) AlertDialog(onDismissRequest = {}, title = { Text("Preparando arquivos…") }, text = { LinearProgressIndicator(Modifier.fillMaxWidth()) }, confirmButton = {})
+                if (operando) AlertDialog(onDismissRequest = {}, title = { Text("Preparando arquivos…") }, text = { BarraSegmentada(null, Modifier.fillMaxWidth(), altura = 12.dp) }, confirmButton = {})
                 if (!bloqueio || coordDesbloqueada.value) {
                     backupPendente?.let { b -> AlertDialog(onDismissRequest = { backupPendente = null }, title = { Text("Restaurar este backup?") },
                         text = { Text("Backup da versão ${b.versao}, criado em ${b.criado}. Contém ${b.resultados} resultado(s) de turma/componente. Substitui painéis, histórico, vínculos e preferências locais. Sua sessão e proteção biométrica não são importadas.") },

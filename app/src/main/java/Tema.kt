@@ -18,6 +18,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.Alignment
@@ -36,11 +39,22 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-// Tokens compartilhados do design: identidades menta e estados legíveis também em fundos fixos.
-internal val MentaClaro = Color(0xFFD8F5D1)
-internal val MentaMedio = Color(0xFFB2E3AA)
-internal val TintaMenta = Color(0xFF0B1F0E)
-internal val TintaMentaSuave = Color(0xFF2A4A2E)
+// Paleta de destaque do Hero e dos selos. Menta (padrão) ou Lavanda, escolhida em Ajustes → Aparência.
+@Immutable
+data class PaletaDestaque(val claro: Color, val medio: Color, val tinta: Color, val tintaSuave: Color, val brilho: Color)
+private val Menta1 = Color(0xFFD8F5D1); private val Menta2 = Color(0xFFB2E3AA)
+private val Menta3 = Color(0xFF0B1F0E); private val Menta4 = Color(0xFF2A4A2E)
+internal val PaletaMenta = PaletaDestaque(Menta1, Menta2, Menta3, Menta4, Color(0xFFB2E3AA))
+/** Lavanda → azul-pervinca, inspirada em painéis de produtividade limpos. */
+internal val PaletaLavanda = PaletaDestaque(Color(0xFFEEE9FF), Color(0xFFD6DEFF), Color(0xFF1C1340), Color(0xFF4A4080), Color(0xFFC9BEFF))
+internal val LocalPaleta = staticCompositionLocalOf { PaletaMenta }
+internal val MentaClaro: Color @Composable @ReadOnlyComposable get() = LocalPaleta.current.claro
+internal val MentaMedio: Color @Composable @ReadOnlyComposable get() = LocalPaleta.current.medio
+internal val TintaMenta: Color @Composable @ReadOnlyComposable get() = LocalPaleta.current.tinta
+internal val TintaMentaSuave: Color @Composable @ReadOnlyComposable get() = LocalPaleta.current.tintaSuave
+
+/** Estilos de cor gravados em "estilo": 0 verde (menta), 1 cores do sistema, 2 lavanda. */
+object EstiloCor { const val VERDE = 0; const val SISTEMA = 1; const val LAVANDA = 2 }
 internal val StatusAlertaMenta = Color(0xFF78350F)
 internal val StatusRegularMenta = Color(0xFF047857)
 internal val StatusPendenteMenta = Color(0xFF9F1239)
@@ -50,7 +64,7 @@ private val AlertaEscuro = Color(0xFFFBBF24)
 // Design "OLED + verde-menta": preto puro #000000, cartões #141414/#1C1C1E e destaque menta (ver PoddiUi.kt).
 private val NeutroClaro = lightColorScheme(
     primary = Color(0xFF2F7A4B), onPrimary = Color.White,
-    primaryContainer = MentaClaro, onPrimaryContainer = TintaMenta,
+    primaryContainer = Menta1, onPrimaryContainer = Menta3,
     secondary = Color(0xFF59635C), onSecondary = Color.White,
     secondaryContainer = Color(0xFFEAF0EA), onSecondaryContainer = Color(0xFF243828),
     background = Color(0xFFF2F2F7), onBackground = Color(0xFF0F1210),
@@ -59,14 +73,14 @@ private val NeutroClaro = lightColorScheme(
     outline = Color(0xFFD1D1D6), outlineVariant = Color(0xFFE5E5EA),
     error = Color(0xFFE11D48), onError = Color.White,
     errorContainer = Color(0xFFFFE4E8), onErrorContainer = Color(0xFF9F1239),
-    tertiary = Color(0xFF2F7A4B), tertiaryContainer = MentaClaro,
-    onTertiaryContainer = TintaMenta, surfaceTint = Color.Transparent,
+    tertiary = Color(0xFF2F7A4B), tertiaryContainer = Menta1,
+    onTertiaryContainer = Menta3, surfaceTint = Color.Transparent,
     surfaceContainerLowest = Color.White, surfaceContainerLow = Color(0xFFF7FAF7), surfaceContainer = Color(0xFFF2F6F2),
     surfaceContainerHigh = Color(0xFFEDF2ED), surfaceContainerHighest = Color(0xFFE7EDE7)
 )
 private val NeutroEscuro = darkColorScheme(
-    primary = MentaMedio, onPrimary = TintaMenta,
-    primaryContainer = Color(0xFF1B2A1D), onPrimaryContainer = MentaClaro,
+    primary = Menta2, onPrimary = Menta3,
+    primaryContainer = Color(0xFF1B2A1D), onPrimaryContainer = Menta1,
     secondary = RotuloCinza, onSecondary = PretoOled,
     secondaryContainer = CartaoOledAlto, onSecondaryContainer = Color(0xFFF4F6F5),
     background = PretoOled, onBackground = Color(0xFFF4F6F5),
@@ -75,10 +89,25 @@ private val NeutroEscuro = darkColorScheme(
     outline = PilulaNavBorda, outlineVariant = BordaOled,
     error = Color(0xFFF43F5E), onError = Color.White,
     errorContainer = Color(0xFF371F24), onErrorContainer = Color(0xFFFDA4AF),
-    tertiary = MentaMedio, tertiaryContainer = Color(0xFF1B2A1D),
-    onTertiaryContainer = MentaClaro, surfaceTint = Color.Transparent,
+    tertiary = Menta2, tertiaryContainer = Color(0xFF1B2A1D),
+    onTertiaryContainer = Menta1, surfaceTint = Color.Transparent,
     surfaceContainerLowest = PretoOled, surfaceContainerLow = Color(0xFF0C0C0C), surfaceContainer = CartaoOled,
     surfaceContainerHigh = CartaoOledAlto, surfaceContainerHighest = BordaOled
+)
+// Lavanda: o destaque muda; verde continua sendo "em dia" (tertiary) para não mudar o significado dos estados.
+private val LavandaClaro = NeutroClaro.copy(
+    primary = Color(0xFF6B54EE), onPrimary = Color.White,
+    primaryContainer = Color(0xFFEEE9FF), onPrimaryContainer = Color(0xFF1C1340),
+    secondary = Color(0xFF615C78), secondaryContainer = Color(0xFFF1EFF9), onSecondaryContainer = Color(0xFF2A2545),
+    background = Color(0xFFF6F5FB), onBackground = Color(0xFF14121C), onSurface = Color(0xFF14121C),
+    surfaceVariant = Color(0xFFF1EFF9), onSurfaceVariant = Color(0xFF615C78),
+    outline = Color(0xFFD7D4E4), outlineVariant = Color(0xFFE9E7F1),
+    surfaceContainerLow = Color(0xFFFAF9FE), surfaceContainer = Color(0xFFF4F2FB),
+    surfaceContainerHigh = Color(0xFFEFEDF8), surfaceContainerHighest = Color(0xFFE9E6F4)
+)
+private val LavandaEscuro = NeutroEscuro.copy(
+    primary = Color(0xFFBBADFF), onPrimary = Color(0xFF1C1340),
+    primaryContainer = Color(0xFF241D40), onPrimaryContainer = Color(0xFFEEE9FF)
 )
 @OptIn(ExperimentalTextApi::class)
 private val Jakarta = FontFamily(listOf(400, 500, 600, 700, 800, 900).map { w ->
@@ -101,15 +130,17 @@ private val TipografiaNeutra = Typography(
 fun SgeTema(tema: Int, estilo: Int = 0, content: @Composable () -> Unit) {
     val escuro = when (tema) { 1 -> false; 2 -> true; else -> isSystemInDarkTheme() }
     val ctx = LocalContext.current
-    val esquema = if (estilo == 1 && Build.VERSION.SDK_INT >= 31) {
+    val esquema = if (estilo == EstiloCor.SISTEMA && Build.VERSION.SDK_INT >= 31) {
         if (escuro) dynamicDarkColorScheme(ctx) else dynamicLightColorScheme(ctx)
-    } else if (escuro) NeutroEscuro else NeutroClaro
+    } else if (estilo == EstiloCor.LAVANDA) { if (escuro) LavandaEscuro else LavandaClaro }
+    else if (escuro) NeutroEscuro else NeutroClaro
+    val paleta = if (estilo == EstiloCor.LAVANDA) PaletaLavanda else PaletaMenta
     // Alto contraste: textos secundários e contornos mais fortes; a situação nunca depende só da cor (há texto e ícone).
     val finalEsquema = if (SgeUi.altoContraste) esquema.copy(onSurfaceVariant = esquema.onSurface,
         outline = esquema.onSurface.copy(alpha = .7f), outlineVariant = esquema.onSurface.copy(alpha = .5f),
         error = if (escuro) Color(0xFFFFB4A9) else Color(0xFF8C1D18), tertiary = if (escuro) Color(0xFFB8F0D0) else Color(0xFF1B5E42)) else esquema
     val dens = LocalDensity.current
-    CompositionLocalProvider(LocalDensity provides Density(dens.density, dens.fontScale * (if (SgeUi.fonteGrande) 1.3f else 1f))) {
+    CompositionLocalProvider(LocalDensity provides Density(dens.density, dens.fontScale * (if (SgeUi.fonteGrande) 1.3f else 1f)), LocalPaleta provides paleta) {
         MaterialTheme(colorScheme = finalEsquema, typography = TipografiaNeutra,
             shapes = Shapes(extraSmall = RoundedCornerShape(8.dp), small = RoundedCornerShape(14.dp),
                 medium = RoundedCornerShape(22.dp), large = RoundedCornerShape(RaioCartao), extraLarge = RoundedCornerShape(RaioHero))) {

@@ -203,7 +203,7 @@ class SgeAtualizador(private val ctx: Context) {
         text = { Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text(a.mensagem.ifBlank { "Verifique se existe uma nova versão do SGE Diário." })
             a.oferta?.let { Text("Versão ${it.versao} · ${it.tamanho/1024/1024} MB",style=MaterialTheme.typography.titleSmall) }
-            if (a.baixando || a.ocupado) { if (a.progresso >= 0 && !a.ocupado) LinearProgressIndicator(a.progresso,Modifier.fillMaxWidth()) else LinearProgressIndicator(Modifier.fillMaxWidth()) }
+            if (a.baixando || a.ocupado) { BarraSegmentada(if (a.progresso >= 0 && !a.ocupado) a.progresso else null, Modifier.fillMaxWidth(), altura = 12.dp, mostrarPercentual = a.progresso >= 0 && !a.ocupado) }
             Row { Text("Avisar quando houver atualização",Modifier.weight(1f)); Switch(a.automatico,{ a.automatico(it) }) }
             Row { Text("Baixar só em rede sem franquia (Wi-Fi)",Modifier.weight(1f)); Switch(a.wifi,{ a.wifi(it) },enabled=!a.baixando) }
             Text("O Android pede sua confirmação para instalar. Seus dados são mantidos ao atualizar com o mesmo pacote e assinatura.",style=MaterialTheme.typography.bodySmall)

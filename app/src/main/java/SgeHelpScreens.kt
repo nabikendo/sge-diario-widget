@@ -309,7 +309,9 @@ fun TelaAjustes(tema: Int, cor: Int, versao: String, aoTema: (Int) -> Unit, aoCo
                         Text("Tema", style = MaterialTheme.typography.titleSmall)
                         Segmentado(listOf("Sistema", "Claro", "Escuro"), tema, aoTema)
                         Text("Cores", style = MaterialTheme.typography.titleSmall)
-                        Segmentado(listOf("Neutras", "Do sistema"), cor, aoCor)
+                        // Ordem na tela: Verde, Lavanda, Do sistema (valores gravados: 0, 2, 1).
+                        val ordemCores = listOf(EstiloCor.VERDE, EstiloCor.LAVANDA, EstiloCor.SISTEMA)
+                        Segmentado(listOf("Verde", "Lavanda", "Do sistema"), ordemCores.indexOf(cor).coerceAtLeast(0)) { aoCor(ordemCores[it]) }
                     }
                 }
                 GrupoAjustes("Como você usa o app") {

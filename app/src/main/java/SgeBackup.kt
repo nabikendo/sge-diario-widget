@@ -40,7 +40,7 @@ object SgeBackup {
                 in inteiros -> {
                     require(v is Int)
                     val n = dados.getInt(chave)
-                    require(when (chave) { "economia_horas" -> n in listOf(2,6,12,24); "economia_hora_noturna" -> n in 0..23; "estilo" -> n in 0..1; else -> n in 0..2 })
+                    require(when (chave) { "economia_horas" -> n in listOf(2,6,12,24); "economia_hora_noturna" -> n in 0..23; "estilo" -> n in 0..2; else -> n in 0..2 })
                 }
                 in textos -> {
                     require(v is String)

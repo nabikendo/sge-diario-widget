@@ -137,9 +137,7 @@ fun HeroResumo(
                     horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text("$emDia de ${contarSge(totalTurmas, "turma", "turmas")} em dia", style = MaterialTheme.typography.labelLarge, color = TintaMenta)
-                        Box(Modifier.fillMaxWidth().height(6.dp).clip(CircleShape).background(TintaMenta.copy(alpha = .15f))) {
-                            Box(Modifier.fillMaxWidth(progresso.coerceIn(0f, 1f)).fillMaxHeight().background(TintaMenta, CircleShape))
-                        }
+                        BarraSegmentada(progresso, Modifier.fillMaxWidth(), segmentos = 20, altura = 12.dp, cor = TintaMenta, trilho = TintaMenta.copy(alpha = .14f))
                         Text("${contarSge(consultadas, "consultada", "consultadas")}${if (coberturaParcial) " (*)" else ""}",
                             style = MaterialTheme.typography.labelSmall, color = TintaMentaSuave)
                     }
