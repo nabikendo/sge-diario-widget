@@ -8,6 +8,9 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
@@ -214,11 +217,10 @@ fun TelaCartoes(
     LaunchedEffect(por) {
         if (agrupamentoAnterior != por) {
             agrupamentoAnterior = por
-            val duracao = SgeMotion.duration(160)
-            if (duracao == 0) alphaCartoes.snapTo(1f)
+            if (!SgeMotion.animacoesAtivas) alphaCartoes.snapTo(1f)
             else {
-                alphaCartoes.snapTo(.9f)
-                alphaCartoes.animateTo(1f, tween(duracao))
+                alphaCartoes.snapTo(.85f)
+                alphaCartoes.animateTo(1f, SgeMotion.padrao(SgeMotion.PADRAO))
             }
         }
     }
@@ -265,7 +267,7 @@ fun TelaCartoes(
     val mostrarEsqueleto = carregando && resultados.isEmpty() && (!escola || conhecidas.isEmpty())
     val estadoGrade = rememberLazyGridState()
     Box(Modifier.fillMaxSize()) {
-    Crossfade(targetState = mostrarEsqueleto, animationSpec = tween(SgeMotion.duration(220)), label = "esqueletoPainel") { esqueleto ->
+    Crossfade(targetState = mostrarEsqueleto, animationSpec = SgeMotion.padrao(SgeMotion.PADRAO), label = "esqueletoPainel") { esqueleto ->
     if (esqueleto) DashboardSkeleton() else LazyVerticalGrid(state = estadoGrade, columns = GridCells.Adaptive(285.dp), contentPadding = PaddingValues(20.dp, 10.dp, 20.dp, 26.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
         item(span = { GridItemSpan(maxLineSpan) }) {
@@ -289,8 +291,8 @@ fun TelaCartoes(
         }
         item(span = { GridItemSpan(maxLineSpan) }) {
             Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                AnimatedVisibility(visible = carregando, enter = fadeIn(tween(SgeMotion.duration(130))),
-                    exit = fadeOut(tween(SgeMotion.duration(110)))) {
+                AnimatedVisibility(visible = carregando, enter = SgeMotion.abrirBloco(),
+                    exit = SgeMotion.fecharBloco()) {
                     val progresso = if (escola) filaCoord?.progresso else pausaDiario?.progresso
                     if (progresso != null) LinearProgressIndicator(progress = progresso, modifier = Modifier.fillMaxWidth())
                     else LinearProgressIndicator(Modifier.fillMaxWidth())
@@ -306,7 +308,10 @@ fun TelaCartoes(
                             onClickLabel = if (mostrarResumo) "Abrir comparação com a consulta anterior" else "Ver detalhes da última atualização",
                             role = Role.Button
                         ) { if (mostrarResumo) mostrarComparacao = true else mostrarMensagem = true }.padding(vertical = 6.dp),
-                        transitionSpec = { fadeIn(tween(SgeMotion.duration(140))) togetherWith fadeOut(tween(SgeMotion.duration(100))) },
+                        transitionSpec = {
+                            (fadeIn(SgeMotion.padrao(SgeMotion.PADRAO - 60, atraso = 40)) + slideInVertically(SgeMotion.entrada(SgeMotion.PADRAO)) { it / 3 }) togetherWith
+                                (fadeOut(SgeMotion.padrao(SgeMotion.RAPIDA - 20)) + slideOutVertically(SgeMotion.saida(SgeMotion.RAPIDA)) { -it / 4 })
+                        },
                         label = "mensagemAtualizacao") { mensagem ->
                         Text(mensagem, modifier = Modifier.fillMaxWidth(), style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
@@ -337,14 +342,13 @@ fun TelaCartoes(
                     }, verticalAlignment = Alignment.CenterVertically) {
                         Text(if (fila.pausada) "Verificação pausada" else if (fila.ids.isNotEmpty()) "Verificação da escola em andamento" else "Verificação da escola concluída",
                             Modifier.weight(1f), style = MaterialTheme.typography.titleSmall)
-                        Icon(SgeIcons.Chevron, null, Modifier.size(18.dp).graphicsLayer {
-                            rotationZ = if (filaExpandida) 270f else 90f
-                        })
+                        val giroChevron by animateFloatAsState(if (filaExpandida) 270f else 90f, SgeMotion.padrao(SgeMotion.PADRAO - 20), label = "chevronFila")
+                        Icon(SgeIcons.Chevron, null, Modifier.size(18.dp).graphicsLayer { rotationZ = giroChevron })
                     }
                     LinearProgressIndicator(progress = fila.progresso, modifier = Modifier.fillMaxWidth())
                     Text("Consultadas: ${fila.concluidas.size} · Ignoradas (recentes): ${fila.puladas} · Falhas: ${fila.falhas.size} · Restantes: ${fila.ids.size}",
                         style = MaterialTheme.typography.bodySmall)
-                    AnimatedVisibility(visible = filaExpandida) {
+                    AnimatedVisibility(visible = filaExpandida, enter = SgeMotion.abrirBloco(), exit = SgeMotion.fecharBloco()) {
                         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             if (nomesFalhas.isNotEmpty()) Text("Falharam: ${nomesFalhas.joinToString(" · ")}",
                                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
@@ -450,8 +454,7 @@ fun TelaCartoes(
         }
         item(span = { GridItemSpan(maxLineSpan) }, key = "busca:${fonte.name}") {
             AnimatedVisibility(visible = mostrarBusca || busca.isNotBlank(),
-                enter = expandVertically(tween(SgeMotion.duration(180))) + fadeIn(tween(SgeMotion.duration(130))),
-                exit = shrinkVertically(tween(SgeMotion.duration(150))) + fadeOut(tween(SgeMotion.duration(100)))) {
+                enter = SgeMotion.abrirBloco(), exit = SgeMotion.fecharBloco()) {
                 OutlinedTextField(value = busca, onValueChange = { busca = it }, modifier = Modifier.fillMaxWidth().focusRequester(focoBusca), singleLine = true,
                     placeholder = { Text("Buscar turma, disciplina ou professor") }, leadingIcon = { Icon(SgeIcons.Search, null, Modifier.size(19.dp)) },
                     trailingIcon = ({ IconButton(onClick = { busca = ""; mostrarBusca = false }) { Icon(SgeIcons.Close, "Fechar busca", Modifier.size(17.dp)) } }),
@@ -480,7 +483,7 @@ fun TelaCartoes(
             MensagemVazia("Nenhum cartão neste filtro", "Mude a busca ou o estado selecionado para visualizar outros resultados.")
         }
         items(visiveis, key = { it.chave }) { grupo ->
-            Box(Modifier.animateItemPlacement(tween(SgeMotion.duration(190))).graphicsLayer { alpha = alphaCartoes.value }) {
+            Box(Modifier.animateItemPlacement(SgeMotion.padrao(SgeMotion.PADRAO)).graphicsLayer { alpha = alphaCartoes.value }) {
                 CartaoGrupo(grupo, por, selecionado = grupo.chave == selecionada, mudancas = mudancas, modulo = modulo) { aoAbrir(grupo) }
             }
         }
@@ -493,7 +496,8 @@ fun TelaCartoes(
     // Título grande que encolhe: ao rolar, o cabeçalho sai da grade e uma barra compacta aparece no topo.
     val tituloRecolhido by remember { derivedStateOf { estadoGrade.firstVisibleItemIndex > 0 } }
     AnimatedVisibility(visible = tituloRecolhido && !mostrarEsqueleto, modifier = Modifier.align(Alignment.TopCenter),
-        enter = fadeIn(tween(SgeMotion.duration(150))), exit = fadeOut(tween(SgeMotion.duration(120)))) {
+        enter = fadeIn(SgeMotion.padrao(SgeMotion.RAPIDA + 30)) + slideInVertically(SgeMotion.entrada(SgeMotion.PADRAO)) { -it / 2 },
+        exit = fadeOut(SgeMotion.padrao(SgeMotion.RAPIDA)) + slideOutVertically(SgeMotion.saida(SgeMotion.RAPIDA)) { -it / 2 }) {
         Surface(color = MaterialTheme.colorScheme.background.copy(alpha = .94f), modifier = Modifier.fillMaxWidth()) {
             Text(if (escola) "Coordenação" else "Seu diário", Modifier.padding(horizontal = 20.dp, vertical = 10.dp), style = MaterialTheme.typography.titleMedium)
         }

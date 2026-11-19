@@ -128,9 +128,9 @@ fun Segmentado(opcoes: List<String>, selecionado: Int, aoSelecionar: (Int) -> Un
         opcoes.forEachIndexed { i, texto ->
             val ativo = i == selecionado
             val fundo by animateColorAsState(if (ativo) MaterialTheme.colorScheme.primary else Color.Transparent,
-                animationSpec = tween(SgeMotion.duration(150)), label = "fundoSegmento$i")
+                animationSpec = SgeMotion.padrao(SgeMotion.RAPIDA + 30), label = "fundoSegmento$i")
             val corTexto by animateColorAsState(if (ativo) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
-                animationSpec = tween(SgeMotion.duration(150)), label = "textoSegmento$i")
+                animationSpec = SgeMotion.padrao(SgeMotion.RAPIDA + 30), label = "textoSegmento$i")
             Box(Modifier.weight(1f).clip(RoundedCornerShape(11.dp))
                 .background(fundo)
                 .selectable(selected = ativo, role = Role.Tab, onClick = { aoSelecionar(i) })
@@ -145,7 +145,7 @@ fun Segmentado(opcoes: List<String>, selecionado: Int, aoSelecionar: (Int) -> Un
 @Composable
 fun PilulaFiltro(selecionado: Boolean, aoClicar: () -> Unit, conteudo: @Composable () -> Unit) {
     val fundo by animateColorAsState(if (selecionado) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
-        animationSpec = tween(SgeMotion.duration(150)), label = "pilulaFiltro")
+        animationSpec = SgeMotion.padrao(SgeMotion.RAPIDA + 30), label = "pilulaFiltro")
     Surface(onClick = aoClicar, shape = CircleShape, color = fundo,
         contentColor = if (selecionado) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
         border = if (selecionado) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),

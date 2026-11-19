@@ -2,7 +2,7 @@ name: Build SGE Widget APK
 
 on:
   push:
-    branches: [ main, master, feat/ios-inspired-neutral-ui, feat/tablet-history-coordination, feat/inapp-updates-school-tools, feat/android17-desktop-2-5-5, feat/diagnostico-lancamento, feat/lancamento-matriz, fix/coord-sincroniza-tudo, feat/ajustes-navegacao ]
+    branches: [ main, master, feat/ios-inspired-neutral-ui, feat/tablet-history-coordination, feat/inapp-updates-school-tools, feat/android17-desktop-2-5-5, feat/diagnostico-lancamento, feat/lancamento-matriz, fix/coord-sincroniza-tudo, feat/ajustes-navegacao, feat/motion-guia ]
   pull_request:
     branches: [ main ]
     paths: ['app/**', 'AndroidManifest.xml', '**.gradle.kts', 'gradle.properties', '.github/workflows/build-apk.yml']

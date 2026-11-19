@@ -225,7 +225,7 @@ private fun rotuloDia(d: LocalDate) = d.dayOfWeek.getDisplayName(java.time.forma
     }
     val etiquetaDatas = when { datas.isEmpty() -> null; datas.size == 1 -> "Dia ${datas[0].format(diaCurto)}"
         else -> datas.take(3).joinToString(", ") { it.format(diaCurto) } + if (datas.size > 3) "…" else "" }
-    Surface(modifier = Modifier.animateContentSize(tween(SgeMotion.duration(180))),
+    Surface(modifier = Modifier.animateContentSize(SgeMotion.entrada(SgeMotion.PADRAO)),
         color = MaterialTheme.colorScheme.surface, shape = MaterialTheme.shapes.large,
         border = BorderStroke(.6.dp, MaterialTheme.colorScheme.outlineVariant)) {
         Column {
@@ -288,8 +288,8 @@ private fun rotuloDia(d: LocalDate) = d.dayOfWeek.getDisplayName(java.time.forma
                     candidatos.forEach { r -> TextButton(onClick = { escolherTurma = false; aoAtalhoSge(r, resumo.indice) }) {
                         Text("${r.turma.nome} • ${r.turma.disciplina}", maxLines = 2) } }
                 } })
-            AnimatedVisibility(visible = aberto, enter = fadeIn(tween(SgeMotion.duration(130))),
-                exit = fadeOut(tween(SgeMotion.duration(100)))) {
+            AnimatedVisibility(visible = aberto, enter = fadeIn(SgeMotion.padrao(SgeMotion.PADRAO - 60, atraso = 60)),
+                exit = fadeOut(SgeMotion.padrao(SgeMotion.RAPIDA - 20))) {
                 Column(Modifier.padding(start = 19.dp, end = 19.dp, bottom = 19.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     grupo.resultados.forEach { r ->

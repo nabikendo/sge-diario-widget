@@ -51,7 +51,8 @@ fun TelaIntroducao(concluir: (Boolean) -> Unit) {
             Text("SGE DIÁRIO", style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f))
             TextButton(onClick = { concluir(false) }) { Text("Agora não") }
         }
-        AnimatedContent(targetState = pagina, label = "introducao", modifier = Modifier.weight(1f), contentAlignment = Alignment.TopCenter) { etapa ->
+        AnimatedContent(targetState = pagina, label = "introducao",
+            transitionSpec = { SgeMotion.lateral(if (targetState > initialState) 1 else -1, fracaoEntra = 4, fracaoSai = 8) }, modifier = Modifier.weight(1f), contentAlignment = Alignment.TopCenter) { etapa ->
             Column(Modifier.widthIn(max = 640.dp).fillMaxSize().verticalScroll(rememberScrollState()).padding(28.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
                 Surface(shape = MaterialTheme.shapes.extraLarge, color = MaterialTheme.colorScheme.surface, shadowElevation = 3.dp) {
                     Icon(when(etapa) { 0 -> SgeIcons.Cards; 1 -> SgeIcons.Globe; else -> SgeIcons.Check }, null,
@@ -200,10 +201,7 @@ fun TelaAjustes(tema: Int, cor: Int, versao: String, aoTema: (Int) -> Unit, aoCo
     // Tela inicial curta (só as categorias); cada categoria abre a própria página.
     AnimatedContent(targetState = categoria, label = "ajustes",
         transitionSpec = {
-            val avancar = targetState != null
-            val d = SgeMotion.duration(260)
-            (slideInHorizontally(tween(d, easing = FastOutSlowInEasing)) { if (avancar) it / 3 else -it / 3 } + fadeIn(tween(d))) togetherWith
-                (slideOutHorizontally(tween(d, easing = FastOutSlowInEasing)) { if (avancar) -it / 5 else it / 5 } + fadeOut(tween(SgeMotion.duration(140))))
+            SgeMotion.lateral(if (targetState != null) 1 else -1, fracaoEntra = 3, fracaoSai = 5)
         }) { cat ->
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(22.dp)) {
         when (cat) {

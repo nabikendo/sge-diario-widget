@@ -282,24 +282,14 @@ fun AppDiario(
                 if (protegida) TelaCoordenacaoProtegida(aoDesbloquear) else AnimatedContent(targetState = RotaSge(aba, null, detalhe, fonteDetalhe),
                     contentKey = { it.pagina ?: if (largo && it.aba != 2) "aba:${it.aba}" else it.grupo?.let { g -> "detalhe:${g.chave}" } ?: "aba:${it.aba}" },
                     transitionSpec = {
-                        val d = SgeMotion.duration(270)
-                        val curva = tween<IntOffset>(d, easing = FastOutSlowInEasing)
                         when {
                             // Abrir uma turma: entra pela direita, como uma página nova.
-                            !largo && initialState.grupo == null && targetState.grupo != null ->
-                                (slideInHorizontally(curva) { it } + fadeIn(tween(d / 2))) togetherWith
-                                    (slideOutHorizontally(curva) { -it / 4 } + fadeOut(tween(d)))
+                            !largo && initialState.grupo == null && targetState.grupo != null -> SgeMotion.avancar()
                             // Voltar da turma: o painel volta da esquerda e a turma sai pela direita.
-                            !largo && initialState.grupo != null && targetState.grupo == null ->
-                                (slideInHorizontally(curva) { -it / 4 } + fadeIn(tween(d))) togetherWith
-                                    (slideOutHorizontally(curva) { it } + fadeOut(tween(d / 2)))
+                            !largo && initialState.grupo != null && targetState.grupo == null -> SgeMotion.voltar()
                             // Trocar de aba: desliza para o lado da aba escolhida.
-                            initialState.aba != targetState.aba -> {
-                                val dir = if (targetState.aba > initialState.aba) 1 else -1
-                                (slideInHorizontally(curva) { dir * it / 6 } + fadeIn(tween(d))) togetherWith
-                                    (slideOutHorizontally(curva) { -dir * it / 10 } + fadeOut(tween(d / 2)))
-                            }
-                            else -> (fadeIn(tween(SgeMotion.duration(170))) + slideInHorizontally(tween(SgeMotion.duration(200))) { it / 14 }) togetherWith fadeOut(tween(SgeMotion.duration(100)))
+                            initialState.aba != targetState.aba -> SgeMotion.lateral(if (targetState.aba > initialState.aba) 1 else -1)
+                            else -> SgeMotion.suave()
                         }
                     },
                     label = "navegacao") { rota ->
@@ -356,10 +346,7 @@ fun AppDiario(
                                 VerticalDivider(Modifier.fillMaxHeight())
                                 Box(Modifier.weight(.57f).fillMaxHeight()) {
                                     AnimatedContent(targetState = rota.grupo, contentKey = { it?.chave },
-                                        transitionSpec = {
-                                            (fadeIn(tween(SgeMotion.duration(150))) + slideInHorizontally(tween(SgeMotion.duration(180))) { it / 20 }) togetherWith
-                                                (fadeOut(tween(SgeMotion.duration(110))) + slideOutHorizontally(tween(SgeMotion.duration(150))) { -it / 24 })
-                                        }, label = "detalheLargo") { grupo ->
+                                        transitionSpec = { SgeMotion.suave() }, label = "detalheLargo") { grupo ->
                                         if (grupo != null) detalhes(grupo) else Column(Modifier.fillMaxSize().padding(30.dp), verticalArrangement = Arrangement.Center) {
                                             Icon(SgeIcons.Cards, null, Modifier.size(38.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                                             Spacer(Modifier.height(16.dp)); Text("Escolha um cartão", style = MaterialTheme.typography.headlineSmall)
@@ -378,9 +365,7 @@ fun AppDiario(
                 if (!protegida) AnimatedContent(targetState = pagina, label = "paginas",
                     transitionSpec = {
                         val abrindo = when { targetState == null -> false; initialState == null -> true; else -> avancando }
-                        val d = SgeMotion.duration(280)
-                        (slideInHorizontally(tween(d, easing = FastOutSlowInEasing)) { if (abrindo) it else -it / 4 } + fadeIn(tween(d / 2))) togetherWith
-                            (slideOutHorizontally(tween(d, easing = FastOutSlowInEasing)) { if (abrindo) -it / 4 else it } + fadeOut(tween(d)))
+                        if (abrindo) SgeMotion.avancar() else SgeMotion.voltar()
                     }) { p ->
                     if (p != null) Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background), contentAlignment = Alignment.TopCenter) {
                         Box(Modifier.widthIn(max = 820.dp).fillMaxSize()) {

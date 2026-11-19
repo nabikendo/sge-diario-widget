@@ -77,20 +77,20 @@ internal fun DockVidro(aba: Int, visiveis: Set<Int>, escolher: (Int) -> Unit) {
     val baixa = LocalConfiguration.current.screenHeightDp < 480
     val haptico = LocalHapticFeedback.current
     Box(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = if (baixa) 6.dp else 14.dp), contentAlignment = Alignment.Center) {
-        Row(Modifier.vidro(CircleShape, escuro).padding(if (baixa) 4.dp else 6.dp).animateContentSize(spring(stiffness = Spring.StiffnessMediumLow)),
+        Row(Modifier.vidro(CircleShape, escuro).padding(if (baixa) 4.dp else 6.dp).animateContentSize(SgeMotion.mola()),
             verticalAlignment = Alignment.CenterVertically) {
             for (i in 0..2) {
                 if (i !in visiveis) continue
                 val ativa = i == aba
                 val origem = remember { MutableInteractionSource() }
                 val pressionada by origem.collectIsPressedAsState()
-                val escala by animateFloatAsState(if (pressionada) .93f else 1f, spring(dampingRatio = .55f, stiffness = Spring.StiffnessMedium), label = "escalaAba$i")
+                val escala by animateFloatAsState(if (pressionada) .95f else 1f, SgeMotion.mola(Spring.StiffnessMedium), label = "escalaAba$i")
                 val fundo by animateColorAsState(
                     if (ativa) (if (escuro) Color.White.copy(alpha = .17f) else MaterialTheme.colorScheme.primary.copy(alpha = .15f)) else Color.Transparent,
-                    tween(SgeMotion.duration(220)), label = "fundoAba$i")
+                    SgeMotion.padrao(SgeMotion.PADRAO), label = "fundoAba$i")
                 val cor by animateColorAsState(
                     if (ativa) (if (escuro) Color.White else MaterialTheme.colorScheme.primary) else MaterialTheme.colorScheme.onSurfaceVariant,
-                    tween(SgeMotion.duration(220)), label = "corAba$i")
+                    SgeMotion.padrao(SgeMotion.PADRAO), label = "corAba$i")
                 Row(Modifier.graphicsLayer { scaleX = escala; scaleY = escala }
                     .heightIn(min = if (baixa) 44.dp else 52.dp).widthIn(min = if (baixa) 44.dp else 52.dp)
                     .clip(CircleShape).background(fundo)
@@ -100,8 +100,8 @@ internal fun DockVidro(aba: Int, visiveis: Set<Int>, escolher: (Int) -> Unit) {
                     .padding(horizontal = if (ativa) 16.dp else 12.dp),
                     verticalAlignment = Alignment.CenterVertically, horizontalArrangement = androidx.compose.foundation.layout.Arrangement.Center) {
                     Icon(listOf(SgeIcons.Cards, SgeIcons.People, SgeIcons.Globe)[i], null, Modifier.size(24.dp), tint = cor)
-                    AnimatedVisibility(visible = ativa, enter = fadeIn(tween(SgeMotion.duration(200))) + expandHorizontally(spring(stiffness = Spring.StiffnessMediumLow)),
-                        exit = fadeOut(tween(SgeMotion.duration(120))) + shrinkHorizontally(spring(stiffness = Spring.StiffnessMedium))) {
+                    AnimatedVisibility(visible = ativa, enter = fadeIn(SgeMotion.padrao(SgeMotion.PADRAO - 40, atraso = 40)) + expandHorizontally(SgeMotion.mola()),
+                        exit = fadeOut(SgeMotion.padrao(SgeMotion.RAPIDA - 20)) + shrinkHorizontally(SgeMotion.mola(Spring.StiffnessMedium))) {
                         Text(RotulosDock[i], Modifier.padding(start = 8.dp), color = cor, maxLines = 1, softWrap = false, overflow = TextOverflow.Clip,
                             style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold))
                     }
