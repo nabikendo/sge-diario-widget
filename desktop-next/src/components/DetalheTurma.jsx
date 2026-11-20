@@ -1,8 +1,11 @@
 import { useEffect } from 'react';
-import { X, ExternalLink, CheckCircle2 } from 'lucide-react';
-import { diaSemana } from '../lib/sge';
+import { X, ArrowUpRight, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { diaSemana, diaMes, MODULOS, atalho } from '../lib/sge';
 
-/** Painel lateral com os detalhes de uma turma (datas sem conteúdo). Fecha com Esc ou clicando fora. */
+/**
+ * Painel lateral da turma: cada módulo do diário com o que falta e um botão que abre
+ * o SGE dentro do app, já na tela certa. Fecha com Esc ou clicando fora.
+ */
 export default function DetalheTurma({ turma, aoFechar, aoAbrirSge }) {
   useEffect(() => {
     const tecla = (e) => e.key === 'Escape' && aoFechar();
@@ -11,14 +14,14 @@ export default function DetalheTurma({ turma, aoFechar, aoAbrirSge }) {
   }, [aoFechar]);
   if (!turma) return null;
   const pct = Math.round((turma.progresso ?? 0) * 100);
-  const pendentes = [...(turma.pendentes ?? [])].reverse(); // mais recentes primeiro
+  const modulos = turma.modulos ?? { conteudo: { pendentes: turma.pendentes ?? [], registradas: turma.registradas, erro: turma.status === 'erro' ? turma.erro : undefined } };
 
   return (
     <div className="fixed inset-0 z-40 flex justify-end bg-tinta/15 backdrop-blur-[2px]" onClick={aoFechar}>
       <aside
         role="dialog" aria-modal="true" aria-label={`Turma ${turma.nome}`}
         onClick={(e) => e.stopPropagation()}
-        className="vidro-forte deslizar m-3 flex w-[min(440px,92vw)] flex-col rounded-[28px] p-6 shadow-2xl"
+        className="vidro-forte deslizar m-3 flex w-[min(480px,94vw)] flex-col rounded-[28px] p-6 shadow-2xl"
       >
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
@@ -30,35 +33,61 @@ export default function DetalheTurma({ turma, aoFechar, aoAbrirSge }) {
         </div>
 
         <div className="mt-5 grid grid-cols-3 gap-2 text-center">
-          <Numero valor={turma.registradas ?? 0} rotulo="registradas" />
-          <Numero valor={turma.pendentes?.length ?? 0} rotulo="sem conteúdo" cor={turma.pendentes?.length ? 'text-pendente' : undefined} />
-          <Numero valor={turma.status === 'erro' ? '—' : `${pct}%`} rotulo="em dia" />
+          <Numero valor={turma.registradas ?? 0} rotulo="com conteúdo" />
+          <Numero valor={turma.totalPendencias ?? turma.pendentes?.length ?? 0} rotulo="pendências" cor={(turma.totalPendencias ?? turma.pendentes?.length) ? 'text-pendente' : undefined} />
+          <Numero valor={turma.status === 'erro' ? '—' : `${pct}%`} rotulo="conteúdo em dia" />
         </div>
 
-        <h3 className="mt-6 mb-2 text-sm font-semibold">Dias sem conteúdo aplicado</h3>
-        <div className="min-h-0 flex-1 overflow-y-auto rounded-2xl bg-white/60 p-2">
-          {turma.status === 'erro' ? (
-            <p className="p-3 text-sm text-alerta">{turma.erro ?? 'Não foi possível ler esta turma.'}</p>
-          ) : pendentes.length === 0 ? (
-            <p className="flex items-center gap-2 p-3 text-sm text-emdia"><CheckCircle2 size={18} /> Nenhuma pendência neste bimestre.</p>
-          ) : (
-            <ul>
-              {pendentes.map((d) => (
-                <li key={d} className="flex items-center justify-between rounded-xl px-3 py-2.5 text-sm capitalize odd:bg-white/70">
-                  {diaSemana(d)}
-                  <span className="rounded-full bg-rose-50 px-2 py-0.5 text-xs font-medium text-pendente normal-case">sem conteúdo</span>
-                </li>
-              ))}
-            </ul>
-          )}
+        <div className="mt-5 min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
+          {MODULOS.map((m) => {
+            const dado = modulos[m.chave];
+            if (!dado || dado.indisponivel) return null;
+            return <Modulo key={m.chave} def={m} dado={dado} aoAbrir={(datas) => aoAbrirSge(atalho(turma, m.modulo, datas))} />;
+          })}
         </div>
 
-        <button type="button" onClick={aoAbrirSge}
+        <button type="button" onClick={() => aoAbrirSge(atalho(turma, 0, turma.pendentes ?? []))}
           className="mt-4 flex h-11 items-center justify-center gap-2 rounded-full bg-tinta text-sm font-semibold text-white transition hover:bg-black active:scale-[0.98]">
-          <ExternalLink size={16} /> Abrir o SGE para registrar
+          <ArrowUpRight size={18} /> Fazer o diário desta turma no SGE
         </button>
       </aside>
     </div>
+  );
+}
+
+function Modulo({ def, dado, aoAbrir }) {
+  const datas = def.chave === 'conteudo' ? dado.pendentes ?? [] : def.chave === 'frequencia' ? dado.datas ?? [] : null;
+  const n = dado.erro ? null : datas ? datas.length : dado.pendentes ?? 0;
+  return (
+    <section className="rounded-2xl bg-white/70 p-4">
+      <div className="flex items-center justify-between gap-3">
+        <h3 className="flex items-center gap-2 font-semibold">
+          {dado.erro ? <AlertTriangle size={17} className="text-alerta" /> : n > 0 ? <span className="size-2 rounded-full bg-pendente" /> : <CheckCircle2 size={17} className="text-emdia" />}
+          {def.rotulo}
+        </h3>
+        <button type="button" onClick={() => aoAbrir(datas ?? [])}
+          className="flex items-center gap-1 rounded-full bg-lavanda-clara px-3 py-1.5 text-xs font-semibold text-lavanda transition hover:bg-lavanda hover:text-white">
+          Abrir no SGE <ArrowUpRight size={14} />
+        </button>
+      </div>
+      <div className="mt-2 text-sm text-tinta-suave">
+        {dado.erro ? <p className="text-alerta">{dado.erro}</p>
+          : datas ? (n === 0 ? <p>Nada pendente no bimestre.</p> : (
+            <div className="flex flex-wrap gap-1.5">
+              {[...datas].reverse().slice(0, 12).map((d) => <span key={d} className="rounded-full bg-rose-50 px-2 py-0.5 text-xs font-medium text-pendente capitalize" title={diaSemana(d)}>{diaMes(d)}</span>)}
+              {datas.length > 12 && <span className="text-xs">+{datas.length - 12}</span>}
+            </div>
+          ))
+          : (
+            <p>
+              <b className={n ? 'text-pendente' : 'text-tinta'}>{n}</b> {n === 1 ? def.unidade[0] : def.unidade[1]}
+              {dado.ausentes ? ` (${dado.ausentes} a criar)` : ''} · {dado.aguardando ?? 0} aguardando avaliação · {dado.aprovados ?? 0} aprovados
+              {dado.parcial && <span className="block text-xs text-alerta">Alguns períodos não tinham datas reconhecíveis e não foram contados.</span>}
+              {dado.coberturaErro && <span className="block text-xs text-alerta">Cobertura não verificada: {dado.coberturaErro}</span>}
+            </p>
+          )}
+      </div>
+    </section>
   );
 }
 

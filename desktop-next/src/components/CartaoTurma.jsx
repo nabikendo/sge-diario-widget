@@ -1,5 +1,5 @@
 import { AlertTriangle, CheckCircle2, CircleDashed, ChevronRight } from 'lucide-react';
-import { diaMes } from '../lib/sge';
+import { diaMes, MODULOS } from '../lib/sge';
 
 /** Cores por estado: o verde sempre significa "em dia" (igual ao app Android). */
 const ESTADOS = {
@@ -55,11 +55,26 @@ export default function CartaoTurma({ turma, indice = 0, aoAbrir }) {
         </div>
       </div>
 
-      <div className="mt-4 flex items-center justify-between gap-3 text-sm">
+      {/* Módulos do diário: número de pendências de cada um (— = não lido, oculto se o SGE não tem o tipo). */}
+      {turma.contagens && turma.status !== 'erro' && (
+        <div className="mt-4 flex flex-wrap gap-1.5">
+          {MODULOS.filter((m) => !turma.modulos?.[m.chave]?.indisponivel).map((m) => {
+            const n = turma.contagens[m.chave];
+            const cor = n == null ? 'bg-amber-50 text-alerta' : n > 0 ? 'bg-rose-50 text-pendente' : 'bg-emerald-50/80 text-emdia';
+            return (
+              <span key={m.chave} className={`rounded-full px-2.5 py-1 text-xs font-medium ${cor}`} title={turma.modulos?.[m.chave]?.erro}>
+                {m.rotulo} <b className="tabular-nums">{n == null ? '—' : n}</b>
+              </span>
+            );
+          })}
+        </div>
+      )}
+
+      <div className="mt-3 flex items-center justify-between gap-3 text-sm">
         {turma.status === 'erro' ? (
           <p className="line-clamp-2 text-xs text-alerta">{turma.erro ?? 'Não foi possível ler esta turma.'}</p>
         ) : qtd === 0 ? (
-          <p className="text-tinta-suave"><span className="font-semibold text-tinta tabular-nums">{turma.registradas}</span> aulas registradas</p>
+          <p className="text-tinta-suave"><span className="font-semibold text-tinta tabular-nums">{turma.registradas}</span> aulas com conteúdo</p>
         ) : (
           <p className="truncate text-tinta-suave">
             <span className="font-semibold text-pendente tabular-nums">{qtd} {qtd === 1 ? 'dia' : 'dias'}</span>

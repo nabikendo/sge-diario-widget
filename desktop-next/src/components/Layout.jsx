@@ -1,4 +1,4 @@
-import { Home, Users, School, History, FileText, Settings, Search, RefreshCw, LogIn } from 'lucide-react';
+import { Home, Users, School, History, FileText, Settings, Search, RefreshCw, LogIn, BookOpenCheck } from 'lucide-react';
 import { tempoRelativo } from '../lib/sge';
 
 export const SECOES = [
@@ -36,9 +36,9 @@ export function BarraLateral({ ativa, aoTrocar }) {
 }
 
 /** Barra superior: título, busca global e botão de status da sincronização. */
-export function BarraSuperior({ titulo, subtitulo, busca, aoBuscar, refBusca, painel, sincronizando, logado, aoSincronizar, aoEntrar }) {
+export function BarraSuperior({ titulo, subtitulo, busca, aoBuscar, refBusca, painel, sincronizando, logado, aoSincronizar, aoEntrar, aoAbrirSge }) {
   return (
-    <header className="grid grid-cols-[1fr_minmax(280px,420px)_1fr] items-center gap-6">
+    <header className="grid grid-cols-[1fr_minmax(220px,400px)_1fr] items-center gap-6">
       <div className="min-w-0">
         <h1 className="truncate text-[28px] leading-tight font-semibold tracking-tight">{titulo}</h1>
         {subtitulo && <p className="truncate text-sm text-tinta-suave">{subtitulo}</p>}
@@ -56,7 +56,11 @@ export function BarraSuperior({ titulo, subtitulo, busca, aoBuscar, refBusca, pa
         <kbd className="rounded-md bg-tinta/5 px-1.5 py-0.5 text-xs">/</kbd>
       </label>
 
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-2">
+        <button type="button" onClick={aoAbrirSge} title="Abrir o SGE dentro do app para fazer o diário"
+          className="flex h-12 items-center gap-2 rounded-full bg-lavanda px-5 text-sm font-semibold text-white shadow-[0_8px_20px_-8px_rgb(107_84_238/0.7)] transition hover:brightness-110 active:scale-[0.98]">
+          <BookOpenCheck size={18} aria-hidden /> Fazer diário
+        </button>
         {logado === false ? (
           <button type="button" onClick={aoEntrar}
             className="flex h-12 items-center gap-2 rounded-full bg-tinta px-5 text-sm font-semibold text-white shadow-lg transition hover:bg-black active:scale-[0.98]">

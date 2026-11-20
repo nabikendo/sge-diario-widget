@@ -9,10 +9,11 @@
     "build:ui": "vite build",
     "start": "npm run build:ui && electron .",
     "test": "node --test tests/*.test.js",
-    "build:win": "vite build && electron-builder --win portable --x64"
+    "build:win": "vite build && electron-builder --win nsis --x64 --publish never"
   },
   "dependencies": {
-    "cheerio": "^1.0.0"
+    "cheerio": "^1.0.0",
+    "electron-updater": "^6.8.11"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.1.0",
@@ -31,13 +32,37 @@
   "build": {
     "appId": "br.to.seduc.sgediariowidget.desktop",
     "productName": "SGE Diário Desktop",
-    "directories": { "output": "release-dist" },
-    "files": ["electron/**", "dist/**", "assets/sge-diario.ico", "package.json"],
+    "directories": {
+      "output": "release-dist"
+    },
+    "files": [
+      "electron/**",
+      "dist/**",
+      "assets/sge-diario.ico",
+      "package.json"
+    ],
     "win": {
       "icon": "assets/sge-diario.ico",
-      "target": ["portable"],
-      "artifactName": "SGE-Diario-Desktop-${version}.exe"
+      "target": [
+        "nsis"
+      ],
+      "artifactName": "SGE-Diario-Desktop-Setup-${version}.${ext}"
     },
-    "publish": null
+    "publish": {
+      "provider": "github",
+      "owner": "nabikendo",
+      "repo": "sge-diario-widget",
+      "releaseType": "release"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "SGE Diário",
+      "uninstallDisplayName": "SGE Diário Desktop",
+      "deleteAppDataOnUninstall": false
+    }
   }
 }

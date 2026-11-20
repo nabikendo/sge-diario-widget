@@ -22,6 +22,8 @@ export default function App() {
   const [busca, setBusca] = useState('');
   const [secao, setSecao] = useState(() => location.hash.slice(1) || 'home'); // #secao abre direto numa tela
   const [aberta, setAberta] = useState(null);
+  const [perfilEscola, setPerfilEscola] = useState(false);
+  const [atualizacao, setAtualizacao] = useState(null);
   const [, tique] = useState(0);
   const campoBusca = useRef(null);
   const conteudo = useRef(null);
@@ -34,6 +36,9 @@ export default function App() {
       sge.aoConcluir((p) => { setPainel(p); setSincronizando(false); setProgresso(null); setLogado(true); }),
       sge.aoSessao(({ logado }) => { setLogado(logado); if (!logado) setSincronizando(false); }),
       sge.aoErro(({ mensagem }) => { setErro(mensagem); setSincronizando(false); }),
+      sge.aoPerfil(({ escola }) => setPerfilEscola(escola)),
+      sge.aoFimSync(() => { setSincronizando(false); setProgresso(null); setLogado(true); }),
+      sge.aoAtualizacao(setAtualizacao),
     ];
     const relogio = setInterval(() => tique((n) => n + 1), 30_000); // atualiza "há X min"
     const atalho = (e) => { if (e.key === '/' && !['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement?.tagName)) { e.preventDefault(); campoBusca.current?.focus(); } };
@@ -69,12 +74,24 @@ export default function App() {
       <BarraSuperior
         titulo={titulo} subtitulo={subtitulo}
         busca={busca} aoBuscar={buscar} refBusca={campoBusca} painel={painel} sincronizando={sincronizando} logado={logado}
-        aoSincronizar={sincronizar} aoEntrar={() => sge.entrar()}
+        aoSincronizar={sincronizar} aoEntrar={() => sge.entrar()} aoAbrirSge={() => sge.abrirSge()}
       />
 
       <main ref={conteudo} className="vidro min-h-0 overflow-y-auto rounded-[28px] p-6">
         {modoExemplo && <p className="mb-4 rounded-2xl bg-amber-100/70 px-4 py-2 text-sm text-amber-900">Modo de exemplo: dados fictícios (aberto fora do Electron).</p>}
         {erro && <p role="alert" className="mb-4 rounded-2xl bg-rose-100/70 px-4 py-2 text-sm text-rose-900">{erro}</p>}
+        {atualizacao && (
+          <p className="mb-4 flex items-center justify-between gap-4 rounded-2xl bg-lavanda-clara px-4 py-3 text-sm text-tinta">
+            {atualizacao.estado === 'pronta' ? `A versão ${atualizacao.versao} está pronta. Ela é instalada ao fechar o app.` : `Baixando a versão ${atualizacao.versao}…`}
+            {atualizacao.estado === 'pronta' && <button type="button" onClick={() => sge.instalarAtualizacao()} className="shrink-0 rounded-full bg-lavanda px-4 py-1.5 font-semibold text-white">Reiniciar agora</button>}
+          </p>
+        )}
+        {perfilEscola && secao !== 'coordenacao' && (
+          <p className="mb-4 flex items-center justify-between gap-4 rounded-2xl bg-white/70 px-4 py-3 text-sm">
+            O perfil ativo no SGE é Unidade escolar: a escola é lida em Coordenação. Para atualizar o seu diário, troque para o perfil Servidor no SGE.
+            <button type="button" onClick={() => setSecao('coordenacao')} className="shrink-0 rounded-full bg-tinta px-4 py-1.5 font-semibold text-white">Ver Coordenação</button>
+          </p>
+        )}
         {logado === false && (
           <p className="mb-4 flex items-center justify-between gap-4 rounded-2xl bg-white/70 px-4 py-3 text-sm">
             Entre no SGE para atualizar os dados. O app guarda só a sessão do SGE neste computador, nunca a sua senha.
@@ -85,14 +102,14 @@ export default function App() {
         <div key={secao} className="surgir">
           {secao === 'home' && <Inicio painel={painel} turmas={turmas} progresso={progresso} sincronizando={sincronizando} aoAbrir={setAberta} />}
           {secao === 'turmas' && <Turmas turmas={turmas} aoAbrir={setAberta} />}
-          {secao === 'coordenacao' && <Coordenacao painel={painel} />}
+          {secao === 'coordenacao' && <Coordenacao perfilEscola={perfilEscola} sincronizando={sincronizando} />}
           {secao === 'historico' && <Historico />}
           {secao === 'relatorios' && <Relatorios painel={painel} />}
           {secao === 'configuracoes' && <Configuracoes logado={logado} aoSair={sair} />}
         </div>
       </main>
 
-      {aberta && <DetalheTurma turma={aberta} aoFechar={fecharDetalhe} aoAbrirSge={() => sge.abrirSgeWeb()} />}
+      {aberta && <DetalheTurma turma={aberta} aoFechar={fecharDetalhe} aoAbrirSge={(a) => sge.abrirSge(a)} />}
     </div>
   );
 }

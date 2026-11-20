@@ -92,7 +92,11 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: desktop-estavel
-          path: desktop-next/release-dist/SGE-Diario-Desktop-*.exe
+          # Instalador + dados da atualização automática (latest.yml e blockmap).
+          path: |
+            desktop-next/release-dist/SGE-Diario-Desktop-Setup-*.exe
+            desktop-next/release-dist/SGE-Diario-Desktop-Setup-*.exe.blockmap
+            desktop-next/release-dist/latest.yml
   release:
     needs: [versao, desktop, android-play]
     # android-play pode ter sido pulado (Android sem mudanças): a release segue mesmo assim.
@@ -165,7 +169,7 @@ jobs:
             gh release download "$SGE_ANTERIOR" -p '*.apk' -p atualizacao.json
             apk=$(ls SGE-Diario-*.apk | head -1)
           fi
-          gh release create "v$SGE_VERSAO" "$apk" "SGE-Diario-Desktop-$SGE_VERSAO.exe" atualizacao.json --latest --target "$GITHUB_SHA" \
+          gh release create "v$SGE_VERSAO" "$apk" "SGE-Diario-Desktop-Setup-$SGE_VERSAO.exe" "SGE-Diario-Desktop-Setup-$SGE_VERSAO.exe.blockmap" latest.yml atualizacao.json --latest --target "$GITHUB_SHA" \
             --title "SGE Diário $SGE_VERSAO" \
             --notes-file release/NOTAS.md
   android-play:

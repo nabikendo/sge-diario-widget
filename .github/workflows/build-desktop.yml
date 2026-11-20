@@ -30,4 +30,4 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: sge-diario-desktop-windows
-          path: desktop-next/release-dist/SGE-Diario-Desktop-*.exe
+          path: desktop-next/release-dist/SGE-Diario-Desktop-Setup-*.exe

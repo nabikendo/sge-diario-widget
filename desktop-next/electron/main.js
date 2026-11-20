@@ -18,6 +18,8 @@ const janelaOculta = require('./sge/janelaOculta');
 const motor = require('./motor');
 const armazenamento = require('./armazenamento');
 const relatorio = require('./relatorio');
+const janelaSge = require('./sge/janelaSge');
+const atualizador = require('./atualizador');
 
 const icone = path.join(__dirname, '..', 'assets', 'sge-diario.ico');
 const DEV_URL = process.env.VITE_DEV_SERVER_URL; // definido pelo script "dev"
@@ -92,14 +94,22 @@ function abrirLogin() {
 }
 
 // ---------- Sincronização ----------
-async function sincronizarEAvisar() {
+let ultimaCoord = null;
+async function sincronizarEAvisar({ manual = false } = {}) {
   try {
-    ultimoPainel = await motor.sincronizar((p) => enviar('sync:progresso', p));
+    ultimoPainel = await motor.sincronizar((p) => enviar('sync:progresso', p), { manual });
+    enviar('sge:perfil', { escola: false });
     enviar('sync:concluida', ultimoPainel);
     return ultimoPainel;
   } catch (e) {
     if (e instanceof motor.SessaoExpirada) {
       enviar('sge:sessao', { logado: false });
+      return null;
+    }
+    if (e instanceof motor.PerfilEscola) {
+      // Perfil Unidade escolar: o diário pessoal fica como estava e a escola é lida no lugar.
+      enviar('sge:perfil', { escola: true });
+      await sincronizarEscolaEAvisar();
       return null;
     }
     console.error('[sync]', e);
@@ -108,14 +118,49 @@ async function sincronizarEAvisar() {
   }
 }
 
+async function sincronizarEscolaEAvisar() {
+  try {
+    ultimaCoord = await motor.sincronizarEscola((p) => enviar('sync:progresso', p));
+    enviar('coord:concluida', ultimaCoord);
+    enviar('sync:fim', {});
+    return ultimaCoord;
+  } catch (e) {
+    if (e instanceof motor.SessaoExpirada) { enviar('sge:sessao', { logado: false }); return null; }
+    console.error('[coord]', e);
+    enviar('sge:erro', { mensagem: e.message || 'Falha ao ler a escola.' });
+    return null;
+  }
+}
+
+// SGE Web dentro do app: guarda a lista de turmas da escola e avisa quando a pessoa entrou.
+let logadoNaJanela = false;
+janelaSge.configurar({
+  turmasEscola: async (lista) => {
+    const n = await armazenamento.gravarTurmasEscola(lista);
+    if (n) enviar('coord:turmas', { quantidade: n });
+  },
+  login: () => { if (!logadoNaJanela) { logadoNaJanela = true; enviar('sge:sessao', { logado: true }); } },
+});
+
 // ---------- IPC (a única porta entre a vitrine e o motor) ----------
 ipcMain.handle('painel:obter', async () => ultimoPainel ?? (ultimoPainel = await motor.lerCache()));
-ipcMain.handle('sync:agora', () => sincronizarEAvisar());
+ipcMain.handle('sync:agora', () => sincronizarEAvisar({ manual: true }));
 ipcMain.handle('sge:entrar', () => abrirLogin());
-ipcMain.handle('sge:abrirWeb', () => shell.openExternal(SGE));
+ipcMain.handle('sge:abrirWeb', (_e, atalho) => {
+  // Só aceita atalhos no formato esperado (vêm da interface, mas a ponte é a fronteira).
+  const ok = atalho && typeof atalho.turmaId === 'string' && typeof atalho.turma === 'string' && typeof atalho.componente === 'string'
+    && Number.isInteger(atalho.modulo) && atalho.modulo >= 0 && atalho.modulo <= 4;
+  janelaSge.abrir(ok ? { turmaId: atalho.turmaId, turma: atalho.turma, componente: atalho.componente, modulo: atalho.modulo,
+    datas: Array.isArray(atalho.datas) ? atalho.datas.filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d)).slice(0, 5) : [],
+    horario: typeof atalho.horario === 'string' ? atalho.horario.slice(0, 5) : '' } : null);
+});
+ipcMain.handle('coord:obter', async () => ({ painel: ultimaCoord ?? (ultimaCoord = await armazenamento.lerCoordenacao()), turmasEscola: (await armazenamento.lerTurmasEscola()).length }));
+ipcMain.handle('coord:sincronizar', () => sincronizarEscolaEAvisar());
+ipcMain.handle('app:atualizar', () => atualizador.instalarAgora());
 ipcMain.handle('sge:sair', async () => {
   // Apaga só a sessão do SGE (cookies e armazenamento da partição); a próxima sincronização pede login.
   await session.fromPartition(PARTICAO).clearStorageData();
+  logadoNaJanela = false;
   janelaOculta.fechar();
   enviar('sge:sessao', { logado: false });
 });
@@ -164,6 +209,7 @@ app.whenReady().then(async () => {
   // Primeira leitura ao abrir; depois no intervalo escolhido e ao voltar da suspensão.
   vitrine.webContents.once('did-finish-load', () => sincronizarEAvisar());
   agendar(config);
+  atualizador.iniciar((info) => enviar('app:atualizacao', info));
   powerMonitor.on('resume', () => sincronizarEAvisar());
   app.on('activate', async () => { if (BrowserWindow.getAllWindows().length === 0) criarVitrine(await armazenamento.lerConfig()); });
 });

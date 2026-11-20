@@ -83,17 +83,114 @@ export function Turmas({ turmas, aoAbrir }) {
 }
 
 /* ---------- Coordenação ---------- */
-export function Coordenacao({ painel }) {
+export function Coordenacao({ perfilEscola, sincronizando }) {
+  const [dados, setDados] = useState(null);
+  const [aberto, setAberto] = useState(null);
+  const [busca, setBusca] = useState('');
+  useEffect(() => {
+    const carregar = () => sge.obterCoordenacao().then(setDados);
+    carregar();
+    const desligar = [sge.aoCoordenacao(carregar), sge.aoTurmasEscola(carregar)];
+    return () => desligar.forEach((f) => f());
+  }, []);
+  if (!dados) return null;
+  const { painel, turmasEscola } = dados;
+
+  if (!painel) {
+    return (
+      <div className="mx-auto max-w-2xl py-8">
+        <div className="text-center">
+          <School size={48} className="mx-auto text-lavanda" strokeWidth={1.5} />
+          <h2 className="mt-4 text-2xl font-semibold">Coordenação</h2>
+          <p className="mt-2 text-tinta-suave">Pendências de Conteúdo Aplicado de todos os professores da escola, atribuídas pelo horário de cada um.</p>
+        </div>
+        <ol className="mt-8 space-y-3">
+          <Passo n={1} feito={perfilEscola}>Entre no SGE com o perfil <b>Unidade escolar</b>.</Passo>
+          <Passo n={2} feito={turmasEscola > 0}>
+            No SGE, abra <b>Escola → Conteúdo Aplicado</b>. O app lê a lista de turmas sozinho{turmasEscola > 0 ? ` (${turmasEscola} turmas lidas).` : '.'}
+          </Passo>
+          <Passo n={3}>Clique em <b>Ler a escola</b>.</Passo>
+        </ol>
+        <div className="mt-8 flex justify-center gap-3">
+          <button type="button" onClick={() => sge.abrirSge()} className="rounded-full bg-white px-5 py-2.5 text-sm font-semibold ring-1 ring-tinta/10 hover:bg-white/70">Abrir o SGE</button>
+          <button type="button" onClick={() => sge.sincronizarEscola()} disabled={!turmasEscola || sincronizando}
+            className="rounded-full bg-tinta px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-40">Ler a escola</button>
+        </div>
+      </div>
+    );
+  }
+
+  const q = busca.trim().toLowerCase();
+  const professores = painel.professores.filter((p) => !q || `${p.nome} ${p.itens.map((i) => `${i.turma} ${i.componente}`).join(' ')}`.toLowerCase().includes(q));
+  const dias = painel.professores.reduce((s, p) => s + p.dias, 0);
+  const comPendencia = painel.professores.filter((p) => p.id).length;
+  const max = Math.max(1, ...painel.professores.map((p) => p.dias));
+
   return (
-    <div className="mx-auto max-w-2xl py-10 text-center">
-      <School size={48} className="mx-auto text-lavanda" strokeWidth={1.5} />
-      <h2 className="mt-4 text-2xl font-semibold">Coordenação</h2>
-      <p className="mt-2 text-tinta-suave">
-        {painel?.perfil === 'coordenacao'
-          ? 'Seu login tem perfil de escola. A leitura das pendências de todos os professores está sendo trazida do app Android e chega numa próxima versão.'
-          : 'Esta tela mostra as pendências de todos os professores da escola. Ela aparece para logins com perfil de coordenação e chega numa próxima versão do desktop.'}
-      </p>
-      <p className="mt-4 text-sm text-tinta-suave">Enquanto isso, o modo Coordenação continua disponível no app Android.</p>
+    <>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <Indicador valor={dias} rotulo="aulas sem conteúdo na escola" cor="text-pendente" />
+        <Indicador valor={`${comPendencia}/${painel.totalProfessores}`} rotulo="professores com pendência" />
+        <Indicador valor={painel.turmas.length} rotulo="turmas lidas" />
+      </div>
+
+      <div className="mt-8 mb-3 flex flex-wrap items-center gap-3">
+        <h2 className="text-lg font-semibold">Por professor</h2>
+        <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Filtrar professor, turma ou componente"
+          className="ml-auto w-72 rounded-full bg-white/80 px-4 py-2 text-sm ring-1 ring-white outline-none focus:ring-lavanda/40" />
+        <button type="button" onClick={() => sge.sincronizarEscola()} disabled={sincronizando}
+          className="rounded-full bg-tinta px-4 py-2 text-sm font-semibold text-white disabled:opacity-40">{sincronizando ? 'Lendo…' : 'Ler de novo'}</button>
+      </div>
+      <p className="mb-3 text-xs text-tinta-suave">Lido em {new Date(painel.atualizadoEm).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })} · {turmasEscola} turmas da escola conhecidas</p>
+
+      <ul className="space-y-2">
+        {professores.map((p, i) => {
+          const abertoAqui = aberto === (p.id || p.nome);
+          return (
+            <li key={p.id || p.nome} className="surgir overflow-hidden rounded-2xl bg-white/70" style={{ '--atraso': `${Math.min(i, 8) * 30}ms` }}>
+              <button type="button" onClick={() => setAberto(abertoAqui ? null : (p.id || p.nome))} aria-expanded={abertoAqui}
+                className="flex w-full items-center gap-4 px-5 py-3.5 text-left hover:bg-white/60">
+                <span className="w-64 shrink-0 truncate font-medium">{p.nome}</span>
+                <span className="h-2.5 flex-1 overflow-hidden rounded-full bg-tinta/[0.07]">
+                  <span className="block h-full rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-400" style={{ width: `${(p.dias / max) * 100}%` }} />
+                </span>
+                <span className="w-24 shrink-0 text-right text-sm"><b className="tabular-nums text-pendente">{p.dias}</b> {p.dias === 1 ? 'aula' : 'aulas'}</span>
+              </button>
+              {abertoAqui && (
+                <div className="border-t border-white px-5 py-3">
+                  {p.itens.map((it) => (
+                    <div key={`${it.turmaId}|${it.componente}`} className="flex flex-wrap items-center gap-2 py-1.5 text-sm">
+                      <span className="w-56 truncate font-medium">{it.turma}</span>
+                      <span className="w-40 truncate text-tinta-suave">{it.componente}</span>
+                      <span className="flex flex-1 flex-wrap gap-1">{it.datas.map((d) => <span key={d} className="rounded-full bg-rose-50 px-2 py-0.5 text-xs text-pendente">{d.slice(8, 10)}/{d.slice(5, 7)}</span>)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+      {painel.semPendencia?.length > 0 && (
+        <p className="mt-6 text-sm text-tinta-suave"><b className="text-emdia">Em dia:</b> {painel.semPendencia.join(', ')}.</p>
+      )}
+    </>
+  );
+}
+
+function Passo({ n, feito, children }) {
+  return (
+    <li className="flex items-start gap-3 rounded-2xl bg-white/70 px-4 py-3">
+      <span className={`flex size-7 shrink-0 items-center justify-center rounded-full text-sm font-bold ${feito ? 'bg-emdia text-white' : 'bg-lavanda-clara text-lavanda'}`}>{feito ? '✓' : n}</span>
+      <span className="pt-0.5">{children}</span>
+    </li>
+  );
+}
+function Indicador({ valor, rotulo, cor = 'text-tinta' }) {
+  return (
+    <div className="surgir vidro rounded-3xl p-5">
+      <b className={`block text-4xl font-semibold tabular-nums ${cor}`}>{valor}</b>
+      <span className="text-sm text-tinta-suave">{rotulo}</span>
     </div>
   );
 }

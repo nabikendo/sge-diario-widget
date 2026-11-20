@@ -51,7 +51,7 @@ body {
 .surgir { animation: surgir 320ms var(--ease-entrada) both; animation-delay: var(--atraso, 0ms); }
 
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation-duration: 1ms !important; animation-delay: 0ms !important; transition-duration: 1ms !important; }
+  *, *::before, *::after { animation-duration: 1ms !important; animation-delay: 0ms !important; transition-duration: 1ms !important; transition-delay: 0ms !important; }
 }
 
 ::-webkit-scrollbar { width: 10px; }

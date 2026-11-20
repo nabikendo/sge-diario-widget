@@ -57,8 +57,19 @@ const lerHistorico = () => ler('historico.json', []);
 const lerPainel = () => ler('painel.json', null);
 const gravarPainel = (p) => gravar('painel.json', p);
 
-async function apagarDados() {
-  await Promise.all(['painel.json', 'historico.json'].map((n) => fs.rm(arquivo(n), { force: true })));
+const lerCoordenacao = () => ler('coordenacao.json', null);
+const gravarCoordenacao = (p) => gravar('coordenacao.json', p);
+/** Turmas da escola lidas do seletor #SelecaoDeTurma (Escola → Conteúdo Aplicado). */
+const lerTurmasEscola = () => ler('turmas-escola.json', []);
+async function gravarTurmasEscola(lista) {
+  const validas = (Array.isArray(lista) ? lista : []).filter((o) => o && typeof o.v === 'string' && o.v && typeof o.t === 'string')
+    .map((o) => ({ v: o.v, t: o.t.trim(), tp: typeof o.tp === 'string' ? o.tp : '0' }));
+  if (validas.length) await gravar('turmas-escola.json', validas);
+  return validas.length;
 }
 
-module.exports = { lerConfig, gravarConfig, registrarHistorico, lerHistorico, lerPainel, gravarPainel, apagarDados, CONFIG_PADRAO };
+async function apagarDados() {
+  await Promise.all(['painel.json', 'historico.json', 'coordenacao.json', 'turmas-escola.json'].map((n) => fs.rm(arquivo(n), { force: true })));
+}
+
+module.exports = { lerCoordenacao, gravarCoordenacao, lerTurmasEscola, gravarTurmasEscola, lerConfig, gravarConfig, registrarHistorico, lerHistorico, lerPainel, gravarPainel, apagarDados, CONFIG_PADRAO };
