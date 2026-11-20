@@ -356,8 +356,8 @@ fun VinculoDialog(resultado: ResultadoTurma, dados: PainelDocentes, cancelar: ()
                 OutlinedTextField(busca, { busca = it }, singleLine = true, label = { Text("Buscar professor") })
                 LazyColumn(Modifier.heightIn(min = 40.dp, max = 220.dp)) {
                     items(opcoes.filter { normalizarSge(it.nome).contains(normalizarSge(busca)) }, key = { it.id }) { p ->
-                        Row(Modifier.fillMaxWidth().clickable { ids = if (p.id in ids) ids - p.id else ids + p.id }, verticalAlignment = Alignment.CenterVertically) {
-                            Checkbox(p.id in ids, { checked -> ids = if (checked) ids + p.id else ids - p.id })
+                        Row(Modifier.fillMaxWidth().linhaCaixa(p.id in ids) { checked -> ids = if (checked) ids + p.id else ids - p.id }, verticalAlignment = Alignment.CenterVertically) {
+                            Checkbox(p.id in ids, null)
                             Column {
                                 Text(p.nome, style = MaterialTheme.typography.bodyMedium)
                                 if (opcoes.count { normalizarSge(it.nome) == normalizarSge(p.nome) } > 1)

@@ -259,13 +259,14 @@ fun TelaAjustes(tema: Int, cor: Int, versao: String, aoTema: (Int) -> Unit, aoCo
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                         listOf("DIVERSIFICADA" to "Diversificadas (ex.: 115.09)", "AEE" to "AEE (ex.: 1111.01)").forEach { (categoriaTurma, titulo) ->
                             var ativa by remember { mutableStateOf(br.to.seduc.sgediariowidget.data.SgeEscopo.ativa(ctxTurmas, categoriaTurma)) }
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            val mudarEscopo: (Boolean) -> Unit = {
+                                ativa = it
+                                br.to.seduc.sgediariowidget.data.SgeEscopo.salvar(ctxTurmas, categoriaTurma, it)
+                                br.to.seduc.sgediariowidget.worker.SgeSyncWorker.sincronizarAgora(ctxTurmas)
+                            }
+                            Row(Modifier.heightIn(min = 48.dp).linhaInterruptor(ativa, aoMudar = mudarEscopo), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                 Text(titulo, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
-                                Switch(checked = ativa, onCheckedChange = {
-                                    ativa = it
-                                    br.to.seduc.sgediariowidget.data.SgeEscopo.salvar(ctxTurmas, categoriaTurma, it)
-                                    br.to.seduc.sgediariowidget.worker.SgeSyncWorker.sincronizarAgora(ctxTurmas)
-                                })
+                                Switch(checked = ativa, onCheckedChange = null)
                             }
                         }
                         HorizontalDivider()
@@ -368,12 +369,12 @@ fun TelaAjustes(tema: Int, cor: Int, versao: String, aoTema: (Int) -> Unit, aoCo
 }
 
 @Composable private fun LinhaChave(titulo: String, texto: String, marcado: Boolean, aoMudar: (Boolean) -> Unit) {
-    Row(Modifier.fillMaxWidth().padding(12.dp, 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+    Row(Modifier.fillMaxWidth().linhaInterruptor(marcado, aoMudar = aoMudar).padding(12.dp, 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
             Text(titulo, style = MaterialTheme.typography.titleSmall)
             Text(texto, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        Switch(checked = marcado, onCheckedChange = aoMudar)
+        Switch(checked = marcado, onCheckedChange = null)
     }
 }
 

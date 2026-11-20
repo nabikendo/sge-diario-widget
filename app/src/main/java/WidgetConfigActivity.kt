@@ -10,6 +10,8 @@ import br.to.seduc.sgediariowidget.CoordProtecao
 import br.to.seduc.sgediariowidget.TelaCoordenacaoProtegida
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.clickable
+import br.to.seduc.sgediariowidget.linhaInterruptor
+import br.to.seduc.sgediariowidget.linhaOpcao
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -117,14 +119,14 @@ private fun TelaConfig(tipo: TipoWidget, inicial: ConfigWidget, salvando: Boolea
                     placeholder = { Text("Buscar um cartão") }, leadingIcon = { Icon(SgeIcons.Search, null, Modifier.size(18.dp)) })
             }
             item {
-                Row(Modifier.fillMaxWidth().clickable { grupo = "" }, verticalAlignment = Alignment.CenterVertically) {
-                    RadioButton(grupo.isBlank(), { grupo = "" })
+                Row(Modifier.fillMaxWidth().linhaOpcao(grupo.isBlank()) { grupo = "" }, verticalAlignment = Alignment.CenterVertically) {
+                    RadioButton(grupo.isBlank(), null)
                     Text("Todos os cartões deste agrupamento", style = MaterialTheme.typography.bodyMedium)
                 }
             }
             items(grupos.filter { normalizarSge(it.titulo + " " + it.subtitulo).contains(normalizarSge(busca)) }, key = { it.chave }) { g ->
-                Row(Modifier.fillMaxWidth().clickable { grupo = g.chave }.padding(vertical = 3.dp), verticalAlignment = Alignment.CenterVertically) {
-                    RadioButton(grupo == g.chave, { grupo = g.chave })
+                Row(Modifier.fillMaxWidth().linhaOpcao(grupo == g.chave) { grupo = g.chave }.padding(vertical = 3.dp), verticalAlignment = Alignment.CenterVertically) {
+                    RadioButton(grupo == g.chave, null)
                     Column { Text(g.titulo, style = MaterialTheme.typography.bodyMedium)
                         Text(g.subtitulo, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                 }
@@ -134,17 +136,17 @@ private fun TelaConfig(tipo: TipoWidget, inicial: ConfigWidget, salvando: Boolea
             if (!valido) item { Text("O recorte salvo não está disponível. Escolha Todos ou outro cartão.", color = MaterialTheme.colorScheme.error) }
             item { HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant) }
             item {
-                Row(Modifier.fillMaxWidth().clickable { atencao = !atencao }, verticalAlignment = Alignment.CenterVertically) {
+                Row(Modifier.fillMaxWidth().linhaInterruptor(atencao) { atencao = it }, verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) { Text("Somente atenção", style = MaterialTheme.typography.titleSmall)
                         Text("Mostra pendências e dados a conferir.", style = MaterialTheme.typography.bodySmall) }
-                    Switch(atencao, { atencao = it })
+                    Switch(atencao, null)
                 }
             }
             item {
-                Row(Modifier.fillMaxWidth().clickable { ocultar = !ocultar }, verticalAlignment = Alignment.CenterVertically) {
+                Row(Modifier.fillMaxWidth().linhaInterruptor(ocultar) { ocultar = it }, verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) { Text("Ocultar nomes", style = MaterialTheme.typography.titleSmall)
                         Text("Útil para usar um resumo na tela bloqueada.", style = MaterialTheme.typography.bodySmall) }
-                    Switch(ocultar, { ocultar = it })
+                    Switch(ocultar, null)
                 }
             }
             item { Text("Esta configuração vale apenas para este widget. Toque no cartão para abrir os detalhes no app. As cores acompanham o tema escolhido no aplicativo.",
