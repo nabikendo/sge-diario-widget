@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { School, Printer, MessageSquareText, X, Copy, Check, TrendingDown, TrendingUp, ChevronRight, ChevronDown, FileText, FileSpreadsheet } from 'lucide-react';
+import { School, Printer, MessageSquareText, X, Copy, Check, TrendingDown, TrendingUp, ChevronRight, ChevronDown, FileText, FileSpreadsheet, Files } from 'lucide-react';
 import { sge } from '../lib/sge';
 import { referenciaSemanal, diferencas } from '../lib/comparacao.mjs';
 import { mensagensEmLote } from '../lib/mensagens.mjs';
@@ -347,7 +347,7 @@ function RelatoriosEscola({ e }) {
   const salvar = async (formato) => {
     setAviso(null);
     const r = await sge.salvarRelatorio(formato, { periodo: e.periodo });
-    if (r?.ok) setAviso({ ok: true, texto: `Relatório salvo em ${r.caminho}` }); else if (r?.mensagem) setAviso({ ok: false, texto: r.mensagem });
+    if (r?.ok) setAviso({ ok: true, texto: r.total ? `${r.total} PDFs salvos em ${r.caminho}` : `Relatório salvo em ${r.caminho}` }); else if (r?.mensagem) setAviso({ ok: false, texto: r.mensagem });
   };
   const Opcao = ({ icone: Icone, titulo, texto, formato }) => (
     <button type="button" onClick={() => salvar(formato)} className="surgir vidro flex items-start gap-4 rounded-3xl p-6 text-left transition hover:-translate-y-0.5 hover:bg-white/75">
@@ -359,7 +359,9 @@ function RelatoriosEscola({ e }) {
     <>
       <p className="mb-5 text-tinta-suave">Pendências da escola por professor, turma e componente, no período escolhido acima ({e.periodo === 'ano' ? 'ano letivo' : `${e.periodo}º bimestre`}).</p>
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <Opcao icone={FileText} titulo="Salvar em PDF" texto="Pronto para imprimir ou levar à reunião pedagógica." formato="coord-pdf" />
+        <Opcao icone={FileText} titulo="PDF por professor" texto="Uma página para cada professor, com Conteúdo, Chamada, Plano de aula, Plano de curso e PEI por turma. Para imprimir e entregar." formato="coord-prof-pdf" />
+        <Opcao icone={Files} titulo="Um PDF para cada professor" texto="Cria uma pasta com um arquivo por professor, pronto para enviar a cada um pelo WhatsApp ou e-mail." formato="coord-prof-pasta" />
+        <Opcao icone={FileText} titulo="PDF geral (lista)" texto="Lista única da escola, para a reunião pedagógica." formato="coord-pdf" />
         <Opcao icone={FileSpreadsheet} titulo="Exportar planilha" texto="Arquivo CSV que abre no Excel ou no Google Planilhas." formato="coord-csv" />
       </div>
       {aviso && <p role="status" className={`mt-4 rounded-2xl px-4 py-3 text-sm ${aviso.ok ? 'bg-emerald-50 text-emerald-900' : 'bg-rose-50 text-rose-900'}`}>{aviso.texto}</p>}

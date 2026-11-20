@@ -1,6 +1,7 @@
 'use strict';
 /** Relatórios a partir do painel: CSV (abre no Excel) e PDF (gerado numa janela oculta). */
 const { BrowserWindow } = require('electron');
+const RP = require('./relatorioProfessor');
 
 const brData = (iso) => iso.split('-').reverse().join('/');
 const esc = (t) => String(t ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -71,6 +72,8 @@ function html(painel) {
 
 const pdf = (painel) => paraPdf(html(painel));
 const pdfCoordenacao = (painel) => paraPdf(htmlCoordenacao(painel));
+const pdfProfessores = (painel) => paraPdf(RP.htmlProfessores(painel));
+const pdfDoProfessor = (painel, prof) => paraPdf(RP.htmlUmProfessor(painel, prof));
 async function paraPdf(documento) {
   const w = new BrowserWindow({ show: false, webPreferences: { sandbox: true, javascript: false } });
   try {
@@ -79,4 +82,4 @@ async function paraPdf(documento) {
   } finally { w.destroy(); }
 }
 
-module.exports = { csv, pdf, csvCoordenacao, pdfCoordenacao };
+module.exports = { csv, pdf, csvCoordenacao, pdfCoordenacao, pdfProfessores, pdfDoProfessor };

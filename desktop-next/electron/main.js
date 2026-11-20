@@ -18,6 +18,7 @@ const janelaOculta = require('./sge/janelaOculta');
 const motor = require('./motor');
 const armazenamento = require('./armazenamento');
 const relatorio = require('./relatorio');
+const relatorioProfessor = require('./relatorioProfessor');
 const janelaSge = require('./sge/janelaSge');
 const atualizador = require('./atualizador');
 const avisos = require('./avisos');
@@ -314,19 +315,32 @@ ipcMain.handle('config:salvar', async (_e, parcial) => {
 ipcMain.handle('dados:abrirPasta', () => shell.openPath(app.getPath('userData')));
 ipcMain.handle('dados:apagar', async () => { await armazenamento.apagarDados(); ultimoPainel = null; ultimaCoord = null; enviar('coord:concluida', null); atualizarContador(0, 'sem dados'); });
 ipcMain.handle('relatorio:salvar', async (_e, formato, opcoes) => {
-  const escola = formato === 'coord-csv' || formato === 'coord-pdf';
+  const porProfessor = formato === 'coord-prof-pdf' || formato === 'coord-prof-pasta';
+  const escola = formato === 'coord-csv' || formato === 'coord-pdf' || porProfessor;
   let painel = escola ? (ultimaCoord ?? await armazenamento.lerCoordenacao()) : (ultimoPainel ?? await motor.lerCache());
   if (escola && painel) { const { visaoPeriodo } = await import('./escolaVisao.mjs'); painel = visaoPeriodo(painel, /^(ano|bimestre|[1-4])$/.test(opcoes?.periodo) ? opcoes.periodo : 'bimestre'); } // o relatório sai igual à tela
   if (!painel) return { ok: false, mensagem: escola ? 'Leia a escola na Coordenação antes de gerar o relatório.' : 'Sincronize antes de gerar o relatório.' };
-  const pdf = formato === 'pdf' || formato === 'coord-pdf';
   const dia = new Date().toISOString().slice(0, 10);
+  const rotuloPeriodo = painel?.janela ? `${painel.janela.numero} bimestre` : 'ano letivo';
+  if (formato === 'coord-prof-pasta') { // um PDF para cada professor, numa pasta escolhida
+    const { canceled: cancelou, filePaths } = await dialog.showOpenDialog(vitrine, { title: 'Escolha a pasta para os PDFs dos professores', defaultPath: app.getPath('documents'), properties: ['openDirectory', 'createDirectory'] });
+    if (cancelou || !filePaths?.[0]) return { ok: false };
+    const profs = (painel.professores ?? []).filter((p) => p.id);
+    if (!profs.length) return { ok: false, mensagem: 'Nenhum professor com pendência neste período.' };
+    const pasta = path.join(filePaths[0], `SGE Diario - pendencias por professor ${rotuloPeriodo} ${dia}`);
+    await fs.mkdir(pasta, { recursive: true });
+    for (const p of profs) await fs.writeFile(path.join(pasta, `${relatorioProfessor.nomeDeArquivo(p.nome)}.pdf`), await relatorio.pdfDoProfessor(painel, p));
+    shell.openPath(pasta);
+    return { ok: true, caminho: pasta, total: profs.length };
+  }
+  const pdf = formato === 'pdf' || formato === 'coord-pdf' || formato === 'coord-prof-pdf';
   const { canceled, filePath } = await dialog.showSaveDialog(vitrine, {
     title: 'Salvar relatório',
-    defaultPath: path.join(app.getPath('documents'), `SGE Diario - ${escola ? `pendencias da escola ${painel?.janela ? `${painel.janela.numero} bimestre` : 'ano letivo'}` : 'conteudo aplicado'} ${dia}.${pdf ? 'pdf' : 'csv'}`),
+    defaultPath: path.join(app.getPath('documents'), `SGE Diario - ${porProfessor ? `pendencias por professor ${rotuloPeriodo}` : escola ? `pendencias da escola ${rotuloPeriodo}` : 'conteudo aplicado'} ${dia}.${pdf ? 'pdf' : 'csv'}`),
     filters: [pdf ? { name: 'PDF', extensions: ['pdf'] } : { name: 'Planilha (CSV)', extensions: ['csv'] }],
   });
   if (canceled || !filePath) return { ok: false };
-  const conteudo = escola ? (pdf ? await relatorio.pdfCoordenacao(painel) : relatorio.csvCoordenacao(painel)) : (pdf ? await relatorio.pdf(painel) : relatorio.csv(painel));
+  const conteudo = escola ? (porProfessor ? await relatorio.pdfProfessores(painel) : pdf ? await relatorio.pdfCoordenacao(painel) : relatorio.csvCoordenacao(painel)) : (pdf ? await relatorio.pdf(painel) : relatorio.csv(painel));
   await fs.writeFile(filePath, conteudo);
   shell.showItemInFolder(filePath);
   return { ok: true, caminho: filePath };
