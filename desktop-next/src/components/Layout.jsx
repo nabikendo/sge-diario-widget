@@ -1,4 +1,4 @@
-import { Home, CalendarDays, Users, School, History, FileText, Settings, Search, RefreshCw, LogIn, BookOpenCheck, Eye, LayoutDashboard, GraduationCap, Library } from 'lucide-react';
+import { Home, CalendarDays, Users, School, History, FileText, Settings, Search, RefreshCw, LogIn, BookOpenCheck, Eye, LayoutDashboard, GraduationCap, Library, Presentation } from 'lucide-react';
 import { tempoRelativo } from '../lib/sge';
 
 /** Perfil Servidor (professor). */
@@ -16,6 +16,7 @@ export const SECOES_ESCOLA = [
   { id: 'turmas-escola', rotulo: 'Turmas', icone: School },
   { id: 'componentes', rotulo: 'Componentes', icone: Library },
   { id: 'historico', rotulo: 'Histórico', icone: History },
+  { id: 'direcao', rotulo: 'Direção', icone: Presentation },
   { id: 'relatorios', rotulo: 'Relatórios', icone: FileText },
 ];
 
@@ -37,7 +38,7 @@ export function BarraLateral({ ativa, aoTrocar, secoes }) {
     );
   };
   return (
-    <nav aria-label="Seções" className="flex h-full flex-col items-center gap-1.5 pt-2 pb-4">
+    <nav aria-label="Seções" data-nao-imprimir className="flex h-full flex-col items-center gap-1.5 pt-2 pb-4">
       {secoes.map((s) => <Item key={s.id} {...s} />)}
       <div className="flex-1" />
       <Item id="configuracoes" rotulo="Configurações" icone={Settings} />
@@ -48,7 +49,7 @@ export function BarraLateral({ ativa, aoTrocar, secoes }) {
 /** Barra superior: título, busca global e botão de status da sincronização. */
 export function BarraSuperior({ titulo, subtitulo, busca, aoBuscar, refBusca, painel, sincronizando, logado, modoEscola, aoSincronizar, aoEntrar, aoAbrirSge }) {
   return (
-    <header className="grid grid-cols-[minmax(0,1fr)_minmax(200px,360px)_auto] items-center gap-6">
+    <header data-nao-imprimir className="grid grid-cols-[minmax(0,1fr)_minmax(200px,360px)_auto] items-center gap-6">
       <div className="min-w-0">
         <h1 className="truncate text-[28px] leading-tight font-semibold tracking-tight">{titulo}</h1>
         {subtitulo && <p className="truncate text-sm text-tinta-suave">{subtitulo}</p>}

@@ -229,7 +229,7 @@ export function Configuracoes({ logado, aoSair, atualizacao, aoVerTutorial }) {
         <Linha titulo="Notificar pendência nova" texto="Notificação do Windows quando a sincronização achar uma pendência que não existia (se o app não estiver à sua frente).">
           <Chave ligada={c.notificarNovas} aoMudar={(v) => mudar({ notificarNovas: v })} />
         </Linha>
-        <Linha titulo="Resumo no fim da tarde" texto="Uma notificação por dia útil com o que ainda falta registrar.">
+        <Linha titulo="Resumo no fim da tarde" texto="Uma notificação por dia letivo: quantas aulas você deu hoje e o que falta registrar delas.">
           <Chave ligada={c.avisoFimDia} aoMudar={(v) => mudar({ avisoFimDia: v })} />
         </Linha>
         <Linha titulo="Horário do resumo">
@@ -248,6 +248,21 @@ export function Configuracoes({ logado, aoSair, atualizacao, aoVerTutorial }) {
         <Linha titulo="Ler também Plano de aula, Plano de curso e PEI" texto="Muitas consultas por professor e componente: a primeira leitura pode levar vários minutos.">
           <Chave ligada={c.coordPlanos} aoMudar={(v) => mudar({ coordPlanos: v })} />
         </Linha>
+      </Grupo>
+
+      <Grupo titulo="Calendário escolar">
+        <div className="px-4 py-3.5">
+          <p className="font-medium">Dias sem aula</p>
+          <p className="text-sm text-tinta-suave">Feriados nacionais, de Tocantins, Carnaval, Sexta-feira Santa e Corpus Christi já são considerados: não entram nas pendências nem geram aviso. Acrescente aqui recessos e reuniões, uma data por linha (ex.: 27/11/2026 Recesso).</p>
+          <textarea key={`s${c.versao}`} rows={3} defaultValue={c.diasSemAula} onBlur={(e) => e.target.value !== c.diasSemAula && mudar({ diasSemAula: e.target.value })} placeholder="27/11/2026 Recesso"
+            className="mt-2 w-full rounded-2xl bg-white px-4 py-2.5 text-sm ring-1 ring-tinta/10 outline-none focus:ring-lavanda" />
+        </div>
+        <div className="px-4 py-3.5">
+          <p className="font-medium">Sábados letivos e feriados trabalhados</p>
+          <p className="text-sm text-tinta-suave">Estas datas voltam a ser dias de aula (ex.: 21/11/2026).</p>
+          <textarea key={`l${c.versao}`} rows={2} defaultValue={c.diasLetivos} onBlur={(e) => e.target.value !== c.diasLetivos && mudar({ diasLetivos: e.target.value })} placeholder="21/11/2026"
+            className="mt-2 w-full rounded-2xl bg-white px-4 py-2.5 text-sm ring-1 ring-tinta/10 outline-none focus:ring-lavanda" />
+        </div>
       </Grupo>
 
       <Grupo titulo="Ajuda">

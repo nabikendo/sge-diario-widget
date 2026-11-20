@@ -24,8 +24,9 @@ export function Semana({ painel, aoAbrir }) {
       {agenda.dias.map((dia, i) => (
         <section key={dia.data} className="surgir" style={{ '--atraso': `${i * 60}ms` }}>
           <h2 className="mb-3 text-lg font-semibold">{rotuloDia(dia.data, i)}</h2>
+          {dia.semAula && <p className="mb-2.5 flex items-center gap-2 rounded-2xl bg-lavanda-clara px-4 py-2.5 text-sm font-medium text-lavanda"><CalendarOff size={16} aria-hidden /> {dia.semAula}: dia sem aula, sem cobrança de registro.</p>}
           {dia.aulas.length === 0 ? (
-            <p className="flex items-center gap-3 rounded-2xl bg-white/60 p-5 text-tinta-suave"><CalendarOff size={20} aria-hidden /> Sem aulas neste dia.</p>
+            <p className="flex items-center gap-3 rounded-2xl bg-white/60 p-5 text-tinta-suave"><CalendarOff size={20} aria-hidden /> {dia.semAula ? 'Sem aulas neste dia.' : 'Sem aulas neste dia no horário do SGE.'}</p>
           ) : (
             <ul className="space-y-2.5">
               {dia.aulas.map((a) => <Aula key={`${a.inicio}|${a.turma}`} aula={a} dia={dia.data} hoje={i === 0} turma={turmas.find((t) => t.nome === a.turma && t.disciplina === a.disciplina)} aoAbrir={aoAbrir} />)}

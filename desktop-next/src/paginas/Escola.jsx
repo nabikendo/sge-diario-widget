@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { School, MessageSquareText, X, Copy, Check, TrendingDown, TrendingUp, ChevronRight, ChevronDown, FileText, FileSpreadsheet } from 'lucide-react';
+import { School, Printer, MessageSquareText, X, Copy, Check, TrendingDown, TrendingUp, ChevronRight, ChevronDown, FileText, FileSpreadsheet } from 'lucide-react';
 import { sge } from '../lib/sge';
 import { referenciaSemanal, diferencas } from '../lib/comparacao.mjs';
 import { mensagensEmLote } from '../lib/mensagens.mjs';
@@ -26,19 +26,20 @@ function usarEscola() {
 }
 
 /** Coordenação (perfil Unidade escolar): só consulta. Uma seção por vez; todas partem dos mesmos dados lidos do SGE. */
-export function Escola({ secao, busca, perfilEscola, sincronizando, aoAbrirSge }) {
+export function Escola({ secao, busca, perfilEscola, sincronizando, aoAbrirSge, foco, aoFocar }) {
   const e = usarEscola();
   const [detalhe, setDetalhe] = useState(null); // { tipo: 'professor'|'turma'|'componente', chave }
   const [cobranca, setCobranca] = useState(false);
-  useEffect(() => setDetalhe(null), [secao]);
+  useEffect(() => setDetalhe(foco ?? null), [secao]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (foco) { setDetalhe(foco); aoFocar?.(null); } }, [foco]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!e.dados) return null;
   if (!e.painel) return <PrimeiraLeitura turmasEscola={e.dados.turmasEscola} perfilEscola={perfilEscola} sincronizando={sincronizando} aoAbrirSge={aoAbrirSge} />;
   const { visao, painel, periodo } = e;
 
-  const Secao = { visao: VisaoGeral, professores: Professores, 'turmas-escola': Turmas, componentes: Componentes, historico: HistoricoEscola, relatorios: RelatoriosEscola }[secao] ?? VisaoGeral;
+  const Secao = { visao: VisaoGeral, professores: Professores, 'turmas-escola': Turmas, componentes: Componentes, historico: HistoricoEscola, relatorios: RelatoriosEscola, direcao: Direcao }[secao] ?? VisaoGeral;
   return (
     <>
-      <Barra e={e} sincronizando={sincronizando} aoCobranca={() => setCobranca(true)} mostrarAcoes={secao !== 'relatorios' && secao !== 'historico'} />
+      <Barra e={e} sincronizando={sincronizando} aoCobranca={() => setCobranca(true)} mostrarAcoes={secao !== 'relatorios' && secao !== 'historico' && secao !== 'direcao'} />
       <Secao e={e} busca={busca} aoAbrir={(tipo, chave) => setDetalhe({ tipo, chave })} aoIr={(tipo, chave) => setDetalhe({ tipo, chave })} />
       {detalhe && <Detalhe visao={visao} {...detalhe} periodo={periodo} aoFechar={() => setDetalhe(null)} />}
       {cobranca && <Cobranca professores={visao.professores} aoFechar={() => setCobranca(false)} />}
@@ -58,7 +59,7 @@ function Barra({ e, sincronizando, aoCobranca, mostrarAcoes }) {
   );
   const j = visao.janela;
   return (
-    <div className="mb-5">
+    <div className="mb-5" data-nao-imprimir>
       <div className="flex flex-wrap items-center gap-2">
         {lista.map((b) => <Opcao key={b.numero} id={String(b.numero)} atual={b.numero === painel.bimestre?.numero} titulo={`${brData(b.inicio)} a ${brData(b.fim)}`}>{b.numero}º bimestre</Opcao>)}
         <Opcao id="ano">Ano letivo</Opcao>
@@ -363,6 +364,57 @@ function RelatoriosEscola({ e }) {
       </div>
       {aviso && <p role="status" className={`mt-4 rounded-2xl px-4 py-3 text-sm ${aviso.ok ? 'bg-emerald-50 text-emerald-900' : 'bg-rose-50 text-rose-900'}`}>{aviso.texto}</p>}
     </>
+  );
+}
+
+/* ---------- Painel da direção (uma página, para imprimir) ---------- */
+function Direcao({ e }) {
+  const { visao, historico, periodo } = e;
+  const prof = porProfessor(visao).filter((p) => p.id); const turmas = porTurma(visao); const comps = porComponente(visao);
+  const total = visao.professores.reduce((s, p) => s + p.total, 0);
+  const ref = referenciaSemanal(historico.filter((h) => h.em !== visao.atualizadoEm));
+  const antes = ref ? Object.values(ref.porProfessor ?? {}).reduce((s, v) => s + v, 0) : null;
+  const nome = periodo === 'ano' ? 'Ano letivo' : `${periodo}º bimestre`;
+  const Lista = ({ titulo, itens, detalhe }) => (
+    <section className="break-inside-avoid rounded-2xl border border-tinta/10 p-4">
+      <h2 className="mb-2 text-sm font-semibold">{titulo}</h2>
+      {itens.length === 0 ? <p className="text-sm text-tinta-suave">Nenhuma pendência.</p> : (
+        <ol className="space-y-1 text-sm">
+          {itens.slice(0, 8).map((g, i) => <li key={g.chave} className="flex gap-2"><span className="w-5 text-tinta-suave tabular-nums">{i + 1}.</span><span className="min-w-0 flex-1 truncate">{g.rotulo} <span className="text-tinta-suave">· {detalhe(g)}</span></span><b className="tabular-nums text-pendente">{g.total}</b></li>)}
+        </ol>
+      )}
+    </section>
+  );
+  return (
+    <div className="mx-auto max-w-4xl">
+      <div className="mb-4 flex items-start justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-semibold">Pendências do diário · {nome}</h2>
+          <p className="text-sm text-tinta-suave">{visao.janela ? `${brData(visao.janela.inicio)} a ${brData(visao.janela.fim)} · ` : ''}dados lidos do SGE em {new Date(visao.atualizadoEm).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</p>
+        </div>
+        <button type="button" onClick={() => window.print()} data-nao-imprimir className="flex shrink-0 items-center gap-2 rounded-full bg-lavanda px-5 py-2.5 text-sm font-semibold text-[#fff] hover:brightness-110">
+          <Printer size={16} aria-hidden /> Imprimir ou salvar em PDF
+        </button>
+      </div>
+      <p className="mb-4 text-xs text-tinta-suave" data-nao-imprimir>Escolha o período nos botões acima da tela antes de imprimir. Na janela de impressão, “Salvar como PDF” gera o arquivo.</p>
+      <div className="grid grid-cols-4 gap-3">
+        <Indicador valor={total} rotulo="pendências no período" cor="text-pendente" />
+        <Indicador valor={`${prof.length}/${visao.totalProfessores}`} rotulo="professores com pendência" />
+        <Indicador valor={`${turmas.length}/${visao.turmas.length}`} rotulo="turmas com pendência" />
+        <Indicador valor={comps.length} rotulo="componentes com pendência" />
+      </div>
+      {antes != null && <p className="mt-4 text-sm">Desde {new Date(ref.em).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}: de <b>{antes}</b> para <b className={total <= antes ? 'text-emdia' : 'text-pendente'}>{total}</b> pendências ({total <= antes ? 'queda' : 'alta'} de {Math.abs(total - antes)}).</p>}
+      <div className="mt-5 grid grid-cols-2 gap-4">
+        <Lista titulo="Professores com mais pendências" itens={prof} detalhe={(g) => plural(g.turmas.length, 'turma', 'turmas')} />
+        <Lista titulo="Turmas com mais pendências" itens={turmas} detalhe={(g) => plural(g.componentes.length, 'componente', 'componentes')} />
+        <Lista titulo="Componentes com mais pendências" itens={comps} detalhe={(g) => plural(g.turmas.length, 'turma', 'turmas')} />
+        <section className="break-inside-avoid rounded-2xl border border-tinta/10 p-4">
+          <h2 className="mb-2 text-sm font-semibold">Professores em dia</h2>
+          <p className="text-sm">{visao.semPendencia?.length ? visao.semPendencia.join(', ') : 'Nenhum neste período.'}</p>
+          {visao.semHorario?.length > 0 && <p className="mt-3 text-xs text-tinta-suave">Fora das contagens (sem horário atual): {visao.semHorario.length}.</p>}
+        </section>
+      </div>
+    </div>
   );
 }
 

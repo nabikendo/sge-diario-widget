@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BarraLateral, BarraSuperior, SECOES_PROFESSOR, SECOES_ESCOLA } from './components/Layout';
 import DetalheTurma from './components/DetalheTurma';
+import SeletorBimestre from './components/SeletorBimestre';
+import BuscaGlobal from './components/BuscaGlobal';
+import { visaoPeriodo, porProfessor, porTurma, porComponente } from '../electron/escolaVisao.mjs';
 import { Semana } from './paginas/Semana';
 import { Escola } from './paginas/Escola';
 import { Boasvindas, Tutorial } from './paginas/Boasvindas';
@@ -12,6 +15,7 @@ const SUBTITULOS = {
   semana: 'Aulas de hoje e de amanhã e o que falta registrar',
   turmas: 'Todas as suas turmas e componentes',
   visao: 'Pendências da escola, só consulta',
+  direcao: 'Uma página com os indicadores, para imprimir',
   professores: 'Cada professor, com suas turmas e componentes',
   'turmas-escola': 'Cada turma, com seus componentes e professores',
   componentes: 'Cada componente, com seus professores e turmas',
@@ -34,6 +38,12 @@ export default function App() {
   const [intro, setIntro] = useState(null); // null = carregando; true = mostrar o tutorial
   const secoes = perfilEscola ? SECOES_ESCOLA : SECOES_PROFESSOR;
   const [atualizacao, setAtualizacao] = useState(null);
+  const [periodoProf, setPeriodoProf] = useState(null);      // null = bimestre atual; 1..4 = consulta de outro bimestre
+  const [painelPeriodo, setPainelPeriodo] = useState(null);
+  const [lendoPeriodo, setLendoPeriodo] = useState(false);
+  const [paleta, setPaleta] = useState(false);
+  const [foco, setFoco] = useState(null);                    // Coordenação: abre o detalhe de um professor/turma/componente
+  const [painelEscola, setPainelEscola] = useState(null);
   const [, tique] = useState(0);
   const campoBusca = useRef(null);
   const conteudo = useRef(null);
@@ -53,7 +63,9 @@ export default function App() {
       sge.aoAtualizacao(setAtualizacao),
     ];
     const relogio = setInterval(() => tique((n) => n + 1), 30_000); // atualiza "há X min"
-    const atalho = (e) => { if (e.key === '/' && !['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement?.tagName)) { e.preventDefault(); campoBusca.current?.focus(); } };
+    const atalho = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); setPaleta(true); return; }
+      if (e.key === '/' && !['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement?.tagName)) { e.preventDefault(); campoBusca.current?.focus(); } };
     window.addEventListener('keydown', atalho);
     return () => { desligar.forEach((f) => f()); clearInterval(relogio); window.removeEventListener('keydown', atalho); };
   }, []);
@@ -67,24 +79,57 @@ export default function App() {
   // Ao trocar de seção, volta ao topo.
   useEffect(() => { conteudo.current?.scrollTo({ top: 0 }); }, [secao]);
 
+  const numeroAtual = painel?.bimestre?.numero ?? null;
+  const consultando = periodoProf !== null && periodoProf !== numeroAtual && painelPeriodo?.periodo === periodoProf;
+  const exibido = consultando ? painelPeriodo : painel; // o painel que as telas mostram
+  const escolherPeriodo = async (n) => {
+    if (n === numeroAtual) { setPeriodoProf(null); return; }
+    setLendoPeriodo(true); setErro(null);
+    const p = await sge.lerPeriodo(n);
+    if (p) { setPainelPeriodo(p); setPeriodoProf(n); }
+    setLendoPeriodo(false);
+  };
   const turmas = useMemo(() => {
     const q = busca.trim().toLowerCase();
-    const lista = painel?.turmas ?? [];
+    const lista = exibido?.turmas ?? [];
     const filtradas = q ? lista.filter((t) => `${t.nome} ${t.disciplina} ${t.escola}`.toLowerCase().includes(q)) : lista;
     const peso = { pendente: 0, erro: 1, 'em-dia': 2 };
     return [...filtradas].sort((a, b) => peso[a.status] - peso[b.status] || (b.pendentes?.length ?? 0) - (a.pendentes?.length ?? 0) || a.nome.localeCompare(b.nome));
-  }, [painel, busca]);
+  }, [exibido, busca]);
 
   // Buscar leva para Turmas (onde o resultado aparece completo).
   const buscar = (texto) => { setBusca(texto); if (texto && !perfilEscola && !['home', 'turmas'].includes(secao)) setSecao('turmas');
     if (texto && perfilEscola && !['professores', 'turmas-escola', 'componentes'].includes(secao)) setSecao('professores'); };
   const sincronizar = async () => { setSincronizando(true); setErro(null); const p = await sge.sincronizar(); if (p) setPainel(p); setSincronizando(false); };
   const concluirIntro = async () => { setIntro(false); await sge.salvarConfig({ introVista: true }); };
+  // Coordenação: dados para a busca global.
+  useEffect(() => {
+    if (!perfilEscola) return undefined;
+    const carregar = () => sge.obterCoordenacao().then((d) => setPainelEscola(d?.painel ?? null));
+    carregar();
+    return sge.aoCoordenacao(carregar);
+  }, [perfilEscola]);
+  const itensBusca = useMemo(() => {
+    if (perfilEscola) {
+      if (!painelEscola) return [];
+      const v = visaoPeriodo(painelEscola, 'ano');
+      return [
+        ...porProfessor(v).filter((g) => g.id).map((g) => ({ tipo: 'professor', tipoRotulo: 'Professor', chave: g.chave, rotulo: g.rotulo, sub: `${g.total} pendências` })),
+        ...v.turmas.map((t) => ({ tipo: 'turma', tipoRotulo: 'Turma', chave: t.id, rotulo: t.nome })),
+        ...porComponente(v).map((g) => ({ tipo: 'componente', tipoRotulo: 'Componente', chave: g.chave, rotulo: g.rotulo, sub: `${g.total} pendências` })),
+      ];
+    }
+    return (exibido?.turmas ?? []).map((t) => ({ tipo: 'turma-prof', tipoRotulo: 'Turma', chave: `${t.id}/${t.disciplina}`, rotulo: `Turma ${t.nome}`, sub: `${t.disciplina}${t.escola ? ` · ${t.escola}` : ''}`, turma: t }));
+  }, [perfilEscola, painelEscola, exibido]);
+  const escolherBusca = (x) => {
+    if (perfilEscola) { setSecao(x.tipo === 'professor' ? 'professores' : x.tipo === 'turma' ? 'turmas-escola' : 'componentes'); setFoco({ tipo: x.tipo, chave: x.chave }); }
+    else { setSecao('turmas'); setAberta(x.turma); }
+  };
   const sair = async () => { if (confirm('Sair do SGE neste computador? Você precisará entrar de novo para sincronizar.')) { await sge.sairDoSge(); setLogado(false); } };
   const fecharDetalhe = useCallback(() => setAbertaChave(null), []);
   const setAberta = (t) => setAbertaChave(t ? `${t.id}/${t.disciplina}` : null);
   // O painel aberto acompanha a sincronização: sempre mostra a leitura mais recente da turma.
-  const aberta = abertaChave ? (painel?.turmas ?? []).find((t) => `${t.id}/${t.disciplina}` === abertaChave) ?? null : null;
+  const aberta = abertaChave ? (exibido?.turmas ?? []).find((t) => `${t.id}/${t.disciplina}` === abertaChave) ?? null : null;
 
   const titulo = secao === 'home' && !perfilEscola ? saudacao() : secoes.find((s) => s.id === secao)?.rotulo ?? 'Configurações';
   const hoje = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
@@ -97,7 +142,7 @@ export default function App() {
   }
 
   return (
-    <div className="grid h-full grid-cols-[96px_1fr] grid-rows-[auto_1fr] gap-x-2 gap-y-5 p-5 pl-2">
+    <div className="imprimir-raiz grid h-full grid-cols-[96px_1fr] grid-rows-[auto_1fr] gap-x-2 gap-y-5 p-5 pl-2">
       <div className="row-span-2"><BarraLateral ativa={secao} aoTrocar={setSecao} secoes={secoes} /></div>
 
       <BarraSuperior
@@ -106,8 +151,8 @@ export default function App() {
         modoEscola={perfilEscola} aoSincronizar={sincronizar} aoEntrar={() => sge.entrar()} aoAbrirSge={() => sge.abrirSge()}
       />
 
-      <main ref={conteudo} className="vidro min-h-0 overflow-y-auto rounded-[28px] p-6">
-        {modoExemplo && <p className="mb-4 rounded-2xl bg-amber-100/70 px-4 py-2 text-sm text-amber-900">Modo de exemplo: dados fictícios (aberto fora do Electron).</p>}
+      <main ref={conteudo} className="imprimir-main vidro min-h-0 overflow-y-auto rounded-[28px] p-6">
+        {modoExemplo && <p data-nao-imprimir className="mb-4 rounded-2xl bg-amber-100/70 px-4 py-2 text-sm text-amber-900">Modo de exemplo: dados fictícios (aberto fora do Electron).</p>}
         {erro && <p role="alert" className="mb-4 rounded-2xl bg-rose-100/70 px-4 py-2 text-sm text-rose-900">{erro}</p>}
         {(atualizacao?.estado === 'baixando' || atualizacao?.estado === 'pronta') && (
           <p className="mb-4 flex items-center justify-between gap-4 rounded-2xl bg-lavanda-clara px-4 py-3 text-sm text-tinta">
@@ -123,8 +168,11 @@ export default function App() {
         )}
 
         <div key={secao} className="surgir">
-          {perfilEscola && secao !== 'configuracoes' && <Escola secao={secao} busca={busca} perfilEscola={perfilEscola} sincronizando={sincronizando} aoAbrirSge={() => sge.abrirSge()} />}
-          {!perfilEscola && secao === 'home' && <Inicio painel={painel} turmas={turmas} progresso={progresso} sincronizando={sincronizando} aoAbrir={setAberta} />}
+          {perfilEscola && secao !== 'configuracoes' && <Escola secao={secao} busca={busca} foco={foco} aoFocar={setFoco} perfilEscola={perfilEscola} sincronizando={sincronizando} aoAbrirSge={() => sge.abrirSge()} />}
+          {!perfilEscola && ['home', 'turmas'].includes(secao) && numeroAtual && (
+            <SeletorBimestre atual={numeroAtual} escolhido={consultando ? periodoProf : numeroAtual} lendo={lendoPeriodo} aoEscolher={escolherPeriodo} />
+          )}
+          {!perfilEscola && secao === 'home' && <Inicio painel={exibido} turmas={turmas} progresso={progresso} sincronizando={sincronizando} aoAbrir={setAberta} />}
           {!perfilEscola && secao === 'semana' && <Semana painel={painel} aoAbrir={(a) => sge.abrirSge(a)} />}
           {!perfilEscola && secao === 'turmas' && <Turmas turmas={turmas} aoAbrir={setAberta} />}
           {!perfilEscola && secao === 'historico' && <Historico />}
@@ -133,6 +181,7 @@ export default function App() {
         </div>
       </main>
 
+      {paleta && <BuscaGlobal itens={itensBusca} aoEscolher={escolherBusca} aoFechar={() => setPaleta(false)} />}
       {aberta && <DetalheTurma turma={aberta} aoFechar={fecharDetalhe} aoAbrirSge={(a) => sge.abrirSge(a)} />}
     </div>
   );

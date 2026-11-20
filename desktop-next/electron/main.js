@@ -21,6 +21,7 @@ const relatorio = require('./relatorio');
 const janelaSge = require('./sge/janelaSge');
 const atualizador = require('./atualizador');
 const avisos = require('./avisos');
+const calendario = require('./calendario');
 const { gerarBitmap } = require('./iconeContador');
 
 const icone = path.join(__dirname, '..', 'assets', 'sge-diario.ico');
@@ -153,10 +154,15 @@ async function conferirFimDoDia() {
   if (!config.avisoFimDia) return;
   const estado = await armazenamento.lerEstado();
   if (!avisos.deveAvisarFimDia(new Date(), config.horaAviso, estado.ultimoAvisoFimDia)) return;
+  if (calendario.motivoSemAula(hojeLocal(), config)) return; // feriado ou dia sem aula: não incomoda
   let painel = ultimoPainel ?? await motor.lerCache();
   if (!painel || Date.now() - Date.parse(painel.atualizadoEm) > 2 * 3600_000) painel = (await sincronizarEAvisar()) ?? painel; // dados frescos, se a sessão permitir
   await armazenamento.gravarEstado({ ultimoAvisoFimDia: hojeLocal() });
-  if (painel) notificar(avisos.textoFimDia(painel));
+  if (!painel) return;
+  // Com o horário do dia em mãos, o aviso diz quantas aulas foram dadas e o que falta registrar delas.
+  let resumo = null;
+  try { const hoje = (await motor.agenda()).dias.find((d) => d.data === hojeLocal()); resumo = avisos.resumoDoDia(hoje?.aulas, painel, hojeLocal()); } catch { /* sem sessão: usa o aviso geral */ }
+  notificar(resumo ? avisos.textoResumoDia(resumo, painel) : avisos.textoFimDia(painel));
 }
 const hojeLocal = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 
@@ -227,6 +233,12 @@ janelaSge.configurar({
 
 // ---------- IPC (a única porta entre a vitrine e o motor) ----------
 ipcMain.handle('painel:obter', async () => ultimoPainel ?? (ultimoPainel = await motor.lerCache()));
+ipcMain.handle('professor:periodo', async (_e, n) => {
+  if (!Number.isInteger(n) || n < 1 || n > 4) return null;
+  try { return await motor.sincronizar((p) => enviar('sync:progresso', p), { periodo: n }); } catch (e) {
+    enviar('sge:erro', { mensagem: e.message || 'Falha ao ler o bimestre.' }); return null;
+  } finally { enviar('sync:fim'); }
+});
 ipcMain.handle('sync:agora', () => sincronizarEAvisar({ manual: true }));
 ipcMain.handle('sge:entrar', () => abrirLogin());
 ipcMain.handle('sge:abrirWeb', (_e, atalho) => {

@@ -96,3 +96,14 @@ body {
 
 .card-resumo { background: linear-gradient(135deg, rgb(238 233 255 / .95) 0%, rgb(232 215 252 / .9) 45%, rgb(214 226 255 / .9) 100%); }
 @media (prefers-color-scheme: dark) { .card-resumo { background: linear-gradient(135deg, rgb(52 48 78 / .9) 0%, rgb(46 44 66 / .9) 100%); } }
+
+/* ---------- Impressão (Painel da direção) ---------- */
+@media print {
+  :root { --color-tinta: #14121c; --color-tinta-suave: #5f5a78; --color-lavanda: #6b54ee; --color-lavanda-clara: #eee9ff; --color-emdia: #1f9d6a; --color-pendente: #c0392b; --color-white: #fff; }
+  [data-nao-imprimir] { display: none !important; }
+  html, body, #root { height: auto !important; background: #fff !important; }
+  .imprimir-raiz { display: block !important; height: auto !important; padding: 0 !important; }
+  .imprimir-main { overflow: visible !important; height: auto !important; background: #fff !important; box-shadow: none !important; border: 0 !important; padding: 0 !important; }
+  .vidro, .vidro-forte { background: #fff !important; box-shadow: none !important; backdrop-filter: none !important; border: 1px solid #ddd !important; }
+  * { color-scheme: light; animation: none !important; }
+}

@@ -60,4 +60,35 @@ function textoFimDia(painel) {
   return { titulo: `${n} ${n === 1 ? 'pendência' : 'pendências'} no seu diário`, corpo: `Em ${turmas.length} ${turmas.length === 1 ? 'turma' : 'turmas'}: ${turmas.slice(0, 3).map((t) => t.nome).join(', ')}${turmas.length > 3 ? '…' : ''}. Dá tempo de registrar antes de ir embora.` };
 }
 
-module.exports = { novasPendencias, textoNovas, totalPainel, deveAvisarFimDia, textoFimDia };
+/**
+ * Aulas que o professor deu hoje (horário do SGE) cruzadas com o painel: quantas ficaram sem conteúdo e sem chamada.
+ * Devolve null se não houver aulas hoje.
+ */
+function resumoDoDia(aulasHoje, painel, hojeIso) {
+  const aulas = aulasHoje ?? [];
+  if (!aulas.length) return null;
+  const turmas = painel?.turmas ?? [];
+  let semConteudo = 0, semChamada = 0;
+  const vistas = new Set();
+  for (const a of aulas) {
+    const t = turmas.find((x) => x.nome === a.turma && x.disciplina === a.disciplina);
+    const chave = `${a.turma}|${a.disciplina}`;
+    if (!t || vistas.has(chave)) continue; // duas aulas seguidas da mesma turma contam uma vez no registro
+    vistas.add(chave);
+    if (t.pendentes?.includes(hojeIso)) semConteudo++;
+    if (t.modulos?.frequencia?.datas?.includes(hojeIso)) semChamada++;
+  }
+  return { aulas: aulas.length, turmas: vistas.size, semConteudo, semChamada };
+}
+
+function textoResumoDia(r, painel) {
+  const aulas = `${r.aulas} ${r.aulas === 1 ? 'aula' : 'aulas'}`;
+  const falta = [];
+  if (r.semConteudo) falta.push(`o conteúdo de ${r.semConteudo}`);
+  if (r.semChamada) falta.push(`a chamada de ${r.semChamada}`);
+  const outras = totalPainel(painel);
+  if (!falta.length) return { titulo: 'Aulas de hoje em dia', corpo: `Você deu ${aulas} hoje e o registro de hoje está completo.${outras ? ` Ainda há ${outras} ${outras === 1 ? 'pendência' : 'pendências'} de outros dias.` : ''}` };
+  return { titulo: 'Falta registrar o dia', corpo: `Você deu ${aulas} hoje e falta registrar ${falta.join(' e ')}.${outras ? ` No total: ${outras} ${outras === 1 ? 'pendência' : 'pendências'}.` : ''}` };
+}
+
+module.exports = { resumoDoDia, textoResumoDia, novasPendencias, textoNovas, totalPainel, deveAvisarFimDia, textoFimDia };

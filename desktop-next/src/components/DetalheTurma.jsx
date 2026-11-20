@@ -74,7 +74,10 @@ function Modulo({ def, dado, aoAbrir }) {
         {dado.erro ? <p className="text-alerta">{dado.erro}</p>
           : datas ? (n === 0 ? <p>Nada pendente no bimestre.</p> : (
             <div className="flex flex-wrap gap-1.5">
-              {[...datas].reverse().slice(0, 12).map((d) => <span key={d} className="rounded-full bg-rose-50 px-2 py-0.5 text-xs font-medium text-pendente capitalize" title={diaSemana(d)}>{diaMes(d)}</span>)}
+              {[...datas].reverse().slice(0, 12).map((d) => (
+                <button key={d} type="button" onClick={() => aoAbrir([d])} title={`${diaSemana(d)} · abrir este dia no SGE`}
+                  className="rounded-full bg-rose-50 px-2 py-0.5 text-xs font-medium text-pendente capitalize transition hover:bg-pendente hover:text-[#fff]">{diaMes(d)}</button>
+              ))}
               {datas.length > 12 && <span className="text-xs">+{datas.length - 12}</span>}
             </div>
           ))

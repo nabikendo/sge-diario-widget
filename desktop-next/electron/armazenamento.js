@@ -29,6 +29,8 @@ const CONFIG_PADRAO = Object.freeze({
   horaAviso: '17:30',
   coordChamada: true,        // Coordenação: ler também a Chamada de cada professor (mais consultas)
   introVista: false,         // tutorial de boas-vindas já visto
+  diasSemAula: '',           // datas sem aula além dos feriados (uma por linha: "AAAA-MM-DD motivo")
+  diasLetivos: '',           // sábados letivos e feriados trabalhados (uma data por linha)
   coordPlanos: false,        // Coordenação: ler também Plano de aula, Plano de curso e PEI
 });
 
@@ -41,6 +43,7 @@ async function gravarConfig(parcial) {
     if (k === 'intervaloMin') nova[k] = [0, 15, 30, 60, 120].includes(v) ? v : atual[k];
     else if (k === 'tema') nova[k] = ['sistema', 'claro', 'escuro'].includes(v) ? v : atual[k];
     else if (k === 'horaAviso') nova[k] = /^([01]\d|2[0-3]):[0-5]\d$/.test(v) ? v : atual[k];
+    else if (k === 'diasSemAula' || k === 'diasLetivos') nova[k] = String(v).slice(0, 4000);
     else nova[k] = v;
   }
   await gravar('config.json', nova);

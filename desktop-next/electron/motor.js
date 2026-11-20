@@ -10,6 +10,7 @@ const { criarLeitor } = require('./sge/leitor');
 const P = require('./sge/parsing');
 const janelaOculta = require('./sge/janelaOculta');
 const armazenamento = require('./armazenamento');
+const calendario = require('./calendario');
 
 class PerfilEscola extends Error {
   constructor() { super('Perfil Unidade escolar ativo no SGE.'); this.name = 'PerfilEscola'; }
@@ -72,15 +73,22 @@ const exclusivo = (tipo, fn) => {
  * @param {(p: {etapa: string, feitas: number, total: number|null}) => void} aoProgresso
  * @param {{manual?: boolean}} opcoes manual = relê também os planos
  */
-function sincronizar(aoProgresso = () => {}, { manual = false } = {}) {
-  return exclusivo('professor', async () => {
+function sincronizar(aoProgresso = () => {}, { manual = false, periodo = null } = {}) {
+  return exclusivo(periodo ? `professor-${periodo}` : 'professor', async () => {
     const { leitor, config, inicial } = await prepararSessao(aoProgresso);
     if ((await leitor.perfil()) === 'escola') throw new PerfilEscola();
 
     aoProgresso({ etapa: 'Lendo suas turmas', feitas: 0, total: null });
     const { turmas } = await leitor.turmas(inicial.opcoesTurma);
     if (!turmas.length) throw new Error('Nenhuma turma sua foi encontrada no horário do SGE. Confira se o perfil ativo é Servidor (professor).');
-    const bimestre = await leitor.bimestreAtual(turmas[0].id);
+    const atual = await leitor.bimestreAtual(turmas[0].id);
+    // Outro bimestre (1º a 4º): leitura só de consulta; não substitui o painel salvo, o histórico nem os avisos.
+    let bimestre = atual;
+    const consulta = Number.isInteger(periodo) && periodo >= 1 && periodo <= 4 && periodo !== atual?.numero;
+    if (consulta) {
+      bimestre = (await leitor.bimestres(turmas[0].id)).find((b) => b.numero === periodo);
+      if (!bimestre) throw new Error(`O SGE não informou as datas do ${periodo}º bimestre.`);
+    }
     const anterior = await armazenamento.lerPainel();
     const anteriores = new Map((anterior?.turmas ?? []).map((t) => [P.chaveVinculo(t.id, t.disciplina), t]));
 
@@ -98,12 +106,15 @@ function sincronizar(aoProgresso = () => {}, { manual = false } = {}) {
       await ler('conteudo', async () => { const c = await leitor.conteudos(t, bimestre); return { pendentes: c.pendentes, registradas: c.registradas.length }; });
       await ler('frequencia', () => leitor.frequencia(t, bimestre));
       const prev = anteriores.get(P.chaveVinculo(t.id, t.disciplina))?.modulos;
-      for (const { chave, tipo } of PLANOS) {
+      for (const { chave, tipo } of consulta ? [] : PLANOS) { // planos não dependem do bimestre: só no atual
         const antigo = prev?.[chave];
         const recente = antigo && !antigo.erro && antigo.lidoEm && Date.now() - Date.parse(antigo.lidoEm) < VALIDADE_PLANOS_MS;
         if (!manual && recente && !m.conteudo?.erro) m[chave] = antigo;
         else await ler(chave, () => leitor.planos(t, tipo));
       }
+      // Feriados e dias sem aula (e o que a pessoa marcou nas Configurações) não são cobrados.
+      if (m.conteudo?.pendentes) m.conteudo.pendentes = calendario.soLetivas(m.conteudo.pendentes, config);
+      if (m.frequencia?.datas) m.frequencia.datas = calendario.soLetivas(m.frequencia.datas, config);
       const n = contagens(m);
       const totalPendencias = Object.values(n).reduce((s, v) => s + (v ?? 0), 0);
       const reg = m.conteudo?.registradas ?? 0;
@@ -120,7 +131,8 @@ function sincronizar(aoProgresso = () => {}, { manual = false } = {}) {
       };
     });
 
-    const painel = { versao: 2, atualizadoEm: new Date().toISOString(), perfil: 'professor', bimestre, incluiu: [...(config.incluirDiversificada ? ['DIVERSIFICADA'] : []), ...(config.incluirAee ? ['AEE'] : [])], turmas: resultado };
+    const painel = { versao: 2, atualizadoEm: new Date().toISOString(), perfil: 'professor', bimestre, ...(consulta ? { periodo } : {}), incluiu: [...(config.incluirDiversificada ? ['DIVERSIFICADA'] : []), ...(config.incluirAee ? ['AEE'] : [])], turmas: resultado };
+    if (consulta) return painel;
     await armazenamento.gravarPainel(painel);
     await armazenamento.registrarHistorico(painel);
     return painel;
@@ -259,7 +271,8 @@ function agenda() {
     const leitor = criarLeitor(criarCliente(sessao));
     const dia = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return P.hojeIso(d); };
     const dias = [];
-    for (const n of [0, 1]) dias.push({ data: dia(n), aulas: await leitor.aulasDoDia(dia(n)) });
+    const config = await armazenamento.lerConfig();
+    for (const n of [0, 1]) dias.push({ data: dia(n), aulas: await leitor.aulasDoDia(dia(n)), semAula: calendario.motivoSemAula(dia(n), config) });
     const resultado = { geradoEm: new Date().toISOString(), dias };
     await armazenamento.gravarAgenda(resultado);
     return resultado;

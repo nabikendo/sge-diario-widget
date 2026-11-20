@@ -11,6 +11,7 @@ const CONFIG_EXEMPLO = { introVista: !location.search.includes('intro'), tema: '
 export const sge = ponte ?? {
   obterPainel: async () => (location.search.includes('novo') ? null : exemploPainel),
   sincronizar: async () => exemploPainel,
+  lerPeriodo: async (n) => ({ ...exemploPainel, periodo: n, bimestre: { ...exemploPainel.bimestre, numero: n } }),
   entrar: async () => {},
   abrirSge: async () => {},
   obterCoordenacao: async () => ({ painel: exemploCoordenacao, turmasEscola: 24 }),
