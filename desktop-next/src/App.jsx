@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BarraLateral, BarraSuperior, SECOES } from './components/Layout';
 import DetalheTurma from './components/DetalheTurma';
+import { Semana } from './paginas/Semana';
 import { Inicio, Turmas, Coordenacao, Historico, Relatorios, Configuracoes } from './paginas/Paginas';
 import { sge, modoExemplo } from './lib/sge';
 
 const saudacao = () => { const h = new Date().getHours(); return h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite'; };
 const SUBTITULOS = {
+  semana: 'Aulas de hoje e de amanhã e o que falta registrar',
   turmas: 'Todas as suas turmas e componentes',
   coordenacao: 'Pendências da escola inteira',
   historico: 'Como as pendências evoluíram',
@@ -86,10 +88,10 @@ export default function App() {
       <main ref={conteudo} className="vidro min-h-0 overflow-y-auto rounded-[28px] p-6">
         {modoExemplo && <p className="mb-4 rounded-2xl bg-amber-100/70 px-4 py-2 text-sm text-amber-900">Modo de exemplo: dados fictícios (aberto fora do Electron).</p>}
         {erro && <p role="alert" className="mb-4 rounded-2xl bg-rose-100/70 px-4 py-2 text-sm text-rose-900">{erro}</p>}
-        {atualizacao && (
+        {(atualizacao?.estado === 'baixando' || atualizacao?.estado === 'pronta') && (
           <p className="mb-4 flex items-center justify-between gap-4 rounded-2xl bg-lavanda-clara px-4 py-3 text-sm text-tinta">
             {atualizacao.estado === 'pronta' ? `A versão ${atualizacao.versao} está pronta. Ela é instalada ao fechar o app.` : `Baixando a versão ${atualizacao.versao}…`}
-            {atualizacao.estado === 'pronta' && <button type="button" onClick={() => sge.instalarAtualizacao()} className="shrink-0 rounded-full bg-lavanda px-4 py-1.5 font-semibold text-white">Reiniciar agora</button>}
+            {atualizacao.estado === 'pronta' && <button type="button" onClick={() => sge.instalarAtualizacao()} className="shrink-0 rounded-full bg-lavanda px-4 py-1.5 font-semibold text-[#fff]">Reiniciar agora</button>}
           </p>
         )}
         {perfilEscola && secao !== 'coordenacao' && (
@@ -107,11 +109,12 @@ export default function App() {
 
         <div key={secao} className="surgir">
           {secao === 'home' && <Inicio painel={painel} turmas={turmas} progresso={progresso} sincronizando={sincronizando} aoAbrir={setAberta} />}
+          {secao === 'semana' && <Semana painel={painel} aoAbrir={(a) => sge.abrirSge(a)} />}
           {secao === 'turmas' && <Turmas turmas={turmas} aoAbrir={setAberta} />}
           {secao === 'coordenacao' && <Coordenacao perfilEscola={perfilEscola} sincronizando={sincronizando} />}
           {secao === 'historico' && <Historico />}
           {secao === 'relatorios' && <Relatorios painel={painel} />}
-          {secao === 'configuracoes' && <Configuracoes logado={logado} aoSair={sair} />}
+          {secao === 'configuracoes' && <Configuracoes logado={logado} aoSair={sair} atualizacao={atualizacao} />}
         </div>
       </main>
 

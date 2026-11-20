@@ -26,7 +26,10 @@ jobs:
         working-directory: desktop-next
         run: npm run build:win
         env:
-          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+          # Assinatura digital: cadastre os segredos WIN_CSC_LINK (.pfx em base64) e WIN_CSC_KEY_PASSWORD. Sem eles, o instalador sai sem assinatura.
+          CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
+          CSC_IDENTITY_AUTO_DISCOVERY: ${{ secrets.WIN_CSC_LINK != '' }}
       - uses: actions/upload-artifact@v4
         with:
           name: sge-diario-desktop-windows

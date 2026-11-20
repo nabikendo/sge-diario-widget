@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { FileSpreadsheet, FileText, FolderOpen, LogOut, Trash2, School, Info } from 'lucide-react';
+import { FileSpreadsheet, FileText, FolderOpen, LogOut, Trash2, Info, TrendingDown, TrendingUp, RefreshCw } from 'lucide-react';
+import { referenciaSemanal, diferencas } from '../lib/comparacao.mjs';
 import CartaoTurma from '../components/CartaoTurma';
 import { CardResumo, CardSincronizacao } from '../components/CardsTopo';
 import { sge } from '../lib/sge';
@@ -82,120 +83,7 @@ export function Turmas({ turmas, aoAbrir }) {
   );
 }
 
-/* ---------- Coordenação ---------- */
-export function Coordenacao({ perfilEscola, sincronizando }) {
-  const [dados, setDados] = useState(null);
-  const [aberto, setAberto] = useState(null);
-  const [busca, setBusca] = useState('');
-  useEffect(() => {
-    const carregar = () => sge.obterCoordenacao().then(setDados);
-    carregar();
-    const desligar = [sge.aoCoordenacao(carregar), sge.aoTurmasEscola(carregar)];
-    return () => desligar.forEach((f) => f());
-  }, []);
-  if (!dados) return null;
-  const { painel, turmasEscola } = dados;
-
-  if (!painel) {
-    return (
-      <div className="mx-auto max-w-2xl py-8">
-        <div className="text-center">
-          <School size={48} className="mx-auto text-lavanda" strokeWidth={1.5} />
-          <h2 className="mt-4 text-2xl font-semibold">Coordenação</h2>
-          <p className="mt-2 text-tinta-suave">Pendências de Conteúdo Aplicado de todos os professores da escola, atribuídas pelo horário de cada um.</p>
-        </div>
-        <ol className="mt-8 space-y-3">
-          <Passo n={1} feito={perfilEscola}>Entre no SGE com o perfil <b>Unidade escolar</b>.</Passo>
-          <Passo n={2} feito={turmasEscola > 0}>
-            No SGE, abra <b>Escola → Conteúdo Aplicado</b>. O app lê a lista de turmas sozinho{turmasEscola > 0 ? ` (${turmasEscola} turmas lidas).` : '.'}
-          </Passo>
-          <Passo n={3}>Clique em <b>Ler a escola</b>. O app só consulta: nada é gravado no SGE.</Passo>
-        </ol>
-        <div className="mt-8 flex justify-center gap-3">
-          <button type="button" onClick={() => sge.abrirSge()} className="rounded-full bg-white px-5 py-2.5 text-sm font-semibold ring-1 ring-tinta/10 hover:bg-white/70">Abrir o SGE para consulta</button>
-          <button type="button" onClick={() => sge.sincronizarEscola()} disabled={!turmasEscola || sincronizando}
-            className="rounded-full bg-tinta px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-40">Ler a escola</button>
-        </div>
-      </div>
-    );
-  }
-
-  const q = busca.trim().toLowerCase();
-  const professores = painel.professores.filter((p) => !q || `${p.nome} ${p.itens.map((i) => `${i.turma} ${i.componente}`).join(' ')}`.toLowerCase().includes(q));
-  const dias = painel.professores.reduce((s, p) => s + p.dias, 0);
-  const comPendencia = painel.professores.filter((p) => p.id).length;
-  const max = Math.max(1, ...painel.professores.map((p) => p.dias));
-
-  return (
-    <>
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <Indicador valor={dias} rotulo="aulas sem conteúdo na escola" cor="text-pendente" />
-        <Indicador valor={`${comPendencia}/${painel.totalProfessores}`} rotulo="professores com pendência" />
-        <Indicador valor={painel.turmas.length} rotulo="turmas lidas" />
-      </div>
-
-      <div className="mt-8 mb-3 flex flex-wrap items-center gap-3">
-        <h2 className="text-lg font-semibold">Por professor</h2>
-        <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Filtrar professor, turma ou componente"
-          className="ml-auto w-72 rounded-full bg-white/80 px-4 py-2 text-sm ring-1 ring-white outline-none focus:ring-lavanda/40" />
-        <button type="button" onClick={() => sge.salvarRelatorio('coord-pdf')} className="rounded-full bg-white px-4 py-2 text-sm font-semibold ring-1 ring-tinta/10 hover:bg-white/70">PDF</button>
-        <button type="button" onClick={() => sge.salvarRelatorio('coord-csv')} className="rounded-full bg-white px-4 py-2 text-sm font-semibold ring-1 ring-tinta/10 hover:bg-white/70">Planilha</button>
-        <button type="button" onClick={() => sge.sincronizarEscola()} disabled={sincronizando}
-          className="rounded-full bg-tinta px-4 py-2 text-sm font-semibold text-white disabled:opacity-40">{sincronizando ? 'Lendo…' : 'Ler de novo'}</button>
-      </div>
-      <p className="mb-3 text-xs text-tinta-suave">Lido em {new Date(painel.atualizadoEm).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })} · {turmasEscola} turmas da escola conhecidas</p>
-
-      <ul className="space-y-2">
-        {professores.map((p, i) => {
-          const abertoAqui = aberto === (p.id || p.nome);
-          return (
-            <li key={p.id || p.nome} className="surgir overflow-hidden rounded-2xl bg-white/70" style={{ '--atraso': `${Math.min(i, 8) * 30}ms` }}>
-              <button type="button" onClick={() => setAberto(abertoAqui ? null : (p.id || p.nome))} aria-expanded={abertoAqui}
-                className="flex w-full items-center gap-4 px-5 py-3.5 text-left hover:bg-white/60">
-                <span className="w-64 shrink-0 truncate font-medium">{p.nome}</span>
-                <span className="h-2.5 flex-1 overflow-hidden rounded-full bg-tinta/[0.07]">
-                  <span className="block h-full rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-400" style={{ width: `${(p.dias / max) * 100}%` }} />
-                </span>
-                <span className="w-24 shrink-0 text-right text-sm"><b className="tabular-nums text-pendente">{p.dias}</b> {p.dias === 1 ? 'aula' : 'aulas'}</span>
-              </button>
-              {abertoAqui && (
-                <div className="border-t border-white px-5 py-3">
-                  {p.itens.map((it) => (
-                    <div key={`${it.turmaId}|${it.componente}`} className="flex flex-wrap items-center gap-2 py-1.5 text-sm">
-                      <span className="w-56 truncate font-medium">{it.turma}</span>
-                      <span className="w-40 truncate text-tinta-suave">{it.componente}</span>
-                      <span className="flex flex-1 flex-wrap gap-1">{it.datas.map((d) => <span key={d} className="rounded-full bg-rose-50 px-2 py-0.5 text-xs text-pendente">{d.slice(8, 10)}/{d.slice(5, 7)}</span>)}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </li>
-          );
-        })}
-      </ul>
-      {painel.semPendencia?.length > 0 && (
-        <p className="mt-6 text-sm text-tinta-suave"><b className="text-emdia">Em dia:</b> {painel.semPendencia.join(', ')}.</p>
-      )}
-    </>
-  );
-}
-
-function Passo({ n, feito, children }) {
-  return (
-    <li className="flex items-start gap-3 rounded-2xl bg-white/70 px-4 py-3">
-      <span className={`flex size-7 shrink-0 items-center justify-center rounded-full text-sm font-bold ${feito ? 'bg-emdia text-white' : 'bg-lavanda-clara text-lavanda'}`}>{feito ? '✓' : n}</span>
-      <span className="pt-0.5">{children}</span>
-    </li>
-  );
-}
-function Indicador({ valor, rotulo, cor = 'text-tinta' }) {
-  return (
-    <div className="surgir vidro rounded-3xl p-5">
-      <b className={`block text-4xl font-semibold tabular-nums ${cor}`}>{valor}</b>
-      <span className="text-sm text-tinta-suave">{rotulo}</span>
-    </div>
-  );
-}
+export { Coordenacao } from './Coordenacao';
 
 /* ---------- Histórico ---------- */
 export function Historico() {
@@ -210,8 +98,21 @@ export function Historico() {
   if (!lista) return null;
   if (!lista.length) return <p className="rounded-2xl bg-white/60 p-6 text-center text-tinta-suave">O histórico começa a ser registrado a partir da próxima sincronização.</p>;
   const max = Math.max(1, ...porDia.map(([, h]) => h.dias));
+  const ultimo = lista[lista.length - 1];
+  const ref = referenciaSemanal(lista.slice(0, -1));
+  const semana = ref && ref.porTurma && ultimo.porTurma ? diferencas(ultimo.porTurma, ref.porTurma) : null;
   return (
     <>
+      {semana && (
+        <section className="surgir vidro mb-5 rounded-3xl p-6">
+          <h2 className="text-[15px] font-semibold">Desde a semana passada <span className="font-normal text-tinta-suave">· comparado com {new Date(ref.em).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}</span></h2>
+          <p className="mt-1 text-sm text-tinta-suave">Dias sem conteúdo: de {semana.totalAntes} para <b className="text-tinta">{semana.totalAgora}</b>.</p>
+          <div className="mt-3 grid gap-4 md:grid-cols-2">
+            <Variacao icone={TrendingDown} cor="text-emdia" titulo="Melhoraram" vazio="Nenhuma turma reduziu." itens={semana.melhoraram} />
+            <Variacao icone={TrendingUp} cor="text-pendente" titulo="Pioraram" vazio="Nenhuma turma piorou." itens={semana.pioraram} />
+          </div>
+        </section>
+      )}
       <section className="surgir vidro rounded-3xl p-6">
         <div className="flex items-baseline justify-between">
           <h2 className="text-[15px] font-semibold">Dias sem conteúdo ao longo do tempo</h2>
@@ -251,6 +152,19 @@ export function Historico() {
   );
 }
 
+function Variacao({ icone: Icone, cor, titulo, itens, vazio }) {
+  return (
+    <div>
+      <h3 className={`flex items-center gap-1.5 text-sm font-semibold ${cor}`}><Icone size={16} aria-hidden /> {titulo}</h3>
+      {itens.length === 0 ? <p className="mt-1 text-sm text-tinta-suave">{vazio}</p> : (
+        <ul className="mt-1 space-y-0.5 text-sm">
+          {itens.slice(0, 6).map((i) => <li key={i.chave} className="flex justify-between gap-3"><span className="truncate">{i.chave}</span><span className="tabular-nums text-tinta-suave">{i.antes} → <b className={cor}>{i.agora}</b></span></li>)}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 /* ---------- Relatórios ---------- */
 export function Relatorios({ painel }) {
   const [aviso, setAviso] = useState(null);
@@ -280,7 +194,7 @@ export function Relatorios({ painel }) {
 }
 
 /* ---------- Configurações ---------- */
-export function Configuracoes({ logado, aoSair }) {
+export function Configuracoes({ logado, aoSair, atualizacao }) {
   const [c, setC] = useState(null);
   useEffect(() => { sge.obterConfig().then(setC); }, []);
   if (!c) return null;
@@ -304,6 +218,48 @@ export function Configuracoes({ logado, aoSair }) {
         </Linha>
       </Grupo>
 
+      <Grupo titulo="Aparência">
+        <Linha titulo="Tema" texto="Claro, escuro ou o mesmo do Windows.">
+          <select value={c.tema} onChange={(e) => mudar({ tema: e.target.value })}
+            className="rounded-full bg-white px-4 py-2 text-sm ring-1 ring-tinta/10 outline-none focus:ring-lavanda">
+            <option value="sistema">Do Windows</option><option value="claro">Claro</option><option value="escuro">Escuro</option>
+          </select>
+        </Linha>
+      </Grupo>
+
+      <Grupo titulo="Avisos">
+        <Linha titulo="Notificar pendência nova" texto="Notificação do Windows quando a sincronização achar uma pendência que não existia (se o app não estiver à sua frente).">
+          <Chave ligada={c.notificarNovas} aoMudar={(v) => mudar({ notificarNovas: v })} />
+        </Linha>
+        <Linha titulo="Resumo no fim da tarde" texto="Uma notificação por dia útil com o que ainda falta registrar.">
+          <Chave ligada={c.avisoFimDia} aoMudar={(v) => mudar({ avisoFimDia: v })} />
+        </Linha>
+        <Linha titulo="Horário do resumo">
+          <input type="time" value={c.horaAviso} disabled={!c.avisoFimDia} onChange={(e) => e.target.value && mudar({ horaAviso: e.target.value })}
+            className="rounded-full bg-white px-4 py-2 text-sm ring-1 ring-tinta/10 outline-none focus:ring-lavanda disabled:opacity-40" />
+        </Linha>
+        <Linha titulo="Manter na bandeja ao fechar" texto="Fechar a janela deixa o app ao lado do relógio, com o número de pendências no ícone. Para sair de vez: clique com o botão direito no ícone → Sair.">
+          <Chave ligada={c.fecharNaBandeja} aoMudar={(v) => mudar({ fecharNaBandeja: v })} />
+        </Linha>
+      </Grupo>
+
+      <Grupo titulo="Coordenação (perfil Unidade escolar)">
+        <Linha titulo="Ler também a Chamada" texto="Inclui as chamadas não concluídas de cada professor. Faz mais consultas ao SGE; a leitura da escola fica mais lenta.">
+          <Chave ligada={c.coordChamada} aoMudar={(v) => mudar({ coordChamada: v })} />
+        </Linha>
+        <Linha titulo="Ler também Plano de aula, Plano de curso e PEI" texto="Muitas consultas por professor e componente: a primeira leitura pode levar vários minutos.">
+          <Chave ligada={c.coordPlanos} aoMudar={(v) => mudar({ coordPlanos: v })} />
+        </Linha>
+      </Grupo>
+
+      <Grupo titulo="Atualizações">
+        <Linha titulo={`Versão ${c.versao}`} texto={textoAtualizacao(atualizacao)}>
+          {atualizacao?.estado === 'pronta'
+            ? <Botao icone={RefreshCw} onClick={() => sge.instalarAtualizacao()}>Reiniciar e instalar</Botao>
+            : <Botao icone={RefreshCw} onClick={() => sge.verificarAtualizacao()} disabled={atualizacao?.estado === 'procurando' || atualizacao?.estado === 'baixando'}>Verificar agora</Botao>}
+        </Linha>
+      </Grupo>
+
       <Grupo titulo="Janela">
         <Linha titulo="Abrir maximizado"><Chave ligada={c.abrirMaximizado} aoMudar={(v) => mudar({ abrirMaximizado: v })} /></Linha>
         <Linha titulo="Abrir junto com o Windows" texto="O app abre quando você entra no Windows e já sincroniza se a sessão do SGE estiver ativa."><Chave ligada={c.abrirComWindows} aoMudar={(v) => mudar({ abrirComWindows: v })} /></Linha>
@@ -324,6 +280,12 @@ export function Configuracoes({ logado, aoSair }) {
       <p className="flex items-center justify-center gap-2 pb-4 text-xs text-tinta-suave"><Info size={14} /> SGE Diário Desktop {c.versao} · somente leitura: o app nunca grava nada no SGE.</p>
     </div>
   );
+}
+
+function textoAtualizacao(a) {
+  if (!a) return 'O app procura versões novas sozinho e instala ao fechar.';
+  return { procurando: 'Procurando versão nova…', baixando: `Baixando a versão ${a.versao}…`, pronta: `A versão ${a.versao} está pronta para instalar.`,
+    atual: 'Você está na versão mais recente.', erro: a.mensagem, indisponivel: a.mensagem }[a.estado] ?? '';
 }
 
 function Grupo({ titulo, children }) {

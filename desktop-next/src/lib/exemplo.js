@@ -33,14 +33,24 @@ export const exemploHistorico = Array.from({ length: 21 }, (_, i) => {
 });
 
 export const exemploCoordenacao = {
-  versao: 1, atualizadoEm: new Date(agora.getTime() - 12 * 60_000).toISOString(), totalProfessores: 18,
+  versao: 2, detalhes: { chamada: true, planos: true }, atualizadoEm: new Date(agora.getTime() - 12 * 60_000).toISOString(), totalProfessores: 18,
   turmas: [{ id: 'a', nome: '13.01/EM.MAT', dias: 6 }, { id: 'b', nome: '23.02/EM.VESP', dias: 3 }],
   professores: [
-    { id: '10', nome: 'Ana Paula Ribeiro', dias: 7, itens: [
-      { turmaId: 'a', turma: '13.01/EM.MAT', componente: 'Matemática', datas: [iso(12), iso(8), iso(5), iso(1)] },
-      { turmaId: 'b', turma: '23.02/EM.VESP', componente: 'Matemática', datas: [iso(6), iso(4), iso(2)] }] },
-    { id: '11', nome: 'Carlos Henrique Souza', dias: 2, itens: [{ turmaId: 'a', turma: '13.01/EM.MAT', componente: 'História', datas: [iso(3), iso(1)] }] },
-    { id: '', nome: 'Professor não identificado', dias: 1, itens: [{ turmaId: 'b', turma: '23.02/EM.VESP', componente: 'Eletiva', datas: [iso(2)] }] },
+    { id: '10', nome: 'Ana Paula Ribeiro', dias: 7, chamadas: 1, planos: 1, total: 9, itens: [
+      { turmaId: 'a', turma: '13.01/EM.MAT', componente: 'Matemática', datas: [iso(12), iso(8), iso(5), iso(1)], chamada: [iso(1)], planos: { planoAula: 1, planoCurso: 0, pei: null } },
+      { turmaId: 'b', turma: '23.02/EM.VESP', componente: 'Matemática', datas: [iso(6), iso(4), iso(2)], chamada: [], planos: { planoAula: 0, planoCurso: 0, pei: null } }] },
+    { id: '11', nome: 'Carlos Henrique Souza', dias: 2, chamadas: 0, planos: 0, total: 2, itens: [{ turmaId: 'a', turma: '13.01/EM.MAT', componente: 'História', datas: [iso(3), iso(1)], chamada: [], planos: null }] },
+    { id: '', nome: 'Professor não identificado', dias: 1, total: 1, itens: [{ turmaId: 'b', turma: '23.02/EM.VESP', componente: 'Eletiva', datas: [iso(2)] }] },
   ],
   semPendencia: ['Beatriz Lima', 'Daniel Alves', 'Eduarda Nunes'],
 };
+
+export const exemploHistoricoCoordenacao = [
+  { em: new Date(agora.getTime() - 8 * 86_400_000).toISOString(), total: 14, porProfessor: { 'Ana Paula Ribeiro': 5, 'Carlos Henrique Souza': 6, 'Beatriz Lima': 3 } },
+];
+
+const hojeIso = iso(0); const amanhaIso = new Date(agora.getTime() + 86_400_000).toISOString().slice(0, 10);
+export const exemploAgenda = { geradoEm: agora.toISOString(), dias: [
+  { data: hojeIso, aulas: [{ inicio: '07:00', fim: '07:50', disciplina: 'Química', turma: '33.01' }, { inicio: '07:50', fim: '08:40', disciplina: 'Química', turma: '33.01' }, { inicio: '09:00', fim: '09:50', disciplina: 'Física', turma: '33.03' }] },
+  { data: amanhaIso, aulas: [{ inicio: '07:00', fim: '07:50', disciplina: 'Química', turma: '13.02' }, { inicio: '10:00', fim: '10:50', disciplina: 'Química', turma: '33.02' }] },
+] };

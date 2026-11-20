@@ -1,8 +1,9 @@
-import { Home, Users, School, History, FileText, Settings, Search, RefreshCw, LogIn, BookOpenCheck, Eye } from 'lucide-react';
+import { Home, CalendarDays, Users, School, History, FileText, Settings, Search, RefreshCw, LogIn, BookOpenCheck, Eye } from 'lucide-react';
 import { tempoRelativo } from '../lib/sge';
 
 export const SECOES = [
   { id: 'home', rotulo: 'Home', icone: Home },
+  { id: 'semana', rotulo: 'Semana', icone: CalendarDays },
   { id: 'turmas', rotulo: 'Turmas', icone: Users },
   { id: 'coordenacao', rotulo: 'Coordenação', icone: School },
   { id: 'historico', rotulo: 'Histórico', icone: History },
@@ -59,12 +60,12 @@ export function BarraSuperior({ titulo, subtitulo, busca, aoBuscar, refBusca, pa
       <div className="flex justify-end gap-2">
         <button type="button" onClick={aoAbrirSge}
           title={modoEscola ? 'Abrir o SGE dentro do app para consultar e corrigir' : 'Abrir o SGE dentro do app para fazer o diário'}
-          className="flex h-12 items-center gap-2 rounded-full bg-lavanda px-5 text-sm font-semibold text-white shadow-[0_8px_20px_-8px_rgb(107_84_238/0.7)] transition hover:brightness-110 active:scale-[0.98]">
+          className="flex h-12 items-center gap-2 rounded-full bg-lavanda px-5 text-sm font-semibold text-[#fff] shadow-[0_8px_20px_-8px_rgb(107_84_238/0.7)] transition hover:brightness-110 active:scale-[0.98]">
           {modoEscola ? <Eye size={18} aria-hidden /> : <BookOpenCheck size={18} aria-hidden />} {modoEscola ? 'Consultar no SGE' : 'Fazer diário'}
         </button>
         {logado === false ? (
           <button type="button" onClick={aoEntrar}
-            className="flex h-12 items-center gap-2 rounded-full bg-tinta px-5 text-sm font-semibold text-white shadow-lg transition hover:bg-black active:scale-[0.98]">
+            className="flex h-12 items-center gap-2 rounded-full bg-tinta px-5 text-sm font-semibold text-white shadow-lg transition hover:opacity-90 active:scale-[0.98]">
             <LogIn size={18} aria-hidden /> Entrar no SGE
           </button>
         ) : (

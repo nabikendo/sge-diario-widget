@@ -41,3 +41,13 @@ npm run build:win  # .exe portátil em release-dist/
 - **Senha nunca passa pelo app.** O login é feito na página do SGE (janela visível). O app guarda
   só a sessão, na partição `persist:sge-oficial`.
 - **Mesmas rotas e mesmos critérios do Android**, para os números baterem nos dois.
+
+## Assinatura digital do instalador (tira o aviso azul do Windows)
+
+O build já está pronto para assinar. Falta o certificado, que é pago e emitido em nome da pessoa ou da empresa:
+
+1. Compre um certificado de assinatura de código (OV ou EV) numa autoridade certificadora, ou use o serviço Azure Trusted Signing.
+2. Para certificado em arquivo `.pfx`: converta para base64 e cadastre nos segredos do repositório `WIN_CSC_LINK` (o base64) e `WIN_CSC_KEY_PASSWORD` (a senha).
+3. O próximo build assina o instalador sozinho. Sem os segredos, ele sai sem assinatura, como hoje.
+
+Observação: com certificado OV, o aviso do SmartScreen some aos poucos, conforme o instalador ganha reputação. Com EV, some desde o primeiro download.

@@ -2,11 +2,12 @@
  * Acesso da interface ao motor. No Electron, usa a ponte do preload (window.sgeDesktop).
  * Aberto no navegador (npm run build:ui + vite preview, ou testes de layout), usa dados de exemplo.
  */
-import { exemploPainel, exemploHistorico, exemploCoordenacao } from './exemplo';
+import { exemploPainel, exemploHistorico, exemploCoordenacao, exemploHistoricoCoordenacao, exemploAgenda } from './exemplo';
 
 const ponte = typeof window !== 'undefined' ? window.sgeDesktop : undefined;
 const nada = () => () => {};
 
+const CONFIG_EXEMPLO = { tema: 'sistema', fecharNaBandeja: true, notificarNovas: true, avisoFimDia: true, horaAviso: '17:30', coordChamada: false, coordPlanos: false };
 export const sge = ponte ?? {
   obterPainel: async () => exemploPainel,
   sincronizar: async () => exemploPainel,
@@ -15,11 +16,15 @@ export const sge = ponte ?? {
   obterCoordenacao: async () => ({ painel: exemploCoordenacao, turmasEscola: 24 }),
   sincronizarEscola: async () => exemploCoordenacao,
   instalarAtualizacao: async () => {},
+  verificarAtualizacao: async () => {},
+  obterAgenda: async () => exemploAgenda,
+  aoAgenda: nada,
+  obterHistoricoCoordenacao: async () => exemploHistoricoCoordenacao,
   aoPerfil: nada, aoCoordenacao: nada, aoTurmasEscola: nada, aoFimSync: nada, aoAtualizacao: nada,
   sairDoSge: async () => {},
   obterHistorico: async () => exemploHistorico,
-  obterConfig: async () => ({ intervaloMin: 30, incluirDiversificada: false, incluirAee: false, abrirComWindows: false, abrirMaximizado: true, versao: 'exemplo', pastaDados: '' }),
-  salvarConfig: async (c) => ({ intervaloMin: 30, incluirDiversificada: false, incluirAee: false, abrirComWindows: false, abrirMaximizado: true, versao: 'exemplo', ...c }),
+  obterConfig: async () => ({ ...CONFIG_EXEMPLO, intervaloMin: 30, incluirDiversificada: false, incluirAee: false, abrirComWindows: false, abrirMaximizado: true, versao: 'exemplo', pastaDados: '' }),
+  salvarConfig: async (c) => ({ ...CONFIG_EXEMPLO, intervaloMin: 30, incluirDiversificada: false, incluirAee: false, abrirComWindows: false, abrirMaximizado: true, versao: 'exemplo', ...c }),
   abrirPastaDados: async () => {},
   apagarDados: async () => {},
   salvarRelatorio: async () => ({ ok: false, mensagem: 'Disponível só no app instalado.' }),

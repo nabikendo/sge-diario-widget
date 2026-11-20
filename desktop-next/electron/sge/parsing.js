@@ -314,4 +314,18 @@ function analisarVinculos(quadroHtml, professor, turmas) {
   return { vinculos: [...vinculos.values()], diagnosticos };
 }
 
-module.exports = { perfilAtivo, normalizarSge, chaveVinculo, frequencia, planos, mesesComAula, numeroBimestre, janelaOuNull, pendenciasCoordenacao, professores, tipoHorario, analisarVinculos, normalizar, dataIso, paraBr, hojeIso, categoriaTurma, htmlDaResposta, opcoesTurma, identidadeHorario, turmasDoQuadro, conteudos };
+/** Aulas do quadro de horário de um dia: linhas "07:00 às 07:50 | componente | turma". */
+function aulasDoQuadro(quadroHtml) {
+  const $ = cheerio.load(quadroHtml);
+  const aulas = [];
+  $('tr').each((_, tr) => {
+    const c = $(tr).find('td');
+    if (c.length !== 3) return;
+    const m = /(\d{1,2}:\d{2})\s*(?:às|as|a)\s*(\d{1,2}:\d{2})/i.exec($(c[0]).text());
+    if (!m) return;
+    aulas.push({ inicio: m[1].padStart(5, '0'), fim: m[2].padStart(5, '0'), disciplina: $(c[1]).text().trim(), turma: $(c[2]).text().trim() });
+  });
+  return aulas;
+}
+
+module.exports = { aulasDoQuadro, perfilAtivo, normalizarSge, chaveVinculo, frequencia, planos, mesesComAula, numeroBimestre, janelaOuNull, pendenciasCoordenacao, professores, tipoHorario, analisarVinculos, normalizar, dataIso, paraBr, hojeIso, categoriaTurma, htmlDaResposta, opcoesTurma, identidadeHorario, turmasDoQuadro, conteudos };

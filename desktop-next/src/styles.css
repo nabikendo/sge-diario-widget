@@ -60,3 +60,40 @@ body {
 /* Painel lateral de detalhe: entra pela direita. */
 @keyframes deslizar { from { opacity: 0; transform: translateX(24px); } to { opacity: 1; transform: none; } }
 .deslizar { animation: deslizar 320ms var(--ease-entrada) both; }
+
+/* ---------- Modo escuro ----------
+   Segue o Windows (ou a escolha nas Configurações, que ajusta o tema do Electron e portanto esta consulta).
+   Truque: "white" vira a cor de superfície escura, então bg-white/70 e ring-white viram vidro escuro sem mexer nos componentes;
+   quem precisa de branco de verdade usa text-[#fff]. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-tinta: #ece9ff;
+    --color-tinta-suave: #a9a3cf;
+    --color-lavanda: #8a76ff;
+    --color-lavanda-clara: #2d2560;
+    --color-emdia: #3ec88f;
+    --color-pendente: #ff7d73;
+    --color-alerta: #f2b04a;
+    --color-white: rgb(44 40 88);
+    --color-rose-50: rgb(90 34 48 / 0.55);   --color-rose-100: rgb(100 38 54 / 0.6);   --color-rose-200: rgb(130 52 70 / 0.6);   --color-rose-900: #ffd3d8;
+    --color-emerald-50: rgb(24 78 62 / 0.55); --color-emerald-200: rgb(36 110 88 / 0.6); --color-emerald-900: #c8f5e4;
+    --color-amber-50: rgb(96 70 20 / 0.55);  --color-amber-100: rgb(110 78 22 / 0.6);  --color-amber-200: rgb(140 100 30 / 0.6);  --color-amber-900: #ffe6b8;
+  }
+  body {
+    background:
+      radial-gradient(60% 55% at 0% 0%, #3b2f86 0%, transparent 70%),
+      radial-gradient(55% 50% at 100% 0%, #1f4a7a 0%, transparent 70%),
+      radial-gradient(60% 60% at 100% 100%, #6a2a62 0%, transparent 70%),
+      radial-gradient(55% 55% at 0% 100%, #4a3a22 0%, transparent 70%),
+      #14122b;
+    background-attachment: fixed;
+  }
+  .vidro { background-color: rgb(34 30 72 / 0.62); border-color: rgb(255 255 255 / 0.08); box-shadow: 0 1px 2px rgb(0 0 0 / 0.2), 0 12px 32px -12px rgb(0 0 0 / 0.5); }
+  .vidro-forte { background-color: rgb(40 36 82 / 0.85); border-color: rgb(255 255 255 / 0.1); }
+  ::-webkit-scrollbar-thumb { background: rgb(190 180 255 / 0.22); }
+  input, select { color: var(--color-tinta); }
+  select option { background: #221e48; color: var(--color-tinta); }
+}
+
+.card-resumo { background: linear-gradient(135deg, rgb(238 233 255 / .95) 0%, rgb(232 215 252 / .9) 45%, rgb(214 226 255 / .9) 100%); }
+@media (prefers-color-scheme: dark) { .card-resumo { background: linear-gradient(135deg, rgb(58 46 128 / .85) 0%, rgb(76 44 120 / .8) 45%, rgb(36 64 120 / .8) 100%); } }

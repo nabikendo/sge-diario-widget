@@ -47,7 +47,7 @@ export default function DetalheTurma({ turma, aoFechar, aoAbrirSge }) {
         </div>
 
         <button type="button" onClick={() => aoAbrirSge(atalho(turma, 0, turma.pendentes ?? []))}
-          className="mt-4 flex h-11 items-center justify-center gap-2 rounded-full bg-tinta text-sm font-semibold text-white transition hover:bg-black active:scale-[0.98]">
+          className="mt-4 flex h-11 items-center justify-center gap-2 rounded-full bg-tinta text-sm font-semibold text-white transition hover:opacity-90 active:scale-[0.98]">
           <ArrowUpRight size={18} /> Fazer o diário desta turma no SGE
         </button>
       </aside>
@@ -66,7 +66,7 @@ function Modulo({ def, dado, aoAbrir }) {
           {def.rotulo}
         </h3>
         <button type="button" onClick={() => aoAbrir(datas ?? [])}
-          className="flex items-center gap-1 rounded-full bg-lavanda-clara px-3 py-1.5 text-xs font-semibold text-lavanda transition hover:bg-lavanda hover:text-white">
+          className="flex items-center gap-1 rounded-full bg-lavanda-clara px-3 py-1.5 text-xs font-semibold text-lavanda transition hover:bg-lavanda hover:text-[#fff]">
           Abrir no SGE <ArrowUpRight size={14} />
         </button>
       </div>

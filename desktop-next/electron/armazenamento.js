@@ -22,6 +22,13 @@ const CONFIG_PADRAO = Object.freeze({
   incluirAee: false,
   abrirComWindows: false,
   abrirMaximizado: true,
+  tema: 'sistema',           // 'sistema' | 'claro' | 'escuro'
+  fecharNaBandeja: true,     // fechar a janela mantém o app ao lado do relógio
+  notificarNovas: true,      // notificação do Windows quando aparece pendência nova
+  avisoFimDia: true,         // resumo no fim da tarde (dias úteis)
+  horaAviso: '17:30',
+  coordChamada: false,       // Coordenação: ler também a Chamada de cada professor (mais consultas)
+  coordPlanos: false,        // Coordenação: ler também Plano de aula, Plano de curso e PEI
 });
 
 async function lerConfig() { return { ...CONFIG_PADRAO, ...(await ler('config.json', {})) }; }
@@ -30,7 +37,10 @@ async function gravarConfig(parcial) {
   const nova = { ...atual };
   for (const [k, v] of Object.entries(parcial ?? {})) {
     if (!(k in CONFIG_PADRAO) || typeof v !== typeof CONFIG_PADRAO[k]) continue; // só chaves e tipos conhecidos
-    nova[k] = k === 'intervaloMin' ? [0, 15, 30, 60, 120].includes(v) ? v : atual[k] : v;
+    if (k === 'intervaloMin') nova[k] = [0, 15, 30, 60, 120].includes(v) ? v : atual[k];
+    else if (k === 'tema') nova[k] = ['sistema', 'claro', 'escuro'].includes(v) ? v : atual[k];
+    else if (k === 'horaAviso') nova[k] = /^([01]\d|2[0-3]):[0-5]\d$/.test(v) ? v : atual[k];
+    else nova[k] = v;
   }
   await gravar('config.json', nova);
   return nova;
@@ -57,6 +67,8 @@ const lerHistorico = () => ler('historico.json', []);
 const lerPainel = () => ler('painel.json', null);
 const gravarPainel = (p) => gravar('painel.json', p);
 
+const lerAgenda = () => ler('agenda.json', null);
+const gravarAgenda = (a) => gravar('agenda.json', a);
 const lerCoordenacao = () => ler('coordenacao.json', null);
 const gravarCoordenacao = (p) => gravar('coordenacao.json', p);
 /** Turmas da escola lidas do seletor #SelecaoDeTurma (Escola → Conteúdo Aplicado). */
@@ -71,8 +83,21 @@ async function gravarTurmasEscola(lista) {
   return validas.length;
 }
 
-async function apagarDados() {
-  await Promise.all(['painel.json', 'historico.json', 'coordenacao.json', 'turmas-escola.json'].map((n) => fs.rm(arquivo(n), { force: true })));
+/** Histórico da Coordenação: dias sem conteúdo (e total de pendências) por professor, a cada leitura da escola. */
+const lerHistoricoCoordenacao = () => ler('historico-coordenacao.json', []);
+async function registrarHistoricoCoordenacao(painel) {
+  const lista = await ler('historico-coordenacao.json', []);
+  lista.push({ em: painel.atualizadoEm, total: painel.professores.reduce((s, p) => s + (p.total ?? p.dias), 0),
+    porProfessor: Object.fromEntries(painel.professores.filter((p) => p.id).map((p) => [p.nome, p.total ?? p.dias])) });
+  await gravar('historico-coordenacao.json', lista.slice(-120));
 }
 
-module.exports = { lerCoordenacao, gravarCoordenacao, lerTurmasEscola, gravarTurmasEscola, lerConfig, gravarConfig, registrarHistorico, lerHistorico, lerPainel, gravarPainel, apagarDados, CONFIG_PADRAO };
+/** Pequenos estados do app (ex.: dia do último aviso do fim da tarde). */
+const lerEstado = () => ler('estado.json', {});
+async function gravarEstado(parcial) { await gravar('estado.json', { ...(await lerEstado()), ...parcial }); }
+
+async function apagarDados() {
+  await Promise.all(['painel.json', 'historico.json', 'coordenacao.json', 'historico-coordenacao.json', 'turmas-escola.json', 'agenda.json'].map((n) => fs.rm(arquivo(n), { force: true })));
+}
+
+module.exports = { lerAgenda, gravarAgenda, lerHistoricoCoordenacao, registrarHistoricoCoordenacao, lerEstado, gravarEstado, lerCoordenacao, gravarCoordenacao, lerTurmasEscola, gravarTurmasEscola, lerConfig, gravarConfig, registrarHistorico, lerHistorico, lerPainel, gravarPainel, apagarDados, CONFIG_PADRAO };

@@ -11,8 +11,7 @@ export function CardResumo({ painel }) {
   const maisAntiga = turmas.flatMap((t) => t.pendentes ?? []).sort()[0];
 
   return (
-    <section className="surgir relative overflow-hidden rounded-3xl p-7 shadow-[0_12px_32px_-12px_rgb(60_45_140/0.25)] ring-1 ring-white/70"
-      style={{ background: 'linear-gradient(135deg, rgb(238 233 255 / .95) 0%, rgb(232 215 252 / .9) 45%, rgb(214 226 255 / .9) 100%)' }}>
+    <section className="surgir card-resumo relative overflow-hidden rounded-3xl p-7 shadow-[0_12px_32px_-12px_rgb(60_45_140/0.25)] ring-1 ring-white/70">
       <p className="text-xs font-bold tracking-[0.12em] text-lavanda uppercase">Pendências gerais</p>
       <div className="mt-2 flex items-end gap-3">
         <span className="text-6xl leading-none font-semibold tracking-tight tabular-nums">{dias}</span>
@@ -72,7 +71,7 @@ export function CardSincronizacao({ painel, progresso, sincronizando }) {
           <span className="flex items-center gap-2 font-semibold"><CalendarDays size={16} className="text-tinta-suave" aria-hidden />{b ? `${b.numero}º bimestre` : 'Bimestre'}</span>
           <span className="text-xs text-tinta-suave">{b ? `${diaMes(b.inicio)} – ${diaMes(b.fim)}` : 'datas não lidas'}</span>
         </div>
-        <BarraSegmentada progresso={pctBimestre ?? 0} segmentos={22} altura={30} cor="#d58ad6" trilho="rgb(85 45 48 / 0.12)" rotulo="Progresso do bimestre" />
+        <BarraSegmentada progresso={pctBimestre ?? 0} segmentos={22} altura={30} cor="#d58ad6" trilho="rgb(128 120 170 / 0.22)" rotulo="Progresso do bimestre" />
         <div className="mt-1.5 flex justify-between text-[11px] text-tinta-suave">
           <span>início</span>
           {pctBimestre != null && <b className="text-sm text-[#b75fb8]">{Math.round(pctBimestre * 100)}%</b>}

@@ -9,7 +9,7 @@
  *  - Login: janela visível do SGE, só quando a sessão expira. A senha é digitada na própria
  *    página do SGE; o app não lê nem guarda a senha (mesma regra do Android).
  */
-const { app, BrowserWindow, Menu, ipcMain, shell, powerMonitor, dialog, session } = require('electron');
+const { app, BrowserWindow, Menu, Tray, Notification, nativeImage, nativeTheme, ipcMain, shell, powerMonitor, dialog, session } = require('electron');
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const { SGE, PARTICAO } = require('./sge/constantes');
@@ -20,6 +20,8 @@ const armazenamento = require('./armazenamento');
 const relatorio = require('./relatorio');
 const janelaSge = require('./sge/janelaSge');
 const atualizador = require('./atualizador');
+const avisos = require('./avisos');
+const { gerarBitmap } = require('./iconeContador');
 
 const icone = path.join(__dirname, '..', 'assets', 'sge-diario.ico');
 const DEV_URL = process.env.VITE_DEV_SERVER_URL; // definido pelo script "dev"
@@ -28,6 +30,11 @@ let relogioAutomatico = null;
 let vitrine = null;
 let janelaLogin = null;
 let ultimoPainel = null;
+let bandeja = null;
+let configAtual = null;
+let saindo = false; // true só quando a pessoa escolheu Sair (senão fechar a janela esconde o app na bandeja)
+const iniciouOculto = process.argv.includes('--oculto'); // aberto junto com o Windows
+const TEMAS = { sistema: 'system', claro: 'light', escuro: 'dark' };
 
 // ---------- Vitrine (janela visível) ----------
 function criarVitrine(config) {
@@ -35,7 +42,7 @@ function criarVitrine(config) {
     icon: icone,
     width: 1280, height: 820, minWidth: 960, minHeight: 640,
     title: 'SGE Diário',
-    backgroundColor: '#eef0fb',
+    backgroundColor: nativeTheme.shouldUseDarkColors ? '#14122b' : '#eef0fb',
     show: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -46,7 +53,11 @@ function criarVitrine(config) {
   });
   vitrine.once('ready-to-show', () => {
     if (config.abrirMaximizado) vitrine.maximize();
-    vitrine.show();
+    if (!(iniciouOculto && bandeja)) vitrine.show();
+  });
+  // Fechar a janela mantém o app na bandeja (ao lado do relógio), lendo e avisando. Sair pelo menu da bandeja.
+  vitrine.on('close', (e) => {
+    if (!saindo && configAtual?.fecharNaBandeja && bandeja) { e.preventDefault(); vitrine.hide(); }
   });
   vitrine.webContents.setWindowOpenHandler(({ url }) => {
     if (url.startsWith('https://')) shell.openExternal(url);
@@ -58,7 +69,7 @@ function criarVitrine(config) {
   });
   if (DEV_URL) vitrine.loadURL(DEV_URL);
   else vitrine.loadFile(path.join(__dirname, '..', 'dist', 'index.html'));
-  vitrine.on('closed', () => { vitrine = null; });
+  vitrine.on('closed', () => { vitrine = null; app.quit(); }); // as janelas ocultas do motor não podem manter o app vivo
 }
 
 const enviar = (canal, dados) => { if (vitrine && !vitrine.isDestroyed()) vitrine.webContents.send(canal, dados); };
@@ -93,13 +104,74 @@ function abrirLogin() {
   });
 }
 
+// ---------- Bandeja, ícone com contador e notificações ----------
+const mostrarVitrine = () => {
+  if (!vitrine) { criarVitrine(configAtual ?? {}); return; }
+  if (vitrine.isMinimized()) vitrine.restore();
+  vitrine.show(); vitrine.focus();
+};
+
+function criarBandeja() {
+  bandeja = new Tray(nativeImage.createFromBitmap(gerarBitmap(0, 32), { width: 32, height: 32, scaleFactor: 2 }));
+  bandeja.setToolTip('SGE Diário');
+  bandeja.on('click', mostrarVitrine);
+  bandeja.setContextMenu(Menu.buildFromTemplate([
+    { label: 'Abrir SGE Diário', click: mostrarVitrine },
+    { label: 'Sincronizar agora', click: () => { mostrarVitrine(); sincronizarEAvisar({ manual: true }); } },
+    { type: 'separator' },
+    { label: 'Sair', click: () => { saindo = true; app.quit(); } },
+  ]));
+}
+
+/** Número de pendências no ícone da bandeja e na barra de tarefas. */
+function atualizarContador(n, rotulo) {
+  const img = (t, f) => nativeImage.createFromBitmap(gerarBitmap(n, t), { width: t, height: t, scaleFactor: f });
+  bandeja?.setImage(img(32, 2));
+  bandeja?.setToolTip(`SGE Diário · ${rotulo}`);
+  if (process.platform === 'win32' && vitrine && !vitrine.isDestroyed()) vitrine.setOverlayIcon(n > 0 ? img(16, 1) : null, rotulo);
+}
+function contadorDoProfessor(painel) {
+  const n = avisos.totalPainel(painel);
+  atualizarContador(n, n ? `${n} ${n === 1 ? 'pendência' : 'pendências'}` : 'tudo em dia');
+}
+function contadorDaEscola(coord) {
+  const n = (coord?.professores ?? []).reduce((s, p) => s + (p.total ?? p.dias), 0);
+  atualizarContador(n, n ? `${n} pendências na escola` : 'escola em dia');
+}
+
+function notificar({ titulo, corpo }) {
+  if (!Notification.isSupported()) return;
+  const n = new Notification({ title: titulo, body: corpo, icon: icone });
+  n.on('click', mostrarVitrine);
+  n.show();
+}
+
+/** Aviso do fim da tarde: confere a cada minuto; uma vez por dia útil depois da hora combinada. */
+async function conferirFimDoDia() {
+  const config = configAtual ?? await armazenamento.lerConfig();
+  if (!config.avisoFimDia) return;
+  const estado = await armazenamento.lerEstado();
+  if (!avisos.deveAvisarFimDia(new Date(), config.horaAviso, estado.ultimoAvisoFimDia)) return;
+  let painel = ultimoPainel ?? await motor.lerCache();
+  if (!painel || Date.now() - Date.parse(painel.atualizadoEm) > 2 * 3600_000) painel = (await sincronizarEAvisar()) ?? painel; // dados frescos, se a sessão permitir
+  await armazenamento.gravarEstado({ ultimoAvisoFimDia: hojeLocal() });
+  if (painel) notificar(avisos.textoFimDia(painel));
+}
+const hojeLocal = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+
 // ---------- Sincronização ----------
 let ultimaCoord = null;
 async function sincronizarEAvisar({ manual = false } = {}) {
   try {
+    const anterior = ultimoPainel ?? await motor.lerCache();
     ultimoPainel = await motor.sincronizar((p) => enviar('sync:progresso', p), { manual });
     enviar('sge:perfil', { escola: false });
     enviar('sync:concluida', ultimoPainel);
+    contadorDoProfessor(ultimoPainel);
+    // Pendência nova vira notificação, a não ser que a pessoa já esteja olhando o app.
+    const novas = avisos.novasPendencias(anterior, ultimoPainel);
+    if (novas.length && configAtual?.notificarNovas && !(vitrine?.isVisible() && vitrine.isFocused())) notificar(avisos.textoNovas(novas));
+    motor.agenda().then((a) => enviar('agenda:pronta', a)).catch(() => {});
     return ultimoPainel;
   } catch (e) {
     if (e instanceof motor.SessaoExpirada) {
@@ -129,6 +201,7 @@ async function sincronizarEscolaEAvisar({ manual = true } = {}) {
     }
     ultimaCoord = await motor.sincronizarEscola((p) => enviar('sync:progresso', p));
     enviar('coord:concluida', ultimaCoord);
+    contadorDaEscola(ultimaCoord);
     enviar('sync:fim', {});
     return ultimaCoord;
   } catch (e) {
@@ -164,6 +237,14 @@ ipcMain.handle('sge:abrirWeb', (_e, atalho) => {
 ipcMain.handle('coord:obter', async () => ({ painel: ultimaCoord ?? (ultimaCoord = await armazenamento.lerCoordenacao()), turmasEscola: (await armazenamento.lerTurmasEscola()).length }));
 ipcMain.handle('coord:sincronizar', () => sincronizarEscolaEAvisar({ manual: true }));
 ipcMain.handle('app:atualizar', () => atualizador.instalarAgora());
+ipcMain.handle('app:verificar', () => atualizador.verificar());
+ipcMain.handle('agenda:obter', async () => {
+  try { return await motor.agenda(); } catch (e) {
+    if (e instanceof motor.SessaoExpirada) return (await armazenamento.lerAgenda()) ?? null;
+    return (await armazenamento.lerAgenda()) ?? null;
+  }
+});
+ipcMain.handle('coord:historico', () => armazenamento.lerHistoricoCoordenacao());
 ipcMain.handle('sge:sair', async () => {
   // Apaga só a sessão do SGE (cookies e armazenamento da partição); a próxima sincronização pede login.
   await session.fromPartition(PARTICAO).clearStorageData();
@@ -175,12 +256,14 @@ ipcMain.handle('historico:obter', () => armazenamento.lerHistorico());
 ipcMain.handle('config:obter', async () => ({ ...(await armazenamento.lerConfig()), versao: app.getVersion(), pastaDados: app.getPath('userData') }));
 ipcMain.handle('config:salvar', async (_e, parcial) => {
   const config = await armazenamento.gravarConfig(parcial);
-  app.setLoginItemSettings({ openAtLogin: config.abrirComWindows });
+  configAtual = config;
+  nativeTheme.themeSource = TEMAS[config.tema] ?? 'system';
+  app.setLoginItemSettings({ openAtLogin: config.abrirComWindows, args: ['--oculto'] });
   agendar(config);
   return { ...config, versao: app.getVersion(), pastaDados: app.getPath('userData') };
 });
 ipcMain.handle('dados:abrirPasta', () => shell.openPath(app.getPath('userData')));
-ipcMain.handle('dados:apagar', async () => { await armazenamento.apagarDados(); ultimoPainel = null; ultimaCoord = null; enviar('coord:concluida', null); });
+ipcMain.handle('dados:apagar', async () => { await armazenamento.apagarDados(); ultimoPainel = null; ultimaCoord = null; enviar('coord:concluida', null); atualizarContador(0, 'sem dados'); });
 ipcMain.handle('relatorio:salvar', async (_e, formato) => {
   const escola = formato === 'coord-csv' || formato === 'coord-pdf';
   const painel = escola ? (ultimaCoord ?? await armazenamento.lerCoordenacao()) : (ultimoPainel ?? await motor.lerCache());
@@ -208,13 +291,18 @@ function agendar(config) {
 // ---------- Ciclo de vida ----------
 const unico = app.requestSingleInstanceLock();
 if (!unico) app.exit(0); // segunda cópia: sai já, sem abrir janela nem sincronizar
-app.on('second-instance', () => { if (vitrine) { if (vitrine.isMinimized()) vitrine.restore(); vitrine.focus(); } });
+app.on('second-instance', mostrarVitrine);
+app.on('before-quit', () => { saindo = true; }); // atualização e Sair precisam poder fechar de verdade
 
 if (unico) app.whenReady().then(async () => {
-  const config = await armazenamento.lerConfig();
+  const config = configAtual = await armazenamento.lerConfig();
   app.setAppUserModelId('br.to.seduc.sgediariowidget.desktop');
   Menu.setApplicationMenu(null); // sem a barra "File, Edit, View…" do Electron
+  nativeTheme.themeSource = TEMAS[config.tema] ?? 'system';
+  criarBandeja();
   criarVitrine(config);
+  setInterval(() => conferirFimDoDia().catch(() => {}), 60_000);
+  motor.lerCache().then((p) => p && contadorDoProfessor(p));
   // Primeira leitura ao abrir; depois no intervalo escolhido e ao voltar da suspensão.
   vitrine.webContents.once('did-finish-load', () => sincronizarEAvisar());
   agendar(config);

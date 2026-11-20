@@ -128,12 +128,13 @@ function sincronizar(aoProgresso = () => {}, { manual = false } = {}) {
 }
 
 /**
- * Painel da coordenação (perfil Unidade escolar): aulas sem conteúdo de todas as turmas da escola,
- * atribuídas a cada professor pelo horário dele.
+ * Painel da coordenação (perfil Unidade escolar): pendências da escola inteira por professor,
+ * atribuídas pelo horário de cada um. Conteúdo Aplicado sempre; Chamada e planos só se ligados nas
+ * Configurações (são muitas consultas: uma ou mais por professor e componente).
  */
 function sincronizarEscola(aoProgresso = () => {}) {
   return exclusivo('escola', async () => {
-    const { leitor } = await prepararSessao(aoProgresso);
+    const { leitor, config } = await prepararSessao(aoProgresso);
     const perfil = await leitor.perfil();
     if (perfil !== 'escola') throw new Error('O perfil ativo no SGE é Servidor (professor). Troque para Unidade escolar no SGE e sincronize de novo.');
     const turmasEscola = await armazenamento.lerTurmasEscola();
@@ -141,7 +142,10 @@ function sincronizarEscola(aoProgresso = () => {}) {
 
     aoProgresso({ etapa: 'Lendo os professores', feitas: 0, total: null });
     const professores = await leitor.professoresDaEscola();
-    const total = professores.length + turmasEscola.length;
+    const nomeDaTurma = new Map(turmasEscola.map((t) => [t.v, t.t]));
+    const detalhes = Boolean(config.coordChamada || config.coordPlanos);
+    // Cada professor leva 1 consulta de horário; cada turma, 1 de Conteúdo. Os detalhes somam as consultas por vínculo (abaixo).
+    let total = professores.length + turmasEscola.length;
     let feitas = 0;
     const passo = (etapa) => aoProgresso({ etapa, feitas: ++feitas, total });
 
@@ -164,35 +168,92 @@ function sincronizarEscola(aoProgresso = () => {}) {
       return item;
     });
 
-    // Agrupa por professor → (turma, componente) → datas.
-    const porProfessor = new Map();
+    // Um item por (turma, componente): vem do horário dos professores e das aulas sem conteúdo.
+    const naoIdentificado = { id: '', nome: 'Professor não identificado' };
+    const itens = new Map();
+    const garantir = (turmaId, componente, professor) => {
+      const k = P.chaveVinculo(turmaId, componente);
+      if (!itens.has(k)) itens.set(k, { turmaId, turma: nomeDaTurma.get(turmaId) ?? turmaId, componente, professor: professor ?? naoIdentificado, datas: [], chamada: null, planos: null });
+      return itens.get(k);
+    };
+    for (const v of vinculos.values()) garantir(v.turmaId, v.componente, v.professor);
     for (const t of turmas) {
       for (const p of t.pendencias) {
-        const v = vinculos.get(P.chaveVinculo(t.id, p.disciplina));
-        const prof = v?.professor ?? { id: '', nome: 'Professor não identificado' };
-        if (!porProfessor.has(prof.id)) porProfessor.set(prof.id, { ...prof, itens: new Map() });
-        const itens = porProfessor.get(prof.id).itens;
-        const k = P.chaveVinculo(t.id, p.disciplina);
-        if (!itens.has(k)) itens.set(k, { turmaId: t.id, turma: t.nome, componente: p.disciplina, datas: [] });
-        const datas = itens.get(k).datas;
-        if (!datas.includes(p.data)) datas.push(p.data);
+        const it = garantir(t.id, p.disciplina, vinculos.get(P.chaveVinculo(t.id, p.disciplina))?.professor);
+        if (!it.datas.includes(p.data)) it.datas.push(p.data);
       }
     }
+
+    if (detalhes) {
+      const lista = [...itens.values()].filter((it) => it.professor.id);
+      total += lista.length; // os detalhes entram na barra de progresso
+      aoProgresso({ etapa: 'Lendo Chamada e Planos', feitas, total });
+      const bimestre = await leitor.bimestreAtual(turmasEscola[0].v);
+      await emParalelo(lista, 2, async (it) => {
+        const t = { id: it.turmaId, disciplina: it.componente };
+        const tentar = async (fn) => { try { return await fn(); } catch (e) { if (e instanceof SessaoExpirada) throw e; return { erro: e.message }; } };
+        if (config.coordChamada) {
+          const r = await tentar(() => leitor.frequencia(t, bimestre));
+          it.chamada = r.erro ? null : r.datas;
+          if (r.erro) it.erroChamada = r.erro;
+        }
+        if (config.coordPlanos) {
+          await tentar(() => leitor.conteudos(t, bimestre)); // o calendário de aulas é a base da cobertura dos planos
+          it.planos = {};
+          for (const { chave, tipo } of PLANOS) {
+            const r = await tentar(() => leitor.planos(t, tipo));
+            it.planos[chave] = r.erro || r.indisponivel ? null : r.pendentes ?? 0;
+          }
+        }
+        passo('Lendo Chamada e Planos');
+      });
+    }
+
+    const soma = (o) => Object.values(o ?? {}).reduce((s, v) => s + (v ?? 0), 0);
+    const pendenciasDe = (it) => it.datas.length + (it.chamada?.length ?? 0) + soma(it.planos);
+    const porProfessor = new Map();
+    for (const it of itens.values()) {
+      if (!pendenciasDe(it)) continue;
+      const { professor, ...resto } = it;
+      if (!porProfessor.has(professor.id)) porProfessor.set(professor.id, { ...professor, itens: [] });
+      porProfessor.get(professor.id).itens.push({ ...resto, datas: resto.datas.sort() });
+    }
     const listaProfessores = [...porProfessor.values()].map((p) => {
-      const itens = [...p.itens.values()].map((i) => ({ ...i, datas: i.datas.sort() })).sort((a, b) => b.datas.length - a.datas.length || a.turma.localeCompare(b.turma));
-      return { id: p.id, nome: p.nome, itens, dias: itens.reduce((s, i) => s + i.datas.length, 0) };
-    }).sort((a, b) => (a.id === '') - (b.id === '') || b.dias - a.dias || a.nome.localeCompare(b.nome));
+      const lista = p.itens.sort((a, b) => pendenciasDe(b) - pendenciasDe(a) || a.turma.localeCompare(b.turma));
+      return {
+        id: p.id, nome: p.nome, itens: lista,
+        dias: lista.reduce((s, i) => s + i.datas.length, 0),
+        chamadas: lista.reduce((s, i) => s + (i.chamada?.length ?? 0), 0),
+        planos: lista.reduce((s, i) => s + soma(i.planos), 0),
+        total: lista.reduce((s, i) => s + pendenciasDe(i), 0),
+      };
+    }).sort((a, b) => (a.id === '') - (b.id === '') || b.total - a.total || a.nome.localeCompare(b.nome));
     const semPendencia = professores.filter((p) => !porProfessor.has(p.id)).map((p) => p.nome);
 
     const painel = {
-      versao: 1, atualizadoEm: new Date().toISOString(),
+      versao: 2, atualizadoEm: new Date().toISOString(), detalhes: { chamada: Boolean(config.coordChamada), planos: Boolean(config.coordPlanos) },
       turmas: turmas.map((t) => ({ id: t.id, nome: t.nome, dias: new Set(t.pendencias.map((p) => `${p.data}|${p.disciplina}`)).size, erro: t.erro })),
       professores: listaProfessores, semPendencia, totalProfessores: professores.length,
       diagnosticos: diagnosticos.slice(0, 200),
     };
     await armazenamento.gravarCoordenacao(painel);
+    await armazenamento.registrarHistoricoCoordenacao(painel);
     return painel;
   });
 }
 
-module.exports = { sincronizar, sincronizarEscola, lerCache, SessaoExpirada, PerfilEscola };
+/** Aulas de hoje e de amanhã do professor (quadro de horário do SGE). A interface cruza com o painel. */
+function agenda() {
+  return exclusivo('agenda', async () => {
+    const sessao = session.fromPartition(PARTICAO);
+    const leitor = criarLeitor(criarCliente(sessao));
+    const dia = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return P.hojeIso(d); };
+    const dias = [];
+    for (const n of [0, 1]) dias.push({ data: dia(n), aulas: await leitor.aulasDoDia(dia(n)) });
+    const resultado = { geradoEm: new Date().toISOString(), dias };
+    await armazenamento.gravarAgenda(resultado);
+    return resultado;
+  });
+}
+
+module.exports = { agenda, sincronizar, sincronizarEscola, lerCache, SessaoExpirada, PerfilEscola };

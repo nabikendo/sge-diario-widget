@@ -25,6 +25,15 @@ function criarLeitor(cliente, { incluir = new Set() } = {}) {
     return { perfilEscola, turmas: P.turmasDoQuadro(quadro.html, opcoes, incluir) };
   }
 
+  /** Aulas do professor num dia (quadro de horário com a data de referência). */
+  async function aulasDoDia(iso) {
+    const { professor, tipo } = P.identidadeHorario(await cliente.requisicao('/horariodeauladoprofessor'));
+    const quadro = await cliente.json('/HorarioDeAulaDoProfessor/QuadroHorarioProfessor', {
+      dataReferencia: P.paraBr(iso), tipo, colaboradorId: professor, escolaId: '', turno: '', somenteConflitos: 'false',
+    });
+    return P.aulasDoQuadro(quadro.html);
+  }
+
   /** Código do componente curricular (GradeEscolarId) da turma. */
   async function grade(t) {
     const chave = `${t.id}/${t.disciplina}`;
@@ -216,7 +225,7 @@ function criarLeitor(cliente, { incluir = new Set() } = {}) {
     return P.pendenciasCoordenacao(j.html, P.hojeIso());
   }
 
-  return { perfil, turmas, grade, bimestreAtual, conteudos, frequencia, planos, professoresDaEscola, vinculosDocente, pendenciasConteudoTurma };
+  return { aulasDoDia, perfil, turmas, grade, bimestreAtual, conteudos, frequencia, planos, professoresDaEscola, vinculosDocente, pendenciasConteudoTurma };
 }
 
 module.exports = { criarLeitor };
