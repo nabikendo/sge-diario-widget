@@ -1,12 +1,10 @@
-SGE Diário 2.9.4 (desktop)
+SGE Diário 2.9.5 (desktop)
 
 ### Desktop (Windows)
-- **Instalador com atualização automática.** Daqui para a frente o app se atualiza sozinho (Configurações → Atualizações → Verificar agora).
-- **Tutorial de boas-vindas e tela de entrada renovada.** O app reconhece o perfil do SGE (Servidor ou Unidade escolar) e muda as abas sozinho.
-- **Coordenação reformulada (só consulta):** Visão geral, Professores, Turmas e Componentes, com painel de detalhe, escolha do 1º ao 4º bimestre ou do ano letivo, comparação com a semana passada, mensagens de cobrança prontas para o WhatsApp, PDF e planilha. Lê também a Chamada de cada professor e não conta mais professores sem horário na escola.
-- **Professor:** diário completo por turma (Conteúdo, Chamada, Plano de aula, Plano de curso e PEI), aba Semana com as aulas de hoje e amanhã, e o botão "Fazer diário" que abre o SGE dentro do app.
-- **Avisos:** notificação do Windows quando surge pendência nova, resumo no fim da tarde e ícone na bandeja com o número de pendências.
-- **Modo claro e escuro** (grafite neutro no escuro).
-- Correções: leitura da Coordenação no perfil Unidade escolar, sincronizações em fila, segunda cópia do app, processo que ficava aberto depois de fechar.
+- **Correção:** a aba Relatórios da Coordenação deixava a tela em branco. Agora, se alguma tela falhar, o app mostra um aviso com o botão Recarregar.
+- **Professor:** escolha do 1º ao 4º bimestre (consulta), lembrete do dia ("você deu 4 aulas hoje e falta registrar o conteúdo de 2"), botão para abrir cada data pendente direto no SGE.
+- **Calendário escolar:** feriados nacionais e de Tocantins, Carnaval, Sexta-feira Santa e Corpus Christi não entram nas pendências nem geram aviso; recessos e sábados letivos podem ser informados em Configurações.
+- **Busca global:** Ctrl+K encontra professor, turma e componente em qualquer tela.
+- **Coordenação:** nova aba Direção, com uma página de indicadores para imprimir ou salvar em PDF.
 
 O app Android não muda nesta versão.
