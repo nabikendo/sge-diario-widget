@@ -9,7 +9,7 @@
  *  - Login: janela visível do SGE, só quando a sessão expira. A senha é digitada na própria
  *    página do SGE; o app não lê nem guarda a senha (mesma regra do Android).
  */
-const { app, BrowserWindow, ipcMain, shell, powerMonitor } = require('electron');
+const { app, BrowserWindow, Menu, ipcMain, shell, powerMonitor } = require('electron');
 const path = require('node:path');
 const { SGE, PARTICAO } = require('./sge/constantes');
 const { naTelaDeLogin } = require('./sge/janelaOculta');
@@ -98,6 +98,7 @@ async function sincronizarEAvisar() {
       enviar('sge:sessao', { logado: false });
       return null;
     }
+    console.error('[sync]', e);
     enviar('sge:erro', { mensagem: e.message || 'Falha ao sincronizar.' });
     return null;
   }
@@ -116,6 +117,7 @@ app.on('second-instance', () => { if (vitrine) { if (vitrine.isMinimized()) vitr
 
 app.whenReady().then(() => {
   app.setAppUserModelId('br.to.seduc.sgediariowidget.desktop');
+  Menu.setApplicationMenu(null); // sem a barra "File, Edit, View…" do Electron
   criarVitrine();
   // Primeira leitura ao abrir; depois a cada 30 min e ao voltar da suspensão.
   vitrine.webContents.once('did-finish-load', () => sincronizarEAvisar());

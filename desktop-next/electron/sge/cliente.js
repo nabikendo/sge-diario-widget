@@ -58,7 +58,9 @@ function criarCliente(sessao, { registrar = () => {} } = {}) {
     const texto = await resposta.text();
     registrar({ caminho, status: resposta.status, ms: Date.now() - inicio, bytes: texto.length });
 
-    if (new URL(resposta.url).pathname.toLowerCase().includes(CAMINHO_LOGIN.toLowerCase())) throw new SessaoExpirada();
+    let caminhoFinal = '';
+    try { caminhoFinal = new URL(resposta.url || url.toString()).pathname.toLowerCase(); } catch { /* sem URL final: segue pelo conteúdo */ }
+    if (caminhoFinal.includes(CAMINHO_LOGIN.toLowerCase())) throw new SessaoExpirada();
     if (texto.includes('id="login-form"') || texto.includes('id="btn-entrar"')) throw new SessaoExpirada();
     if (!resposta.ok) throw Object.assign(new Error(`SGE respondeu HTTP ${resposta.status} em ${caminho}`), { naoRepetir: true });
     if (!texto.trim()) throw Object.assign(new Error(`SGE retornou resposta vazia em ${caminho}`), { naoRepetir: true });

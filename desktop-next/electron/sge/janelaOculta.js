@@ -34,7 +34,31 @@ function obterJanela() {
   return janela;
 }
 
-const naTelaDeLogin = (url) => new URL(url).pathname.toLowerCase().includes(CAMINHO_LOGIN.toLowerCase());
+/** Endereço vazio ou inválido (página que não carregou) conta como "sem sessão confirmada". */
+function naTelaDeLogin(url) {
+  try { return new URL(url).pathname.toLowerCase().includes(CAMINHO_LOGIN.toLowerCase()); } catch { return true; }
+}
+
+/**
+ * Carrega uma URL e espera a navegação assentar. O SGE redireciona (ex.: "/" → "/Acesso/Entrar"),
+ * e o Electron rejeita o loadURL com ERR_ABORTED (-3) nesses casos: isso não é erro.
+ */
+function carregar(w, url, limiteMs = 30_000) {
+  const wc = w.webContents;
+  return new Promise((resolve, reject) => {
+    let fim;
+    const limpar = () => { clearTimeout(fim); wc.removeListener('did-stop-loading', parou); wc.removeListener('did-fail-load', falhou); };
+    const parou = () => { limpar(); resolve(wc.getURL()); };
+    const falhou = (_e, codigo, descricao, urlFalha, principal) => {
+      if (!principal || codigo === -3) return; // -3 = redirecionamento/abortado: espera a próxima página
+      limpar(); reject(new Error(`Não foi possível abrir o SGE (${descricao || codigo}). Confira a internet.`));
+    };
+    fim = setTimeout(() => { limpar(); reject(new Error('O SGE demorou demais para responder. Tente de novo.')); }, limiteMs);
+    wc.on('did-stop-loading', parou);
+    wc.on('did-fail-load', falhou);
+    wc.loadURL(url).catch(() => {}); // o resultado vem pelos eventos acima
+  });
+}
 
 /** Espera um seletor aparecer na página (o SGE carrega partes por AJAX). */
 async function esperarSeletor(wc, seletor, limiteMs = 15_000) {
@@ -53,8 +77,8 @@ async function esperarSeletor(wc, seletor, limiteMs = 15_000) {
  */
 async function lerPaginaInicial() {
   const w = obterJanela();
-  await w.loadURL(SGE + '/');
-  if (naTelaDeLogin(w.webContents.getURL())) return { logado: false, opcoesTurma: [] };
+  const atual = await carregar(w, SGE + '/');
+  if (naTelaDeLogin(atual)) return { logado: false, opcoesTurma: [] };
   await esperarSeletor(w.webContents, '#TurmaContextoId option[value]:not([value=""])', 10_000);
   // Leitura somente: o script retorna dados e não clica em nada.
   const opcoesTurma = await w.webContents.executeJavaScript(`
