@@ -42,7 +42,7 @@ function criarVitrine(config) {
     icon: icone,
     width: 1280, height: 820, minWidth: 960, minHeight: 640,
     title: 'SGE Diário',
-    backgroundColor: nativeTheme.shouldUseDarkColors ? '#14122b' : '#eef0fb',
+    backgroundColor: nativeTheme.shouldUseDarkColors ? '#17171b' : '#eef0fb',
     show: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -247,7 +247,13 @@ ipcMain.handle('agenda:obter', async () => {
     return (await armazenamento.lerAgenda()) ?? null;
   }
 });
-ipcMain.handle('perfil:obter', async () => (await armazenamento.lerEstado()).perfil ?? null);
+ipcMain.handle('perfil:obter', async () => {
+  const salvo = (await armazenamento.lerEstado()).perfil;
+  if (salvo) return salvo;
+  // Instalações anteriores ainda sem o perfil guardado: deduz pelo que já foi lido.
+  if (await motor.lerCache()) return 'professor';
+  return (await armazenamento.lerCoordenacao()) ? 'escola' : null;
+});
 ipcMain.handle('coord:historico', () => armazenamento.lerHistoricoCoordenacao());
 ipcMain.handle('sge:sair', async () => {
   // Apaga só a sessão do SGE (cookies e armazenamento da partição); a próxima sincronização pede login.
@@ -271,13 +277,13 @@ ipcMain.handle('dados:apagar', async () => { await armazenamento.apagarDados(); 
 ipcMain.handle('relatorio:salvar', async (_e, formato, opcoes) => {
   const escola = formato === 'coord-csv' || formato === 'coord-pdf';
   let painel = escola ? (ultimaCoord ?? await armazenamento.lerCoordenacao()) : (ultimoPainel ?? await motor.lerCache());
-  if (escola && painel) { const { visaoPeriodo } = await import('./escolaVisao.mjs'); painel = visaoPeriodo(painel, opcoes?.periodo === 'ano' ? 'ano' : 'bimestre'); } // o relatório sai igual à tela
+  if (escola && painel) { const { visaoPeriodo } = await import('./escolaVisao.mjs'); painel = visaoPeriodo(painel, /^(ano|bimestre|[1-4])$/.test(opcoes?.periodo) ? opcoes.periodo : 'bimestre'); } // o relatório sai igual à tela
   if (!painel) return { ok: false, mensagem: escola ? 'Leia a escola na Coordenação antes de gerar o relatório.' : 'Sincronize antes de gerar o relatório.' };
   const pdf = formato === 'pdf' || formato === 'coord-pdf';
   const dia = new Date().toISOString().slice(0, 10);
   const { canceled, filePath } = await dialog.showSaveDialog(vitrine, {
     title: 'Salvar relatório',
-    defaultPath: path.join(app.getPath('documents'), `SGE Diario - ${escola ? `pendencias da escola ${painel?.periodo === 'ano' ? 'ano letivo' : 'bimestre'}` : 'conteudo aplicado'} ${dia}.${pdf ? 'pdf' : 'csv'}`),
+    defaultPath: path.join(app.getPath('documents'), `SGE Diario - ${escola ? `pendencias da escola ${painel?.janela ? `${painel.janela.numero} bimestre` : 'ano letivo'}` : 'conteudo aplicado'} ${dia}.${pdf ? 'pdf' : 'csv'}`),
     filters: [pdf ? { name: 'PDF', extensions: ['pdf'] } : { name: 'Planilha (CSV)', extensions: ['csv'] }],
   });
   if (canceled || !filePath) return { ok: false };

@@ -61,9 +61,11 @@ test('visão da coordenação: período, agrupamentos e resumo', async () => {
       { turmaId: 'b', turma: '13.02', componente: 'Química', datas: ['2026-09-11'], chamada: null, planos: null }] },
     { id: '2', nome: 'Beto', itens: [{ turmaId: 'a', turma: '13.01', componente: 'Física', datas: ['2026-11-04'], chamada: ['2026-11-04'], planos: { planoAula: 1 } }] },
   ] };
-  const bim = E.visaoPeriodo(painel, 'bimestre'); const ano = E.visaoPeriodo(painel, 'ano');
+  const bim = E.visaoPeriodo(painel, 'bimestre'); const b3 = E.visaoPeriodo({ ...painel, bimestres: [{ numero: 3, inicio: '2026-08-01', fim: '2026-10-18' }, painel.bimestre] }, '3'); const ano = E.visaoPeriodo(painel, 'ano');
   assert.equal(ano.professores.reduce((s, p) => s + p.total, 0), 7);
   assert.equal(bim.professores.reduce((s, p) => s + p.total, 0), 5);
+  assert.equal(b3.professores.reduce((s, p) => s + p.total, 0), 2); // só as datas de setembro; sem chamada nem planos em bimestre passado
+  assert.equal(b3.periodo, '3');
   assert.deepEqual(bim.professores.map((p) => p.nome), ['Beto', 'Ana']);
   assert.equal(E.visaoPeriodo({ ...painel, bimestre: null }, 'bimestre').periodo, 'ano');
   assert.deepEqual(E.porTurma(bim).map((t) => [t.rotulo, t.total]), [['13.01', 5]]);

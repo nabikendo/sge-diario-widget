@@ -192,7 +192,7 @@ export function Relatorios({ painel }) {
 }
 
 /* ---------- Configurações ---------- */
-export function Configuracoes({ logado, aoSair, atualizacao }) {
+export function Configuracoes({ logado, aoSair, atualizacao, aoVerTutorial }) {
   const [c, setC] = useState(null);
   useEffect(() => { sge.obterConfig().then(setC); }, []);
   if (!c) return null;
@@ -242,12 +242,16 @@ export function Configuracoes({ logado, aoSair, atualizacao }) {
       </Grupo>
 
       <Grupo titulo="Coordenação (perfil Unidade escolar)">
-        <Linha titulo="Ler também a Chamada" texto="Inclui as chamadas não concluídas de cada professor. Faz mais consultas ao SGE; a leitura da escola fica mais lenta.">
+        <Linha titulo="Ler também a Chamada" texto="Inclui as chamadas não concluídas de cada professor (bimestre atual). Faz mais consultas ao SGE; a leitura da escola fica mais lenta.">
           <Chave ligada={c.coordChamada} aoMudar={(v) => mudar({ coordChamada: v })} />
         </Linha>
         <Linha titulo="Ler também Plano de aula, Plano de curso e PEI" texto="Muitas consultas por professor e componente: a primeira leitura pode levar vários minutos.">
           <Chave ligada={c.coordPlanos} aoMudar={(v) => mudar({ coordPlanos: v })} />
         </Linha>
+      </Grupo>
+
+      <Grupo titulo="Ajuda">
+        <Linha titulo="Tutorial de introdução" texto="Revê o passo a passo de boas-vindas."><Botao icone={Info} onClick={aoVerTutorial}>Ver de novo</Botao></Linha>
       </Grupo>
 
       <Grupo titulo="Atualizações">

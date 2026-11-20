@@ -12,7 +12,7 @@ const plural = (n, um, varios) => `${n} ${n === 1 ? um : varios}`;
 function usarEscola() {
   const [dados, setDados] = useState(null);
   const [historico, setHistorico] = useState([]);
-  const [periodo, setPeriodoEstado] = useState(() => { try { return localStorage.getItem('periodoEscola') === 'ano' ? 'ano' : 'bimestre'; } catch { return 'bimestre'; } });
+  const [periodo, setPeriodoEstado] = useState(() => { try { const v = localStorage.getItem('periodoEscola'); return /^(ano|[1-4])$/.test(v) ? v : 'bimestre'; } catch { return 'bimestre'; } });
   const setPeriodo = (p) => { setPeriodoEstado(p); try { localStorage.setItem('periodoEscola', p); } catch { /* sem armazenamento: só nesta sessão */ } };
   useEffect(() => {
     const carregar = () => { sge.obterCoordenacao().then(setDados); sge.obterHistoricoCoordenacao().then(setHistorico); };
@@ -22,7 +22,7 @@ function usarEscola() {
   }, []);
   const painel = dados?.painel ?? null;
   const visao = useMemo(() => (painel ? visaoPeriodo(painel, periodo) : null), [painel, periodo]);
-  return { dados, historico, periodo: visao?.periodo ?? periodo, setPeriodo, painel, visao };
+  return { dados, historico, periodo: visao?.periodo ?? periodo, escolhido: periodo, setPeriodo, painel, visao };
 }
 
 /** Coordenação (perfil Unidade escolar): só consulta. Uma seção por vez; todas partem dos mesmos dados lidos do SGE. */
@@ -48,17 +48,20 @@ export function Escola({ secao, busca, perfilEscola, sincronizando, aoAbrirSge }
 
 /* ---------- Barra: período e ações ---------- */
 function Barra({ e, sincronizando, aoCobranca, mostrarAcoes }) {
-  const { painel, periodo, setPeriodo } = e;
-  const bim = painel.bimestre;
-  const Opcao = ({ id, children }) => (
-    <button type="button" onClick={() => setPeriodo(id)} aria-pressed={periodo === id}
-      className={`rounded-full px-4 py-2 text-sm font-medium transition ${periodo === id ? 'bg-tinta text-white' : 'bg-white/70 text-tinta-suave ring-1 ring-white hover:bg-white'}`}>{children}</button>
+  const { painel, periodo, setPeriodo, visao } = e;
+  const lista = painel.bimestres?.length ? painel.bimestres : painel.bimestre ? [painel.bimestre] : [];
+  const Opcao = ({ id, atual, children, titulo }) => (
+    <button type="button" onClick={() => setPeriodo(id)} aria-pressed={periodo === (id === 'bimestre' ? String(painel.bimestre?.numero) : id)} title={titulo}
+      className={`rounded-full px-4 py-2 text-sm font-medium transition ${periodo === (id === 'bimestre' ? String(painel.bimestre?.numero) : id) ? 'bg-tinta text-white' : 'bg-white/70 text-tinta-suave ring-1 ring-white hover:bg-white'}`}>
+      {children}{atual && <span className="ml-1.5 inline-block size-1.5 rounded-full bg-emdia align-middle" aria-label="bimestre atual" />}
+    </button>
   );
+  const j = visao.janela;
   return (
     <div className="mb-5">
       <div className="flex flex-wrap items-center gap-2">
-        {bim ? <><Opcao id="bimestre">{bim.numero}º bimestre ({brData(bim.inicio)} a {brData(bim.fim)})</Opcao><Opcao id="ano">Ano letivo</Opcao></>
-          : <span className="rounded-full bg-white/70 px-4 py-2 text-sm text-tinta-suave ring-1 ring-white">Ano letivo (bimestre não identificado)</span>}
+        {lista.map((b) => <Opcao key={b.numero} id={String(b.numero)} atual={b.numero === painel.bimestre?.numero} titulo={`${brData(b.inicio)} a ${brData(b.fim)}`}>{b.numero}º bimestre</Opcao>)}
+        <Opcao id="ano">Ano letivo</Opcao>
         {mostrarAcoes && (
           <div className="ml-auto flex flex-wrap items-center gap-2">
             <button type="button" onClick={aoCobranca} className="flex items-center gap-1.5 rounded-full bg-lavanda px-4 py-2 text-sm font-semibold text-[#fff] hover:brightness-110">
@@ -70,7 +73,8 @@ function Barra({ e, sincronizando, aoCobranca, mostrarAcoes }) {
         )}
       </div>
       <p className="mt-2 text-xs text-tinta-suave">
-        Lido em {new Date(painel.atualizadoEm).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })} · {e.dados.turmasEscola} turmas da escola
+        {j ? `${j.numero}º bimestre, de ${brData(j.inicio)} a ${brData(j.fim)}` : 'Ano letivo inteiro'} · lido em {new Date(painel.atualizadoEm).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })} · {e.dados.turmasEscola} turmas
+        {j && j.numero !== painel.bimestre?.numero && ' · Chamada e planos só aparecem no bimestre atual e no ano letivo'}
         {!(painel.detalhes?.chamada || painel.detalhes?.planos) && ' · só Conteúdo Aplicado (Chamada e planos: Configurações)'}
       </p>
     </div>
@@ -83,17 +87,17 @@ function VisaoGeral({ e, aoIr }) {
   const total = visao.professores.reduce((s, p) => s + p.total, 0);
   const prof = porProfessor(visao); const turmas = porTurma(visao); const comps = porComponente(visao);
   const semana = useMemo(() => {
-    if (periodo !== 'bimestre') return null;
+    if (e.escolhido !== 'bimestre' && periodo !== String(visao.bimestre?.numero)) return null;
     const ref = referenciaSemanal(historico.filter((h) => h.em !== visao.atualizadoEm));
     if (!ref) return null;
     const atual = Object.fromEntries(visao.professores.filter((p) => p.id).map((p) => [p.nome, p.total]));
     return { ref, ...diferencas(atual, ref.porProfessor) };
-  }, [visao, historico, periodo]);
+  }, [visao, historico, periodo, e.escolhido]);
 
   return (
     <>
       <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
-        <Indicador valor={total} rotulo={periodo === 'ano' ? 'pendências no ano letivo' : 'pendências no bimestre'} cor="text-pendente" />
+        <Indicador valor={total} rotulo={periodo === 'ano' ? 'pendências no ano letivo' : `pendências no ${periodo}º bimestre`} cor="text-pendente" />
         <Indicador valor={`${prof.filter((p) => p.id).length}/${visao.totalProfessores}`} rotulo="professores com pendência" />
         <Indicador valor={`${turmas.length}/${visao.turmas.length}`} rotulo="turmas com pendência" />
         <Indicador valor={comps.length} rotulo="componentes com pendência" />
@@ -252,7 +256,7 @@ function Detalhe({ visao, tipo, chave, periodo, aoFechar }) {
         className="vidro-forte deslizar m-3 flex w-[min(560px,94vw)] flex-col rounded-[28px] p-6 shadow-2xl">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-sm text-tinta-suave">{sobre} · {periodo === 'ano' ? 'ano letivo' : `${visao.bimestre.numero}º bimestre`}</p>
+            <p className="text-sm text-tinta-suave">{sobre} · {periodo === 'ano' ? 'ano letivo' : `${periodo}º bimestre`}</p>
             <h2 className="text-2xl font-semibold tracking-tight break-words">{grupo.rotulo}</h2>
           </div>
           <button type="button" onClick={aoFechar} aria-label="Fechar" className="rounded-full p-2 text-tinta-suave hover:bg-tinta/5"><X size={20} /></button>
@@ -350,7 +354,6 @@ function RelatoriosEscola({ e }) {
       <span><b className="block text-lg">{titulo}</b><span className="text-sm text-tinta-suave">{texto}</span></span>
     </button>
   );
-  const bim = e.painel.bimestre;
   return (
     <>
       <p className="mb-5 text-tinta-suave">Pendências da escola por professor, turma e componente, no período escolhido acima ({e.periodo === 'ano' || !bim ? 'ano letivo' : `${bim.numero}º bimestre`}).</p>

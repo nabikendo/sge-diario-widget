@@ -3,6 +3,7 @@ import { BarraLateral, BarraSuperior, SECOES_PROFESSOR, SECOES_ESCOLA } from './
 import DetalheTurma from './components/DetalheTurma';
 import { Semana } from './paginas/Semana';
 import { Escola } from './paginas/Escola';
+import { Boasvindas, Tutorial } from './paginas/Boasvindas';
 import { Inicio, Turmas, Historico, Relatorios, Configuracoes } from './paginas/Paginas';
 import { sge, modoExemplo } from './lib/sge';
 
@@ -28,7 +29,9 @@ export default function App() {
   const [busca, setBusca] = useState('');
   const [secao, setSecao] = useState(() => location.hash.slice(1) || '');  // #secao abre direto numa tela
   const [abertaChave, setAbertaChave] = useState(null);
-  const [perfilEscola, setPerfilEscola] = useState(false);
+  const [perfil, setPerfil] = useState(null); // 'professor' | 'escola' | null (ainda não reconhecido)
+  const perfilEscola = perfil === 'escola';
+  const [intro, setIntro] = useState(null); // null = carregando; true = mostrar o tutorial
   const secoes = perfilEscola ? SECOES_ESCOLA : SECOES_PROFESSOR;
   const [atualizacao, setAtualizacao] = useState(null);
   const [, tique] = useState(0);
@@ -38,13 +41,14 @@ export default function App() {
   // Assinaturas do motor (progresso, fim, sessão, erros) + cache salvo.
   useEffect(() => {
     sge.obterPainel().then((p) => p && setPainel(p));
-    sge.obterPerfil().then((p) => p === 'escola' && setPerfilEscola(true)); // o app abre já no último perfil conhecido
+    sge.obterPerfil().then((p) => p && setPerfil(p)); // o app abre já no último perfil conhecido
+    sge.obterConfig().then((c) => setIntro(!c.introVista));
     const desligar = [
       sge.aoProgresso((p) => { setSincronizando(true); setProgresso(p); setErro(null); }),
       sge.aoConcluir((p) => { setPainel(p); setSincronizando(false); setProgresso(null); setLogado(true); }),
       sge.aoSessao(({ logado }) => { setLogado(logado); if (!logado) setSincronizando(false); }),
       sge.aoErro(({ mensagem }) => { setErro(mensagem); setSincronizando(false); }),
-      sge.aoPerfil(({ escola }) => setPerfilEscola(escola)),
+      sge.aoPerfil(({ escola }) => setPerfil(escola ? 'escola' : 'professor')),
       sge.aoFimSync(() => { setSincronizando(false); setProgresso(null); setLogado(true); }),
       sge.aoAtualizacao(setAtualizacao),
     ];
@@ -75,6 +79,7 @@ export default function App() {
   const buscar = (texto) => { setBusca(texto); if (texto && !perfilEscola && !['home', 'turmas'].includes(secao)) setSecao('turmas');
     if (texto && perfilEscola && !['professores', 'turmas-escola', 'componentes'].includes(secao)) setSecao('professores'); };
   const sincronizar = async () => { setSincronizando(true); setErro(null); const p = await sge.sincronizar(); if (p) setPainel(p); setSincronizando(false); };
+  const concluirIntro = async () => { setIntro(false); await sge.salvarConfig({ introVista: true }); };
   const sair = async () => { if (confirm('Sair do SGE neste computador? Você precisará entrar de novo para sincronizar.')) { await sge.sairDoSge(); setLogado(false); } };
   const fecharDetalhe = useCallback(() => setAbertaChave(null), []);
   const setAberta = (t) => setAbertaChave(t ? `${t.id}/${t.disciplina}` : null);
@@ -84,6 +89,12 @@ export default function App() {
   const titulo = secao === 'home' && !perfilEscola ? saudacao() : secoes.find((s) => s.id === secao)?.rotulo ?? 'Configurações';
   const hoje = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
   const subtitulo = secao === 'home' && !perfilEscola ? hoje.charAt(0).toUpperCase() + hoje.slice(1) : SUBTITULOS[secao];
+
+  if (intro === null) return null;
+  if (intro) return <Tutorial aoConcluir={concluirIntro} />;
+  if (perfil === null && !painel && secao !== 'configuracoes') {
+    return <Boasvindas logado={logado} progresso={progresso} aoEntrar={() => sge.entrar()} aoVerTutorial={() => setIntro(true)} />;
+  }
 
   return (
     <div className="grid h-full grid-cols-[96px_1fr] grid-rows-[auto_1fr] gap-x-2 gap-y-5 p-5 pl-2">
@@ -118,7 +129,7 @@ export default function App() {
           {!perfilEscola && secao === 'turmas' && <Turmas turmas={turmas} aoAbrir={setAberta} />}
           {!perfilEscola && secao === 'historico' && <Historico />}
           {!perfilEscola && secao === 'relatorios' && <Relatorios painel={painel} />}
-          {secao === 'configuracoes' && <Configuracoes logado={logado} aoSair={sair} atualizacao={atualizacao} />}
+          {secao === 'configuracoes' && <Configuracoes logado={logado} aoSair={sair} atualizacao={atualizacao} aoVerTutorial={() => setIntro(true)} />}
         </div>
       </main>
 

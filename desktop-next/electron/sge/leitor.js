@@ -69,6 +69,19 @@ function criarLeitor(cliente, { incluir = new Set() } = {}) {
     return null;
   }
 
+  /** Janelas dos 4 bimestres (as que o SGE informa). */
+  async function bimestres(turmaId) {
+    if (bimestreZero === null) bimestreZero = (await janelaDoBimestre('0', turmaId)) !== null;
+    const lista = [];
+    for (let n = 1; n <= 4; n++) {
+      const chave = `${turmaId}|${n}`;
+      if (!janelas.has(chave)) janelas.set(chave, await janelaDoBimestre(String(bimestreZero ? n - 1 : n), turmaId));
+      const j = janelas.get(chave);
+      if (j) lista.push({ numero: n, ...j });
+    }
+    return lista;
+  }
+
   const calendarios = new Map(); // HTML do Conteúdo Aplicado, reaproveitado na cobertura dos planos
 
   /** Conteúdo Aplicado da turma no bimestre atual. */
@@ -225,7 +238,7 @@ function criarLeitor(cliente, { incluir = new Set() } = {}) {
     return P.pendenciasCoordenacao(j.html, P.hojeIso());
   }
 
-  return { aulasDoDia, perfil, turmas, grade, bimestreAtual, conteudos, frequencia, planos, professoresDaEscola, vinculosDocente, pendenciasConteudoTurma };
+  return { bimestres, aulasDoDia, perfil, turmas, grade, bimestreAtual, conteudos, frequencia, planos, professoresDaEscola, vinculosDocente, pendenciasConteudoTurma };
 }
 
 module.exports = { criarLeitor };

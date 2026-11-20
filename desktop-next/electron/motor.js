@@ -151,12 +151,14 @@ function sincronizarEscola(aoProgresso = () => {}) {
 
     const vinculos = new Map();
     const diagnosticos = [];
+    const comHorario = new Set(); // quem tem aulas no horário de hoje; o SGE também lista professores que já saíram da escola
     await emParalelo(professores, 2, async (p) => {
       try {
         const r = await leitor.vinculosDocente(p, turmasEscola);
+        if (r.vinculos.length || r.diagnosticos.length) comHorario.add(p.id);
         r.vinculos.forEach((v) => vinculos.set(P.chaveVinculo(v.turmaId, v.componente), v));
         diagnosticos.push(...r.diagnosticos);
-      } catch (e) { if (e instanceof SessaoExpirada) throw e; diagnosticos.push({ professor: p.nome, tipo: 'erro', erro: e.message }); }
+      } catch (e) { if (e instanceof SessaoExpirada) throw e; comHorario.add(p.id); diagnosticos.push({ professor: p.nome, tipo: 'erro', erro: e.message }); }
       passo('Lendo o horário de cada professor');
     });
 
@@ -184,9 +186,11 @@ function sincronizarEscola(aoProgresso = () => {}) {
       }
     }
 
-    // Bimestre atual: a interface mostra por padrão só ele (o ano inteiro fica disponível).
-    let bimestre = null;
-    try { bimestre = await leitor.bimestreAtual(turmasEscola[0].v); } catch (e) { if (e instanceof SessaoExpirada) throw e; }
+    // Bimestres: a interface mostra por padrão o atual e deixa escolher o 1º, 2º, 3º, 4º ou o ano inteiro.
+    let bimestres = [];
+    try { bimestres = await leitor.bimestres(turmasEscola[0].v); } catch (e) { if (e instanceof SessaoExpirada) throw e; }
+    const hoje = P.hojeIso();
+    const bimestre = bimestres.find((b) => hoje >= b.inicio && hoje <= b.fim) ?? null;
 
     if (detalhes) {
       const lista = [...itens.values()].filter((it) => it.professor.id);
@@ -231,12 +235,14 @@ function sincronizarEscola(aoProgresso = () => {}) {
         total: lista.reduce((s, i) => s + pendenciasDe(i), 0),
       };
     }).sort((a, b) => (a.id === '') - (b.id === '') || b.total - a.total || a.nome.localeCompare(b.nome));
-    const semPendencia = professores.filter((p) => !porProfessor.has(p.id)).map((p) => p.nome);
+    const ativos = professores.filter((p) => comHorario.has(p.id));
+    const semHorario = professores.filter((p) => !comHorario.has(p.id)).map((p) => p.nome);
+    const semPendencia = ativos.filter((p) => !porProfessor.has(p.id)).map((p) => p.nome);
 
     const painel = {
-      versao: 3, atualizadoEm: new Date().toISOString(), bimestre, detalhes: { chamada: Boolean(config.coordChamada), planos: Boolean(config.coordPlanos) },
+      versao: 4, atualizadoEm: new Date().toISOString(), bimestre, bimestres, detalhes: { chamada: Boolean(config.coordChamada), planos: Boolean(config.coordPlanos) },
       turmas: turmas.map((t) => ({ id: t.id, nome: t.nome, dias: new Set(t.pendencias.map((p) => `${p.data}|${p.disciplina}`)).size, erro: t.erro })),
-      professores: listaProfessores, semPendencia, totalProfessores: professores.length,
+      professores: listaProfessores, semPendencia, semHorario, totalProfessores: ativos.length,
       diagnosticos: diagnosticos.slice(0, 200),
     };
     await armazenamento.gravarCoordenacao(painel);

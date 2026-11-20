@@ -6,22 +6,32 @@ const fmt = (iso) => iso.slice(8, 10) + '/' + iso.slice(5, 7);
 const somaPlanos = (p) => Object.values(p ?? {}).reduce((s, v) => s + (v ?? 0), 0);
 export const norm = (t) => String(t ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
 
-/** A data entra no período? Sem bimestre identificado, só existe "ano". */
-export const noPeriodo = (d, bim, periodo) => periodo === 'ano' || !bim || (d >= bim.inicio && d <= bim.fim);
+/** Janela do período: 'ano' = sem limite; 'bimestre' = o atual; '1'..'4' = o bimestre escolhido. */
+export function janelaDoPeriodo(painel, periodo) {
+  if (periodo === 'ano') return null;
+  if (periodo === 'bimestre') return painel.bimestre ?? null;
+  return painel.bimestres?.find((b) => String(b.numero) === String(periodo)) ?? null;
+}
+export const noPeriodo = (d, janela) => !janela || (d >= janela.inicio && d <= janela.fim);
 export const pendenciasDoItem = (it) => (it.datas?.length ?? 0) + (it.chamada?.length ?? 0) + somaPlanos(it.planos);
 
-/** Painel recortado no período, com totais recalculados. Professores sem nada pendente passam para `semPendencia`. */
+/**
+ * Painel recortado no período, com totais recalculados. Professores sem nada pendente passam para `semPendencia`.
+ * Chamada e planos só existem para o bimestre atual (e para o ano, que inclui o atual): em bimestres passados ficam de fora.
+ */
 export function visaoPeriodo(painel, periodo = 'bimestre') {
   if (!painel) return painel;
-  const efetivo = painel.bimestre ? periodo : 'ano';
+  const janela = janelaDoPeriodo(painel, periodo);
+  const efetivo = janela ? String(janela.numero) : 'ano';
+  const atual = !janela || janela.numero === painel.bimestre?.numero;
   const professores = []; const semPendencia = [...(painel.semPendencia ?? [])];
   for (const p of painel.professores ?? []) {
-    const itens = p.itens.map((it) => ({ ...it, datas: (it.datas ?? []).filter((d) => noPeriodo(d, painel.bimestre, efetivo)) })).filter((it) => pendenciasDoItem(it) > 0);
+    const itens = p.itens.map((it) => ({ ...it, datas: (it.datas ?? []).filter((d) => noPeriodo(d, janela)), chamada: atual ? it.chamada : null, planos: atual ? it.planos : null })).filter((it) => pendenciasDoItem(it) > 0);
     if (!itens.length) { if (p.id && !semPendencia.includes(p.nome)) semPendencia.push(p.nome); continue; }
     professores.push({ ...p, itens, dias: itens.reduce((s, i) => s + i.datas.length, 0), chamadas: itens.reduce((s, i) => s + (i.chamada?.length ?? 0), 0), planos: itens.reduce((s, i) => s + somaPlanos(i.planos), 0), total: itens.reduce((s, i) => s + pendenciasDoItem(i), 0) });
   }
   professores.sort((a, b) => (a.id === '') - (b.id === '') || b.total - a.total || a.nome.localeCompare(b.nome));
-  return { ...painel, periodo: efetivo, professores, semPendencia: semPendencia.sort((a, b) => a.localeCompare(b)) };
+  return { ...painel, periodo: efetivo, janela, professores, semPendencia: semPendencia.sort((a, b) => a.localeCompare(b)) };
 }
 
 /** "18 aulas · 19/10 a 18/11". */

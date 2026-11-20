@@ -7,9 +7,9 @@ import { exemploPainel, exemploHistorico, exemploCoordenacao, exemploHistoricoCo
 const ponte = typeof window !== 'undefined' ? window.sgeDesktop : undefined;
 const nada = () => () => {};
 
-const CONFIG_EXEMPLO = { tema: 'sistema', fecharNaBandeja: true, notificarNovas: true, avisoFimDia: true, horaAviso: '17:30', coordChamada: false, coordPlanos: false };
+const CONFIG_EXEMPLO = { introVista: !location.search.includes('intro'), tema: 'sistema', fecharNaBandeja: true, notificarNovas: true, avisoFimDia: true, horaAviso: '17:30', coordChamada: true, coordPlanos: false };
 export const sge = ponte ?? {
-  obterPainel: async () => exemploPainel,
+  obterPainel: async () => (location.search.includes('novo') ? null : exemploPainel),
   sincronizar: async () => exemploPainel,
   entrar: async () => {},
   abrirSge: async () => {},

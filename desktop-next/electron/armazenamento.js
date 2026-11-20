@@ -27,7 +27,8 @@ const CONFIG_PADRAO = Object.freeze({
   notificarNovas: true,      // notificação do Windows quando aparece pendência nova
   avisoFimDia: true,         // resumo no fim da tarde (dias úteis)
   horaAviso: '17:30',
-  coordChamada: false,       // Coordenação: ler também a Chamada de cada professor (mais consultas)
+  coordChamada: true,        // Coordenação: ler também a Chamada de cada professor (mais consultas)
+  introVista: false,         // tutorial de boas-vindas já visto
   coordPlanos: false,        // Coordenação: ler também Plano de aula, Plano de curso e PEI
 });
 

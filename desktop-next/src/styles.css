@@ -62,38 +62,37 @@ body {
 .deslizar { animation: deslizar 320ms var(--ease-entrada) both; }
 
 /* ---------- Modo escuro ----------
-   Segue o Windows (ou a escolha nas Configurações, que ajusta o tema do Electron e portanto esta consulta).
-   Truque: "white" vira a cor de superfície escura, então bg-white/70 e ring-white viram vidro escuro sem mexer nos componentes;
+   Grafite neutro, com um toque suave de lavanda só no destaque. Segue o Windows (ou a escolha nas Configurações,
+   que ajusta o tema do Electron e portanto esta consulta).
+   Truque: "white" vira a cor de superfície, então bg-white/70 e ring-white viram vidro escuro sem mexer nos componentes;
    quem precisa de branco de verdade usa text-[#fff]. */
 @media (prefers-color-scheme: dark) {
   :root {
-    --color-tinta: #ece9ff;
-    --color-tinta-suave: #a9a3cf;
-    --color-lavanda: #8a76ff;
-    --color-lavanda-clara: #2d2560;
-    --color-emdia: #3ec88f;
-    --color-pendente: #ff7d73;
-    --color-alerta: #f2b04a;
-    --color-white: rgb(44 40 88);
-    --color-rose-50: rgb(90 34 48 / 0.55);   --color-rose-100: rgb(100 38 54 / 0.6);   --color-rose-200: rgb(130 52 70 / 0.6);   --color-rose-900: #ffd3d8;
-    --color-emerald-50: rgb(24 78 62 / 0.55); --color-emerald-200: rgb(36 110 88 / 0.6); --color-emerald-900: #c8f5e4;
-    --color-amber-50: rgb(96 70 20 / 0.55);  --color-amber-100: rgb(110 78 22 / 0.6);  --color-amber-200: rgb(140 100 30 / 0.6);  --color-amber-900: #ffe6b8;
+    --color-tinta: #ececf0;
+    --color-tinta-suave: #a2a2ad;
+    --color-lavanda: #9a89ff;
+    --color-lavanda-clara: rgb(154 137 255 / 0.16);
+    --color-emdia: #4cc38f;
+    --color-pendente: #f2827a;
+    --color-alerta: #e8b052;
+    --color-white: rgb(70 70 78);
+    --color-rose-50: rgb(242 130 122 / 0.14);   --color-rose-100: rgb(242 130 122 / 0.2);   --color-rose-200: rgb(242 130 122 / 0.28);   --color-rose-900: #ffd6d2;
+    --color-emerald-50: rgb(76 195 143 / 0.14); --color-emerald-200: rgb(76 195 143 / 0.28); --color-emerald-900: #cdf2e1;
+    --color-amber-50: rgb(232 176 82 / 0.14);   --color-amber-100: rgb(232 176 82 / 0.2);   --color-amber-200: rgb(232 176 82 / 0.28);   --color-amber-900: #fbe5bd;
   }
   body {
     background:
-      radial-gradient(60% 55% at 0% 0%, #3b2f86 0%, transparent 70%),
-      radial-gradient(55% 50% at 100% 0%, #1f4a7a 0%, transparent 70%),
-      radial-gradient(60% 60% at 100% 100%, #6a2a62 0%, transparent 70%),
-      radial-gradient(55% 55% at 0% 100%, #4a3a22 0%, transparent 70%),
-      #14122b;
+      radial-gradient(70% 50% at 0% 0%, rgb(154 137 255 / 0.09) 0%, transparent 70%),
+      radial-gradient(60% 45% at 100% 100%, rgb(154 137 255 / 0.05) 0%, transparent 70%),
+      #17171b;
     background-attachment: fixed;
   }
-  .vidro { background-color: rgb(34 30 72 / 0.62); border-color: rgb(255 255 255 / 0.08); box-shadow: 0 1px 2px rgb(0 0 0 / 0.2), 0 12px 32px -12px rgb(0 0 0 / 0.5); }
-  .vidro-forte { background-color: rgb(40 36 82 / 0.85); border-color: rgb(255 255 255 / 0.1); }
-  ::-webkit-scrollbar-thumb { background: rgb(190 180 255 / 0.22); }
+  .vidro { background-color: rgb(255 255 255 / 0.045); border-color: rgb(255 255 255 / 0.07); box-shadow: 0 1px 2px rgb(0 0 0 / 0.25), 0 12px 32px -14px rgb(0 0 0 / 0.55); }
+  .vidro-forte { background-color: rgb(40 40 46 / 0.92); border-color: rgb(255 255 255 / 0.09); }
+  ::-webkit-scrollbar-thumb { background: rgb(255 255 255 / 0.16); }
   input, select { color: var(--color-tinta); }
-  select option { background: #221e48; color: var(--color-tinta); }
+  select option { background: #26262c; color: var(--color-tinta); }
 }
 
 .card-resumo { background: linear-gradient(135deg, rgb(238 233 255 / .95) 0%, rgb(232 215 252 / .9) 45%, rgb(214 226 255 / .9) 100%); }
-@media (prefers-color-scheme: dark) { .card-resumo { background: linear-gradient(135deg, rgb(58 46 128 / .85) 0%, rgb(76 44 120 / .8) 45%, rgb(36 64 120 / .8) 100%); } }
+@media (prefers-color-scheme: dark) { .card-resumo { background: linear-gradient(135deg, rgb(52 48 78 / .9) 0%, rgb(46 44 66 / .9) 100%); } }

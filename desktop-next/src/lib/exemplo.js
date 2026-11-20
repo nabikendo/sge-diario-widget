@@ -33,7 +33,7 @@ export const exemploHistorico = Array.from({ length: 21 }, (_, i) => {
 });
 
 export const exemploCoordenacao = {
-  versao: 3, bimestre: { numero: 4, inicio: iso(30), fim: iso(-40) }, detalhes: { chamada: true, planos: true }, atualizadoEm: new Date(agora.getTime() - 12 * 60_000).toISOString(), totalProfessores: 18,
+  versao: 3, bimestre: { numero: 4, inicio: iso(30), fim: iso(-40) }, bimestres: [{ numero: 1, inicio: iso(260), fim: iso(190) }, { numero: 2, inicio: iso(185), fim: iso(110) }, { numero: 3, inicio: iso(105), fim: iso(35) }, { numero: 4, inicio: iso(30), fim: iso(-40) }], detalhes: { chamada: true, planos: true }, atualizadoEm: new Date(agora.getTime() - 12 * 60_000).toISOString(), totalProfessores: 18,
   turmas: [{ id: 'a', nome: '13.01/EM.MAT', dias: 6 }, { id: 'b', nome: '23.02/EM.VESP', dias: 3 }],
   professores: [
     { id: '10', nome: 'Ana Paula Ribeiro', dias: 7, chamadas: 1, planos: 1, total: 9, itens: [
