@@ -356,7 +356,7 @@ function RelatoriosEscola({ e }) {
   );
   return (
     <>
-      <p className="mb-5 text-tinta-suave">Pendências da escola por professor, turma e componente, no período escolhido acima ({e.periodo === 'ano' || !bim ? 'ano letivo' : `${bim.numero}º bimestre`}).</p>
+      <p className="mb-5 text-tinta-suave">Pendências da escola por professor, turma e componente, no período escolhido acima ({e.periodo === 'ano' ? 'ano letivo' : `${e.periodo}º bimestre`}).</p>
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Opcao icone={FileText} titulo="Salvar em PDF" texto="Pronto para imprimir ou levar à reunião pedagógica." formato="coord-pdf" />
         <Opcao icone={FileSpreadsheet} titulo="Exportar planilha" texto="Arquivo CSV que abre no Excel ou no Google Planilhas." formato="coord-csv" />
