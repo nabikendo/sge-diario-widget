@@ -24,7 +24,7 @@ export function Semana({ painel, aoAbrir }) {
       {agenda.dias.map((dia, i) => (
         <section key={dia.data} className="surgir" style={{ '--atraso': `${i * 60}ms` }}>
           <h2 className="mb-3 text-lg font-semibold">{rotuloDia(dia.data, i)}</h2>
-          {dia.semAula && <p className="mb-2.5 flex items-center gap-2 rounded-2xl bg-lavanda-clara px-4 py-2.5 text-sm font-medium text-lavanda"><CalendarOff size={16} aria-hidden /> {dia.semAula}: dia sem aula, sem cobrança de registro.</p>}
+          {dia.semAula && <p className="mb-2.5 flex items-center gap-2 rounded-2xl bg-lavanda-clara px-4 py-2.5 text-sm font-medium text-lavanda-texto"><CalendarOff size={16} aria-hidden /> {dia.semAula}: dia sem aula, sem cobrança de registro.</p>}
           {dia.aulas.length === 0 ? (
             <p className="flex items-center gap-3 rounded-2xl bg-white/60 p-5 text-tinta-suave"><CalendarOff size={20} aria-hidden /> {dia.semAula ? 'Sem aulas neste dia.' : 'Sem aulas neste dia no horário do SGE.'}</p>
           ) : (
@@ -62,11 +62,11 @@ function Aula({ aula, dia, hoje, turma, aoAbrir }) {
         {!turma ? <p className="text-sm text-tinta-suave">Turma não lida na última sincronização.</p>
           : turma.status === 'erro' ? <p className="text-sm text-alerta">Não foi possível ler esta turma.</p>
           : falta.length === 0 ? <p className="flex items-center gap-1.5 text-sm text-emdia"><CheckCircle2 size={15} aria-hidden /> Nada pendente</p>
-          : <div className="mt-1 flex flex-wrap gap-1.5">{falta.map((f) => <span key={f.texto} className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${f.forte ? 'bg-pendente text-[#fff]' : 'bg-rose-50 text-pendente'}`}>{f.texto}</span>)}</div>}
+          : <div className="mt-1 flex flex-wrap gap-1.5">{falta.map((f) => <span key={f.texto} className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${f.forte ? 'bg-pendente-forte text-[#fff]' : 'bg-rose-50 text-pendente-forte'}`}>{f.texto}</span>)}</div>}
       </div>
       {turma && (
         <button type="button" onClick={() => aoAbrir(atalho(turma, modulo, modulo === 0 ? turma.pendentes ?? [] : []))}
-          className="flex shrink-0 items-center gap-1 rounded-full bg-lavanda-clara px-3 py-1.5 text-xs font-semibold text-lavanda transition hover:bg-lavanda hover:text-[#fff]">
+          className="flex shrink-0 items-center gap-1 rounded-full bg-lavanda-clara px-3 py-1.5 text-xs font-semibold text-lavanda-texto transition hover:bg-lavanda-solido hover:text-[#fff]">
           Abrir no SGE <ArrowUpRight size={14} aria-hidden />
         </button>
       )}

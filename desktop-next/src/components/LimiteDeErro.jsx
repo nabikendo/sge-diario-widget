@@ -11,7 +11,7 @@ export default class LimiteDeErro extends Component {
         <div className="vidro-forte w-[min(480px,100%)] rounded-[28px] p-8 text-center">
           <h1 className="text-xl font-semibold">Algo deu errado nesta tela</h1>
           <p className="mt-2 text-sm text-tinta-suave">Seus dados estão salvos. Recarregue para continuar.</p>
-          <button type="button" onClick={() => location.reload()} className="mt-5 rounded-full bg-lavanda px-6 py-2.5 text-sm font-semibold text-[#fff]">Recarregar</button>
+          <button type="button" onClick={() => location.reload()} className="mt-5 rounded-full bg-lavanda-solido px-6 py-2.5 text-sm font-semibold text-[#fff]">Recarregar</button>
         </div>
       </div>
     );

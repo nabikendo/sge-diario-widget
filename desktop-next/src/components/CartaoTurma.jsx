@@ -4,7 +4,7 @@ import { diaMes, MODULOS } from '../lib/sge';
 /** Cores por estado: o verde sempre significa "em dia" (igual ao app Android). */
 const ESTADOS = {
   'em-dia':   { rotulo: 'Em dia',   icone: CheckCircle2,  chip: 'bg-emerald-50/90 text-emdia ring-emerald-200/70',  barra: 'from-emerald-400 to-teal-400' },
-  'pendente': { rotulo: 'Pendente', icone: CircleDashed,  chip: 'bg-rose-50/90 text-pendente ring-rose-200/70',     barra: 'from-violet-500 to-fuchsia-400' },
+  'pendente': { rotulo: 'Pendente', icone: CircleDashed,  chip: 'bg-rose-50/90 text-pendente-forte ring-rose-200/70',     barra: 'from-violet-500 to-fuchsia-400' },
   'erro':     { rotulo: 'Não lido', icone: AlertTriangle, chip: 'bg-amber-50/90 text-alerta ring-amber-200/70',     barra: 'from-amber-300 to-amber-400' },
 };
 
@@ -32,7 +32,7 @@ export default function CartaoTurma({ turma, indice = 0, aoAbrir }) {
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-[13px] font-medium text-tinta-suave">{turma.disciplina}</p>
-          <h3 className="mt-0.5 truncate text-2xl font-semibold tracking-tight">Turma {turma.nome}</h3>
+          <h2 className="mt-0.5 truncate text-2xl font-semibold tracking-tight">Turma {turma.nome}</h2>
           <p className="mt-0.5 truncate text-xs text-tinta-suave/80">{turma.escola}</p>
         </div>
         <span className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${estado.chip}`}>
@@ -60,7 +60,7 @@ export default function CartaoTurma({ turma, indice = 0, aoAbrir }) {
         <div className="mt-4 flex flex-wrap gap-1.5">
           {MODULOS.filter((m) => !turma.modulos?.[m.chave]?.indisponivel).map((m) => {
             const n = turma.contagens[m.chave];
-            const cor = n == null ? 'bg-amber-50 text-alerta' : n > 0 ? 'bg-rose-50 text-pendente' : 'bg-emerald-50/80 text-emdia';
+            const cor = n == null ? 'bg-amber-50 text-alerta' : n > 0 ? 'bg-rose-50 text-pendente-forte' : 'bg-emerald-50/80 text-emdia';
             return (
               <span key={m.chave} className={`rounded-full px-2.5 py-1 text-xs font-medium ${cor}`} title={turma.modulos?.[m.chave]?.erro}>
                 {m.rotulo} <b className="tabular-nums">{n == null ? '—' : n}</b>

@@ -70,7 +70,7 @@ export function BarraSuperior({ titulo, subtitulo, busca, aoBuscar, refBusca, pa
       <div className="flex justify-end gap-2">
         <button type="button" onClick={aoAbrirSge}
           title={modoEscola ? 'Abrir o SGE dentro do app para consultar e corrigir' : 'Abrir o SGE dentro do app para fazer o diário'}
-          className="flex h-12 items-center gap-2 whitespace-nowrap rounded-full bg-lavanda px-5 text-sm font-semibold text-[#fff] shadow-[0_8px_20px_-8px_rgb(107_84_238/0.7)] transition hover:brightness-110 active:scale-[0.98]">
+          className="flex h-12 items-center gap-2 whitespace-nowrap rounded-full bg-lavanda-solido px-5 text-sm font-semibold text-[#fff] shadow-[0_8px_20px_-8px_rgb(107_84_238/0.7)] transition hover:brightness-110 active:scale-[0.98]">
           {modoEscola ? <Eye size={18} aria-hidden /> : <BookOpenCheck size={18} aria-hidden />} {modoEscola ? 'Consultar no SGE' : 'Fazer diário'}
         </button>
         {logado === false ? (
@@ -81,7 +81,7 @@ export function BarraSuperior({ titulo, subtitulo, busca, aoBuscar, refBusca, pa
         ) : (
           <button type="button" onClick={aoSincronizar} disabled={sincronizando}
             className="vidro-forte flex h-12 items-center gap-2.5 whitespace-nowrap rounded-full px-5 text-sm font-medium transition hover:bg-white active:scale-[0.98] disabled:cursor-default">
-            <span className={`size-2 rounded-full ${sincronizando ? 'bg-lavanda animate-pulse' : painel ? 'bg-emdia' : 'bg-tinta-suave/40'}`} aria-hidden />
+            <span className={`size-2 rounded-full ${sincronizando ? 'bg-lavanda-solido animate-pulse' : painel ? 'bg-emdia' : 'bg-tinta-suave/40'}`} aria-hidden />
             {sincronizando ? 'Sincronizando…' : painel ? `Sincronizado ${tempoRelativo(painel.atualizadoEm)}` : 'Sincronizar'}
             <RefreshCw size={16} className={`text-tinta-suave ${sincronizando ? 'animate-spin' : ''}`} aria-hidden />
           </button>

@@ -65,7 +65,7 @@ function Barra({ e, sincronizando, aoCobranca, mostrarAcoes }) {
         <Opcao id="ano">Ano letivo</Opcao>
         {mostrarAcoes && (
           <div className="ml-auto flex flex-wrap items-center gap-2">
-            <button type="button" onClick={aoCobranca} className="flex items-center gap-1.5 rounded-full bg-lavanda px-4 py-2 text-sm font-semibold text-[#fff] hover:brightness-110">
+            <button type="button" onClick={aoCobranca} className="flex items-center gap-1.5 rounded-full bg-lavanda-solido px-4 py-2 text-sm font-semibold text-[#fff] hover:brightness-110">
               <MessageSquareText size={16} aria-hidden /> Mensagens de cobrança
             </button>
             <button type="button" onClick={() => sge.sincronizarEscola()} disabled={sincronizando}
@@ -138,7 +138,7 @@ function Ranking({ titulo, itens, aoAbrir, detalhe }) {
                   <span className="block truncate text-sm font-medium">{g.rotulo}</span>
                   <span className="mt-1 block h-1.5 overflow-hidden rounded-full bg-tinta/[0.07]"><span className="block h-full rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-400" style={{ width: `${(g.total / max) * 100}%` }} /></span>
                 </span>
-                <span className="w-28 shrink-0 text-right text-xs text-tinta-suave"><b className="text-sm tabular-nums text-pendente">{g.total}</b> · {detalhe(g)}</span>
+                <span className="w-28 shrink-0 text-right text-xs text-tinta-suave"><b className="text-sm tabular-nums text-pendente-forte">{g.total}</b> · {detalhe(g)}</span>
                 <ChevronRight size={16} className="shrink-0 text-tinta-suave/60" aria-hidden />
               </button>
             </li>
@@ -219,14 +219,14 @@ function Cartao({ sobre, titulo, total, max, chips, resumo, indice, aoAbrir }) {
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-[13px] font-medium text-tinta-suave">{sobre}</p>
-          <h3 className="mt-0.5 text-xl leading-snug font-semibold tracking-tight break-words">{titulo}</h3>
+          <h2 className="mt-0.5 text-xl leading-snug font-semibold tracking-tight break-words">{titulo}</h2>
         </div>
-        <span className="shrink-0 rounded-full bg-rose-50/90 px-3 py-1 text-sm font-semibold text-pendente ring-1 ring-rose-200/70"><b className="tabular-nums">{total}</b> {total === 1 ? 'pendência' : 'pendências'}</span>
+        <span className="shrink-0 rounded-full bg-rose-50/90 px-3 py-1 text-sm font-semibold text-pendente-forte ring-1 ring-rose-200/70"><b className="tabular-nums">{total}</b> {total === 1 ? 'pendência' : 'pendências'}</span>
       </div>
       <div className="mt-4 h-2.5 overflow-hidden rounded-full bg-tinta/[0.07]">
         <div className="h-full rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-400 transition-[width] duration-500 ease-(--ease-entrada)" style={{ width: `${Math.max(4, (total / max) * 100)}%` }} />
       </div>
-      <div className="mt-3 flex flex-wrap gap-1.5">{chips.map((c) => <span key={c} className="rounded-full bg-lavanda-clara px-2.5 py-1 text-xs font-medium text-lavanda">{c}</span>)}</div>
+      <div className="mt-3 flex flex-wrap gap-1.5">{chips.map((c) => <span key={c} className="rounded-full bg-lavanda-clara px-2.5 py-1 text-xs font-medium text-lavanda-texto">{c}</span>)}</div>
       <div className="mt-3 flex items-center justify-between gap-3 text-sm text-tinta-suave">
         <p className="truncate">{resumo}</p>
         <ChevronRight size={18} className="shrink-0 text-tinta-suave/60 transition-transform duration-200 group-hover:translate-x-0.5" aria-hidden />
@@ -253,7 +253,7 @@ function Detalhe({ visao, tipo, chave, periodo, aoFechar }) {
 
   return (
     <div className="fixed inset-0 z-40 flex justify-end bg-tinta/15 backdrop-blur-[2px]" onClick={aoFechar}>
-      <aside role="dialog" aria-modal="true" aria-label={`${sobre} ${grupo.rotulo}`} onClick={(ev) => ev.stopPropagation()}
+      <div role="dialog" aria-modal="true" aria-label={`${sobre} ${grupo.rotulo}`} onClick={(ev) => ev.stopPropagation()}
         className="vidro-forte deslizar m-3 flex w-[min(560px,94vw)] flex-col rounded-[28px] p-6 shadow-2xl">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
@@ -275,7 +275,7 @@ function Detalhe({ visao, tipo, chave, periodo, aoFechar }) {
             </section>
           ))}
         </div>
-      </aside>
+      </div>
     </div>
   );
 }
@@ -295,7 +295,7 @@ function LinhaItem({ item, rotulo }) {
           <span className="block text-sm font-medium break-words">{rotulo}</span>
           <span className="block text-xs text-tinta-suave">{partes.join(' · ')}</span>
         </span>
-        <span className="shrink-0 rounded-full bg-rose-50 px-2.5 py-0.5 text-xs font-semibold text-pendente tabular-nums">{item.total}</span>
+        <span className="shrink-0 rounded-full bg-rose-50 px-2.5 py-0.5 text-xs font-semibold text-pendente-forte tabular-nums">{item.total}</span>
         {aberto ? <ChevronDown size={16} className="mt-0.5 shrink-0 text-tinta-suave" aria-hidden /> : <ChevronRight size={16} className="mt-0.5 shrink-0 text-tinta-suave" aria-hidden />}
       </button>
       {aberto && (
@@ -308,7 +308,7 @@ function LinhaItem({ item, rotulo }) {
     </div>
   );
 }
-const Etiqueta = ({ children }) => <span className="rounded-full bg-rose-50 px-2 py-0.5 text-xs text-pendente">{children}</span>;
+const Etiqueta = ({ children }) => <span className="rounded-full bg-rose-50 px-2 py-0.5 text-xs text-pendente-forte">{children}</span>;
 
 /* ---------- Histórico e relatórios da escola ---------- */
 function HistoricoEscola({ e }) {
@@ -324,7 +324,7 @@ function HistoricoEscola({ e }) {
           {porDia.map(([dia, h], i) => (
             <div key={dia} className="group flex flex-1 flex-col items-center justify-end gap-1">
               <span className="text-[11px] tabular-nums text-tinta-suave opacity-0 transition group-hover:opacity-100">{h.total}</span>
-              <div className={`w-full rounded-xl transition-[height] duration-500 ease-(--ease-entrada) ${i === porDia.length - 1 ? 'bg-lavanda' : 'bg-lavanda/35'}`} style={{ height: `${Math.max(6, (h.total / max) * 150)}px` }} title={`${brData(dia)}: ${h.total}`} />
+              <div className={`w-full rounded-xl transition-[height] duration-500 ease-(--ease-entrada) ${i === porDia.length - 1 ? 'bg-lavanda-solido' : 'bg-lavanda-solido/35'}`} style={{ height: `${Math.max(6, (h.total / max) * 150)}px` }} title={`${brData(dia)}: ${h.total}`} />
               <span className="text-[10px] text-tinta-suave">{brData(dia)}</span>
             </div>
           ))}
@@ -351,7 +351,7 @@ function RelatoriosEscola({ e }) {
   };
   const Opcao = ({ icone: Icone, titulo, texto, formato }) => (
     <button type="button" onClick={() => salvar(formato)} className="surgir vidro flex items-start gap-4 rounded-3xl p-6 text-left transition hover:-translate-y-0.5 hover:bg-white/75">
-      <span className="rounded-2xl bg-lavanda-clara p-3 text-lavanda"><Icone size={26} /></span>
+      <span className="rounded-2xl bg-lavanda-clara p-3 text-lavanda-texto"><Icone size={26} /></span>
       <span><b className="block text-lg">{titulo}</b><span className="text-sm text-tinta-suave">{texto}</span></span>
     </button>
   );
@@ -394,7 +394,7 @@ function Direcao({ e }) {
           <h2 className="text-2xl font-semibold">Pendências do diário · {nome}</h2>
           <p className="text-sm text-tinta-suave">{visao.janela ? `${brData(visao.janela.inicio)} a ${brData(visao.janela.fim)} · ` : ''}dados lidos do SGE em {new Date(visao.atualizadoEm).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</p>
         </div>
-        <button type="button" onClick={() => window.print()} data-nao-imprimir className="flex shrink-0 items-center gap-2 rounded-full bg-lavanda px-5 py-2.5 text-sm font-semibold text-[#fff] hover:brightness-110">
+        <button type="button" onClick={() => window.print()} data-nao-imprimir className="flex shrink-0 items-center gap-2 rounded-full bg-lavanda-solido px-5 py-2.5 text-sm font-semibold text-[#fff] hover:brightness-110">
           <Printer size={16} aria-hidden /> Imprimir ou salvar em PDF
         </button>
       </div>
@@ -405,7 +405,7 @@ function Direcao({ e }) {
         <Indicador valor={`${turmas.length}/${visao.turmas.length}`} rotulo="turmas com pendência" />
         <Indicador valor={comps.length} rotulo="componentes com pendência" />
       </div>
-      {antes != null && <p className="mt-4 text-sm">Desde {new Date(ref.em).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}: de <b>{antes}</b> para <b className={total <= antes ? 'text-emdia' : 'text-pendente'}>{total}</b> pendências ({total <= antes ? 'queda' : 'alta'} de {Math.abs(total - antes)}).</p>}
+      {antes != null && <p className="mt-4 text-sm">Desde {new Date(ref.em).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}: de <b>{antes}</b> para <b className={total <= antes ? 'text-emdia' : 'text-pendente-forte'}>{total}</b> pendências ({total <= antes ? 'queda' : 'alta'} de {Math.abs(total - antes)}).</p>}
       <div className="mt-5 grid grid-cols-2 gap-4">
         <Lista titulo="Professores com mais pendências" itens={prof} detalhe={(g) => plural(g.turmas.length, 'turma', 'turmas')} />
         <Lista titulo="Turmas com mais pendências" itens={turmas} detalhe={(g) => plural(g.componentes.length, 'componente', 'componentes')} />
@@ -470,7 +470,7 @@ function Cobranca({ professores, aoFechar }) {
           {mensagens.map((m) => (
             <article key={m.professor} className="rounded-2xl bg-white/70 p-4">
               <div className="mb-2 flex items-center justify-between gap-3"><b>{m.professor}</b>
-                <button type="button" onClick={() => copiar(m.professor, m.texto)} className="flex items-center gap-1.5 rounded-full bg-lavanda-clara px-3 py-1.5 text-xs font-semibold text-lavanda hover:bg-lavanda hover:text-[#fff]">
+                <button type="button" onClick={() => copiar(m.professor, m.texto)} className="flex items-center gap-1.5 rounded-full bg-lavanda-clara px-3 py-1.5 text-xs font-semibold text-lavanda-texto hover:bg-lavanda-solido hover:text-[#fff]">
                   {copiado === m.professor ? <><Check size={14} aria-hidden /> Copiado</> : <><Copy size={14} aria-hidden /> Copiar</>}</button></div>
               <pre className="font-sans text-sm whitespace-pre-wrap text-tinta">{m.texto}</pre>
             </article>
@@ -502,7 +502,7 @@ function Variacao({ icone: Icone, cor, titulo, itens, vazio }) {
 function Passo({ n, feito, children }) {
   return (
     <li className="flex items-start gap-3 rounded-2xl bg-white/70 px-4 py-3">
-      <span className={`flex size-7 shrink-0 items-center justify-center rounded-full text-sm font-bold ${feito ? 'bg-emdia text-[#fff]' : 'bg-lavanda-clara text-lavanda'}`}>{feito ? '✓' : n}</span>
+      <span className={`flex size-7 shrink-0 items-center justify-center rounded-full text-sm font-bold ${feito ? 'bg-emdia text-[#fff]' : 'bg-lavanda-clara text-lavanda-texto'}`}>{feito ? '✓' : n}</span>
       <span className="pt-0.5">{children}</span>
     </li>
   );

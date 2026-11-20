@@ -9,6 +9,9 @@
   --color-lavanda-clara: #eee9ff;
   --color-emdia: #1f9d6a;
   --color-pendente: #e0574f;
+  --color-pendente-forte: #c0392b;   /* texto pequeno e fundos com texto branco: contraste AA */
+  --color-lavanda-texto: #6049e0;    /* texto pequeno sobre fundo lavanda-claro: contraste AA */
+  --color-lavanda-solido: #6b54ee;   /* fundo de botão com texto branco */
   --color-alerta: #e89a2c;
   --ease-padrao: cubic-bezier(0.2, 0, 0, 1);
   --ease-entrada: cubic-bezier(0.05, 0.7, 0.1, 1);
@@ -74,6 +77,9 @@ body {
     --color-lavanda-clara: rgb(154 137 255 / 0.16);
     --color-emdia: #4cc38f;
     --color-pendente: #f2827a;
+    --color-pendente-forte: #f2827a;
+    --color-lavanda-texto: #9a89ff;
+    --color-lavanda-solido: #6a56f0;
     --color-alerta: #e8b052;
     --color-white: rgb(70 70 78);
     --color-rose-50: rgb(242 130 122 / 0.14);   --color-rose-100: rgb(242 130 122 / 0.2);   --color-rose-200: rgb(242 130 122 / 0.28);   --color-rose-900: #ffd6d2;
@@ -107,3 +113,6 @@ body {
   .vidro, .vidro-forte { background: #fff !important; box-shadow: none !important; backdrop-filter: none !important; border: 1px solid #ddd !important; }
   * { color-scheme: light; animation: none !important; }
 }
+
+/* Foco por teclado visível em tudo que é clicável. */
+:focus-visible { outline: 2px solid var(--color-lavanda); outline-offset: 2px; }

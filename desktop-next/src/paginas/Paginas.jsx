@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { FileSpreadsheet, FileText, FolderOpen, LogOut, Trash2, Info, TrendingDown, TrendingUp, RefreshCw, Cloud, CloudUpload, CloudDownload } from 'lucide-react';
 import { referenciaSemanal, diferencas } from '../lib/comparacao.mjs';
 import CartaoTurma from '../components/CartaoTurma';
@@ -120,7 +120,7 @@ export function Historico() {
           {porDia.map(([dia, h], i) => (
             <div key={dia} className="group flex flex-1 flex-col items-center justify-end gap-1">
               <span className="text-[11px] tabular-nums text-tinta-suave opacity-0 transition group-hover:opacity-100">{h.dias}</span>
-              <div className={`w-full rounded-xl transition-[height] duration-500 ease-(--ease-entrada) ${i === porDia.length - 1 ? 'bg-lavanda' : 'bg-lavanda/35'}`}
+              <div className={`w-full rounded-xl transition-[height] duration-500 ease-(--ease-entrada) ${i === porDia.length - 1 ? 'bg-lavanda-solido' : 'bg-lavanda-solido/35'}`}
                 style={{ height: `${Math.max(6, (h.dias / max) * 150)}px` }} title={`${dia.split('-').reverse().join('/')}: ${h.dias} dias`} />
               <span className="text-[10px] text-tinta-suave">{dia.slice(8, 10)}/{dia.slice(5, 7)}</span>
             </div>
@@ -175,7 +175,7 @@ export function Relatorios({ painel }) {
   const Opcao = ({ icone: Icone, titulo, texto, formato }) => (
     <button type="button" onClick={() => salvar(formato)} disabled={!painel}
       className="surgir vidro group flex items-start gap-4 rounded-3xl p-6 text-left transition hover:-translate-y-0.5 hover:bg-white/75 disabled:opacity-50">
-      <span className="rounded-2xl bg-lavanda-clara p-3 text-lavanda"><Icone size={26} /></span>
+      <span className="rounded-2xl bg-lavanda-clara p-3 text-lavanda-texto"><Icone size={26} /></span>
       <span><b className="block text-lg">{titulo}</b><span className="text-sm text-tinta-suave">{texto}</span></span>
     </button>
   );
@@ -202,7 +202,7 @@ export function Configuracoes({ logado, aoSair, atualizacao, aoVerTutorial }) {
     <div className="mx-auto max-w-3xl space-y-5">
       <Grupo titulo="Sincronização">
         <Linha titulo="Sincronizar automaticamente" texto="Além de ao abrir o app e ao voltar da suspensão.">
-          <select value={c.intervaloMin} onChange={(e) => mudar({ intervaloMin: Number(e.target.value) })}
+          <select aria-label="Intervalo de sincronização" value={c.intervaloMin} onChange={(e) => mudar({ intervaloMin: Number(e.target.value) })}
             className="rounded-full bg-white px-4 py-2 text-sm ring-1 ring-tinta/10 outline-none focus:ring-lavanda">
             <option value={15}>A cada 15 min</option><option value={30}>A cada 30 min</option>
             <option value={60}>A cada 1 hora</option><option value={120}>A cada 2 horas</option><option value={0}>Só manualmente</option>
@@ -218,7 +218,7 @@ export function Configuracoes({ logado, aoSair, atualizacao, aoVerTutorial }) {
 
       <Grupo titulo="Aparência">
         <Linha titulo="Tema" texto="Claro, escuro ou o mesmo do Windows.">
-          <select value={c.tema} onChange={(e) => mudar({ tema: e.target.value })}
+          <select aria-label="Tema" value={c.tema} onChange={(e) => mudar({ tema: e.target.value })}
             className="rounded-full bg-white px-4 py-2 text-sm ring-1 ring-tinta/10 outline-none focus:ring-lavanda">
             <option value="sistema">Do Windows</option><option value="claro">Claro</option><option value="escuro">Escuro</option>
           </select>
@@ -233,7 +233,7 @@ export function Configuracoes({ logado, aoSair, atualizacao, aoVerTutorial }) {
           <Chave ligada={c.avisoFimDia} aoMudar={(v) => mudar({ avisoFimDia: v })} />
         </Linha>
         <Linha titulo="Horário do resumo">
-          <input type="time" value={c.horaAviso} disabled={!c.avisoFimDia} onChange={(e) => e.target.value && mudar({ horaAviso: e.target.value })}
+          <input type="time" aria-label="Horário do resumo" value={c.horaAviso} disabled={!c.avisoFimDia} onChange={(e) => e.target.value && mudar({ horaAviso: e.target.value })}
             className="rounded-full bg-white px-4 py-2 text-sm ring-1 ring-tinta/10 outline-none focus:ring-lavanda disabled:opacity-40" />
         </Linha>
         <Linha titulo="Manter na bandeja ao fechar" texto="Fechar a janela deixa o app ao lado do relógio, com o número de pendências no ícone. Para sair de vez: clique com o botão direito no ícone → Sair.">
@@ -256,13 +256,13 @@ export function Configuracoes({ logado, aoSair, atualizacao, aoVerTutorial }) {
         <div className="px-4 py-3.5">
           <p className="font-medium">Dias sem aula</p>
           <p className="text-sm text-tinta-suave">Feriados nacionais, de Tocantins, Carnaval, Sexta-feira Santa e Corpus Christi já são considerados: não entram nas pendências nem geram aviso. Acrescente aqui recessos e reuniões, uma data por linha (ex.: 27/11/2026 Recesso).</p>
-          <textarea key={`s${c.versao}`} rows={3} defaultValue={c.diasSemAula} onBlur={(e) => e.target.value !== c.diasSemAula && mudar({ diasSemAula: e.target.value })} placeholder="27/11/2026 Recesso"
+          <textarea aria-label="Dias sem aula" key={`s${c.versao}`} rows={3} defaultValue={c.diasSemAula} onBlur={(e) => e.target.value !== c.diasSemAula && mudar({ diasSemAula: e.target.value })} placeholder="27/11/2026 Recesso"
             className="mt-2 w-full rounded-2xl bg-white px-4 py-2.5 text-sm ring-1 ring-tinta/10 outline-none focus:ring-lavanda" />
         </div>
         <div className="px-4 py-3.5">
           <p className="font-medium">Sábados letivos e feriados trabalhados</p>
           <p className="text-sm text-tinta-suave">Estas datas voltam a ser dias de aula (ex.: 21/11/2026).</p>
-          <textarea key={`l${c.versao}`} rows={2} defaultValue={c.diasLetivos} onBlur={(e) => e.target.value !== c.diasLetivos && mudar({ diasLetivos: e.target.value })} placeholder="21/11/2026"
+          <textarea aria-label="Sábados letivos e feriados trabalhados" key={`l${c.versao}`} rows={2} defaultValue={c.diasLetivos} onBlur={(e) => e.target.value !== c.diasLetivos && mudar({ diasLetivos: e.target.value })} placeholder="21/11/2026"
             className="mt-2 w-full rounded-2xl bg-white px-4 py-2.5 text-sm ring-1 ring-tinta/10 outline-none focus:ring-lavanda" />
         </div>
       </Grupo>
@@ -315,18 +315,22 @@ function Grupo({ titulo, children }) {
     </section>
   );
 }
+const RotuloCtx = createContext('');
 function Linha({ titulo, texto, children }) {
   return (
+    <RotuloCtx.Provider value={titulo}>
     <div className="flex items-center justify-between gap-6 px-4 py-3.5">
       <div><p className="font-medium">{titulo}</p>{texto && <p className="text-sm text-tinta-suave">{texto}</p>}</div>
       <div className="shrink-0">{children}</div>
     </div>
+    </RotuloCtx.Provider>
   );
 }
 function Chave({ ligada, aoMudar }) {
+  const rotulo = useContext(RotuloCtx);
   return (
-    <button type="button" role="switch" aria-checked={ligada} onClick={() => aoMudar(!ligada)}
-      className={`relative h-7 w-12 rounded-full transition-colors duration-200 ${ligada ? 'bg-lavanda' : 'bg-tinta/15'}`}>
+    <button type="button" role="switch" aria-checked={ligada} aria-label={rotulo || undefined} onClick={() => aoMudar(!ligada)}
+      className={`relative h-7 w-12 rounded-full transition-colors duration-200 ${ligada ? 'bg-lavanda-solido' : 'bg-tinta/15'}`}>
       <span className={`absolute top-0.5 left-0.5 size-6 rounded-full bg-white shadow transition-transform duration-200 ease-(--ease-padrao) ${ligada ? 'translate-x-5' : ''}`} />
     </button>
   );
@@ -334,7 +338,7 @@ function Chave({ ligada, aoMudar }) {
 function Botao({ icone: Icone, children, perigo, ...props }) {
   return (
     <button type="button" {...props}
-      className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium ring-1 transition disabled:opacity-40 ${perigo ? 'text-pendente ring-rose-200 hover:bg-rose-50' : 'bg-white ring-tinta/10 hover:bg-white/70'}`}>
+      className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium ring-1 transition disabled:opacity-40 ${perigo ? 'text-pendente-forte ring-rose-200 hover:bg-rose-50' : 'bg-white ring-tinta/10 hover:bg-white/70'}`}>
       <Icone size={16} /> {children}
     </button>
   );

@@ -18,7 +18,7 @@ export default function DetalheTurma({ turma, aoFechar, aoAbrirSge }) {
 
   return (
     <div className="fixed inset-0 z-40 flex justify-end bg-tinta/15 backdrop-blur-[2px]" onClick={aoFechar}>
-      <aside
+      <div
         role="dialog" aria-modal="true" aria-label={`Turma ${turma.nome}`}
         onClick={(e) => e.stopPropagation()}
         className="vidro-forte deslizar m-3 flex w-[min(480px,94vw)] flex-col rounded-[28px] p-6 shadow-2xl"
@@ -50,7 +50,7 @@ export default function DetalheTurma({ turma, aoFechar, aoAbrirSge }) {
           className="mt-4 flex h-11 items-center justify-center gap-2 rounded-full bg-tinta text-sm font-semibold text-white transition hover:opacity-90 active:scale-[0.98]">
           <ArrowUpRight size={18} /> Fazer o diário desta turma no SGE
         </button>
-      </aside>
+      </div>
     </div>
   );
 }
@@ -66,7 +66,7 @@ function Modulo({ def, dado, aoAbrir }) {
           {def.rotulo}
         </h3>
         <button type="button" onClick={() => aoAbrir(datas ?? [])}
-          className="flex items-center gap-1 rounded-full bg-lavanda-clara px-3 py-1.5 text-xs font-semibold text-lavanda transition hover:bg-lavanda hover:text-[#fff]">
+          className="flex items-center gap-1 rounded-full bg-lavanda-clara px-3 py-1.5 text-xs font-semibold text-lavanda-texto transition hover:bg-lavanda-solido hover:text-[#fff]">
           Abrir no SGE <ArrowUpRight size={14} />
         </button>
       </div>
@@ -76,7 +76,7 @@ function Modulo({ def, dado, aoAbrir }) {
             <div className="flex flex-wrap gap-1.5">
               {[...datas].reverse().slice(0, 12).map((d) => (
                 <button key={d} type="button" onClick={() => aoAbrir([d])} title={`${diaSemana(d)} · abrir este dia no SGE`}
-                  className="rounded-full bg-rose-50 px-2 py-0.5 text-xs font-medium text-pendente capitalize transition hover:bg-pendente hover:text-[#fff]">{diaMes(d)}</button>
+                  className="rounded-full bg-rose-50 px-2 py-0.5 text-xs font-medium text-pendente-forte capitalize transition hover:bg-pendente-forte hover:text-[#fff]">{diaMes(d)}</button>
               ))}
               {datas.length > 12 && <span className="text-xs">+{datas.length - 12}</span>}
             </div>
