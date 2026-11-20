@@ -144,9 +144,9 @@ fun descreverFiltro(f: FiltroAvancado, docentes: PainelDocentes): String = listO
         if(semVinculo>0) item { Text("$semVinculo turma(s)/componente(s) sem professor identificado ficam fora do lote nominal. Ajuste os vínculos nos cartões.",color=corAlerta()) }
         item { OutlinedTextField(escola,{escola=it.take(200)},Modifier.fillMaxWidth(),label={Text("Escola no cabeçalho (opcional)")}) }
         item { OutlinedTextField(responsavel,{responsavel=it.take(200)},Modifier.fillMaxWidth(),label={Text("Quem entrega (opcional)")}) }
-        item { Row(verticalAlignment=Alignment.CenterVertically) { Checkbox(selecionados.size==grupos.size && grupos.isNotEmpty(),{ selecionados=if(it)grupos.map { g->g.chave }.toSet() else emptySet() });Text("Selecionar todos · ${selecionados.size}/${grupos.size}") } }
-        items(grupos,key={it.chave}) { g-> Surface(shape=MaterialTheme.shapes.medium) { Row(Modifier.fillMaxWidth().clickable { selecionados=if(g.chave in selecionados)selecionados-g.chave else selecionados+g.chave }.padding(10.dp),verticalAlignment=Alignment.CenterVertically) {
-            Checkbox(g.chave in selecionados,{selecionados=if(it)selecionados+g.chave else selecionados-g.chave});Column(Modifier.weight(1f)) { Text(g.titulo,style=MaterialTheme.typography.titleSmall);Text(g.subtitulo,style=MaterialTheme.typography.bodySmall);if(g.exigeConferencia)Text("Inclui itens a conferir",style=MaterialTheme.typography.labelSmall,color=corAlerta()) }
+        item { val todos = selecionados.size==grupos.size && grupos.isNotEmpty(); Row(Modifier.heightIn(min = 48.dp).linhaCaixa(todos){ selecionados=if(it)grupos.map { g->g.chave }.toSet() else emptySet() },verticalAlignment=Alignment.CenterVertically) { Checkbox(todos,null);Text("Selecionar todos · ${selecionados.size}/${grupos.size}") } }
+        items(grupos,key={it.chave}) { g-> Surface(shape=MaterialTheme.shapes.medium) { Row(Modifier.fillMaxWidth().linhaCaixa(g.chave in selecionados){ selecionados=if(it)selecionados+g.chave else selecionados-g.chave }.padding(10.dp),verticalAlignment=Alignment.CenterVertically) {
+            Checkbox(g.chave in selecionados,null);Column(Modifier.weight(1f)) { Text(g.titulo,style=MaterialTheme.typography.titleSmall);Text(g.subtitulo,style=MaterialTheme.typography.bodySmall);if(g.exigeConferencia)Text("Inclui itens a conferir",style=MaterialTheme.typography.labelSmall,color=corAlerta()) }
         } } }
         item { Text("As folhas registram recebimento e ciência. As contagens são da última consulta, e itens parciais continuam sinalizados. Docência compartilhada não atribui autoria individual.",style=MaterialTheme.typography.bodySmall) }
         item { Button(onClick={gerar(grupos.filter {it.chave in selecionados},escola.trim(),responsavel.trim(),descreverFiltro(filtro,docentes))},enabled=selecionados.isNotEmpty(),modifier=Modifier.fillMaxWidth()) { Text("Gerar ${selecionados.size} relatório(s) e recibos") } }
@@ -158,7 +158,7 @@ fun descreverFiltro(f: FiltroAvancado, docentes: PainelDocentes): String = listO
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),verticalArrangement=Arrangement.spacedBy(18.dp)) {
         Text("Sincronização econômica",style=MaterialTheme.typography.headlineLarge)
         Text("Estas regras valem para consultas automáticas, inclusive a fila noturna. Atualizar manualmente usa a internet disponível. O Android pode adiar os horários para economizar bateria.")
-        @Composable fun opcao(t: String,v: Boolean,alterar:(Boolean)->Unit) { Row(verticalAlignment=Alignment.CenterVertically) {Text(t,Modifier.weight(1f));Switch(v,alterar)} }
+        @Composable fun opcao(t: String,v: Boolean,alterar:(Boolean)->Unit) { Row(Modifier.heightIn(min = 48.dp).linhaInterruptor(v,aoMudar=alterar),verticalAlignment=Alignment.CenterVertically) {Text(t,Modifier.weight(1f));Switch(v,null)} }
         opcao("Somente rede sem franquia (Wi-Fi)",d.wifi){d=d.copy(wifi=it)}
         opcao("Somente enquanto carrega",d.carregando){d=d.copy(carregando=it)}
         opcao("Aguardar bateria suficiente",d.bateria){d=d.copy(bateria=it)}

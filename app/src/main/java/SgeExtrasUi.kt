@@ -20,12 +20,12 @@ import br.to.seduc.sgediariowidget.worker.SgeSyncWorker
 
 @Composable
 private fun LinhaSwitch(titulo: String, descricao: String, ligado: Boolean, aoMudar: (Boolean) -> Unit) {
-    Row(Modifier.fillMaxWidth().heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+    Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).linhaInterruptor(ligado, aoMudar = aoMudar), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(titulo, style = MaterialTheme.typography.bodyMedium)
             Text(descricao, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        Switch(checked = ligado, onCheckedChange = aoMudar)
+        Switch(checked = ligado, onCheckedChange = null)
     }
 }
 

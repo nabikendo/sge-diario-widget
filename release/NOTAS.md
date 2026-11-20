@@ -1,7 +1,7 @@
-SGE Diário 2.9.8 (desktop)
+SGE Diário 2.9.9
+
+### Android
+- **Acessibilidade:** interruptores, caixas de seleção e opções dos Ajustes, da atualização do app, da sincronização econômica, dos relatórios e da configuração do widget agora são um único alvo de toque, com nome e estado lidos pelo TalkBack.
 
 ### Desktop (Windows)
-- **Acessibilidade e contraste:** textos e botões dos dois temas passam a atender o contraste mínimo (WCAG AA); o modo claro segue com o mesmo visual.
-- **Teclado e leitor de tela:** contorno de foco visível, interruptores e campos com nome, títulos na ordem certa, busca (Ctrl+K), painéis laterais, tutorial e tela de entrada com marcos de página.
-
-O app Android não muda nesta versão.
+- Sem mudanças nesta versão.

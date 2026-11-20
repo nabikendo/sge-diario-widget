@@ -12,6 +12,7 @@ import androidx.core.content.FileProvider
 import androidx.core.content.pm.PackageInfoCompat
 import androidx.compose.runtime.*
 import androidx.compose.foundation.layout.*
+import androidx.compose.ui.Alignment
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
@@ -204,8 +205,8 @@ class SgeAtualizador(private val ctx: Context) {
             Text(a.mensagem.ifBlank { "Verifique se existe uma nova versão do SGE Diário." })
             a.oferta?.let { Text("Versão ${it.versao} · ${it.tamanho/1024/1024} MB",style=MaterialTheme.typography.titleSmall) }
             if (a.baixando || a.ocupado) { BarraSegmentada(if (a.progresso >= 0 && !a.ocupado) a.progresso else null, Modifier.fillMaxWidth(), altura = 12.dp, mostrarPercentual = a.progresso >= 0 && !a.ocupado) }
-            Row { Text("Avisar quando houver atualização",Modifier.weight(1f)); Switch(a.automatico,{ a.automatico(it) }) }
-            Row { Text("Baixar só em rede sem franquia (Wi-Fi)",Modifier.weight(1f)); Switch(a.wifi,{ a.wifi(it) },enabled=!a.baixando) }
+            Row(Modifier.heightIn(min = 48.dp).linhaInterruptor(a.automatico) { a.automatico(it) },verticalAlignment = Alignment.CenterVertically) { Text("Avisar quando houver atualização",Modifier.weight(1f)); Switch(a.automatico,null) }
+            Row(Modifier.heightIn(min = 48.dp).linhaInterruptor(a.wifi,habilitado = !a.baixando) { a.wifi(it) },verticalAlignment = Alignment.CenterVertically) { Text("Baixar só em rede sem franquia (Wi-Fi)",Modifier.weight(1f)); Switch(a.wifi,null,enabled=!a.baixando) }
             Text("O Android pede sua confirmação para instalar. Seus dados são mantidos ao atualizar com o mesmo pacote e assinatura.",style=MaterialTheme.typography.bodySmall)
             a.oferta?.notas?.takeIf { it.isNotBlank() }?.let { Text(it,style=MaterialTheme.typography.bodySmall) }
             if (a.baixando || a.pronto) TextButton(onClick = { a.cancelar() }) { Text(if (a.pronto) "Descartar download e tentar de novo" else "Cancelar download") }

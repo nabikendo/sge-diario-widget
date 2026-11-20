@@ -23,6 +23,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.State
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
@@ -153,3 +156,17 @@ fun HeroResumo(
         }
     }
 }
+
+
+/**
+ * Linha inteira como interruptor, caixa de seleção ou opção: o TalkBack lê o rótulo e o estado, e o alvo de toque
+ * é a linha toda (e não só o controle pequeno). O controle dentro da linha recebe `onCheckedChange = null`.
+ */
+internal fun Modifier.linhaInterruptor(ligado: Boolean, habilitado: Boolean = true, aoMudar: (Boolean) -> Unit): Modifier =
+    toggleable(value = ligado, enabled = habilitado, role = Role.Switch, onValueChange = aoMudar)
+
+internal fun Modifier.linhaCaixa(marcado: Boolean, aoMudar: (Boolean) -> Unit): Modifier =
+    toggleable(value = marcado, role = Role.Checkbox, onValueChange = aoMudar)
+
+internal fun Modifier.linhaOpcao(selecionada: Boolean, aoEscolher: () -> Unit): Modifier =
+    selectable(selected = selecionada, role = Role.RadioButton, onClick = aoEscolher)
