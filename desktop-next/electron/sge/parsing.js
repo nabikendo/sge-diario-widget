@@ -244,7 +244,10 @@ function janelaOuNull(descricao, codigo, ano) {
   return null;
 }
 
-/** Coordenação: dias vermelhos com ícone "+" (sem registro), em todos os componentes da turma. */
+/**
+ * Coordenação: dias vermelhos, em todos os componentes da turma. No perfil Unidade escolar o detalhe do dia lista cada aula
+ * com um lápis (fa-edit) quando há conteúdo registrado; a linha sem lápis é a pendência (confirmado no SGE real).
+ */
 function pendenciasCoordenacao(html, hoje = hojeIso()) {
   const $ = cheerio.load(html);
   if (!$('.calendario .semana').length) throw new Error('Calendário ausente');
@@ -257,7 +260,7 @@ function pendenciasCoordenacao(html, hoje = hojeIso()) {
     popup('tr').each((__, tr) => {
       const tds = popup(tr).find('td');
       const disciplina = tds.first().text().trim();
-      if (!disciplina || !popup(tr).find('i.fa-plus-circle, i.fa-plus').length) return;
+      if (!disciplina || popup(tr).find('i.fa-edit').length) return;
       const item = { data: d, disciplina, hora: tds.eq(1).text().trim() };
       const k = `${item.data}|${item.disciplina}|${item.hora}`;
       if (!vistos.has(k)) { vistos.add(k); lista.push(item); }

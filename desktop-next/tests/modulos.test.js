@@ -37,13 +37,13 @@ test('janelaOuNull reconhece mês, semana ISO, semestre e datas; nunca estima', 
   assert.equal(P.numeroBimestre('Bimestre IV'), 4);
 });
 
-test('pendenciasCoordenacao: só linhas com ícone +, sem datas futuras', () => {
+test('pendenciasCoordenacao: linhas sem lápis (ou com +), sem datas futuras', () => {
   const dia = (data, linhas) => `<td class="vermelho" data-original-title="${data}" data-content='<table>${linhas}</table>'></td>`;
   const html = `<div class="calendario"><table><tr class="semana">
-    ${dia('03/11/2026', '<tr><td>Química</td><td>07:00</td><td><i class="fa fa-plus-circle"></i></td></tr><tr><td>Física</td><td>07:50</td><td><i class="fa fa-edit"></i></td></tr>')}
+    ${dia('03/11/2026', '<tr><td>Química</td><td>07:00</td><td><i class="fa fa-plus-circle"></i></td></tr><tr><td>Física</td><td>07:50</td><td><i class="fa fa-edit"></i></td></tr><tr><td>Língua Portuguesa</td><td>08:40</td></tr>')}
     ${dia('30/11/2026', '<tr><td>Química</td><td>07:00</td><td><i class="fa fa-plus"></i></td></tr>')}
   </tr></table></div>`;
-  assert.deepEqual(P.pendenciasCoordenacao(html, '2026-11-20'), [{ data: '2026-11-03', disciplina: 'Química', hora: '07:00' }]);
+  assert.deepEqual(P.pendenciasCoordenacao(html, '2026-11-20'), [{ data: '2026-11-03', disciplina: 'Química', hora: '07:00' }, { data: '2026-11-03', disciplina: 'Língua Portuguesa', hora: '08:40' }]);
 });
 
 test('coordenação: professores, perfil e vínculos pelo horário', () => {
