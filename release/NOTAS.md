@@ -1,7 +1,6 @@
-SGE Diário 2.9.6 (desktop)
+SGE Diário 2.9.7 (desktop)
 
 ### Desktop (Windows)
-- **Backup no Google Drive (opcional):** Configurações → Backup no Google Drive → Entrar com o Google. Guarda painéis e históricos numa pasta privada do app no seu Drive (nunca a sessão do SGE nem a senha), com envio automático, Enviar agora e Restaurar.
-- README do app Windows reescrito (instalação, primeiro uso, privacidade, backup e publicação).
+- **Relatório da Coordenação por professor:** em Relatórios, "PDF por professor" gera uma página para cada professor, com Conteúdo Aplicado, Chamada, Plano de aula, Plano de curso e PEI por turma e componente, datas agrupadas por mês e uma capa com o quadro geral. "Um PDF para cada professor" cria uma pasta com um arquivo por professor, pronto para enviar. Itens que não foram lidos aparecem como "Não verificado".
 
 O app Android não muda nesta versão.
