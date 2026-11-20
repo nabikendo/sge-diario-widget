@@ -28,6 +28,7 @@ const CONFIG_PADRAO = Object.freeze({
   avisoFimDia: true,         // resumo no fim da tarde (dias úteis)
   horaAviso: '17:30',
   coordChamada: true,        // Coordenação: ler também a Chamada de cada professor (mais consultas)
+  nuvemAuto: true,           // com o Google conectado, envia o backup a cada sincronização
   introVista: false,         // tutorial de boas-vindas já visto
   diasSemAula: '',           // datas sem aula além dos feriados (uma por linha: "AAAA-MM-DD motivo")
   diasLetivos: '',           // sábados letivos e feriados trabalhados (uma data por linha)
@@ -104,4 +105,12 @@ async function apagarDados() {
   await Promise.all(['painel.json', 'historico.json', 'coordenacao.json', 'historico-coordenacao.json', 'turmas-escola.json', 'agenda.json'].map((n) => fs.rm(arquivo(n), { force: true })));
 }
 
-module.exports = { lerAgenda, gravarAgenda, lerHistoricoCoordenacao, registrarHistoricoCoordenacao, lerEstado, gravarEstado, lerCoordenacao, gravarCoordenacao, lerTurmasEscola, gravarTurmasEscola, lerConfig, gravarConfig, registrarHistorico, lerHistorico, lerPainel, gravarPainel, apagarDados, CONFIG_PADRAO };
+/** Grava o resultado da fusão com a cópia da nuvem (painéis e históricos). */
+async function restaurarCopia({ painel, coordenacao, historico, historicoCoordenacao }) {
+  if (painel) await gravar('painel.json', painel);
+  if (coordenacao) await gravar('coordenacao.json', coordenacao);
+  await gravar('historico.json', (historico ?? []).slice(-LIMITE_HISTORICO));
+  await gravar('historico-coordenacao.json', (historicoCoordenacao ?? []).slice(-120));
+}
+
+module.exports = { restaurarCopia, lerAgenda, gravarAgenda, lerHistoricoCoordenacao, registrarHistoricoCoordenacao, lerEstado, gravarEstado, lerCoordenacao, gravarCoordenacao, lerTurmasEscola, gravarTurmasEscola, lerConfig, gravarConfig, registrarHistorico, lerHistorico, lerPainel, gravarPainel, apagarDados, CONFIG_PADRAO };

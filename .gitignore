@@ -4,3 +4,5 @@ build/
 app/build/
 *.iml
 .idea/
+
+desktop-next/electron/google.segredo.json

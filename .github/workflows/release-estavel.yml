@@ -79,6 +79,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Configuração do Google (backup no Drive)
+        working-directory: desktop-next
+        shell: pwsh
+        run: |
+          '{"segredo":"' + $env:GOOGLE_CLIENT_SECRET + '"}' | Set-Content -NoNewline electron/google.segredo.json
+        env:
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
       - name: Instalar, testar e compilar Windows
         working-directory: desktop-next
         run: |

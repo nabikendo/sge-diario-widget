@@ -11,6 +11,11 @@ const ouvir = (canal) => (fn) => {
 contextBridge.exposeInMainWorld('sgeDesktop', Object.freeze({
   obterPainel: () => ipcRenderer.invoke('painel:obter'),
   sincronizar: () => ipcRenderer.invoke('sync:agora'),
+  nuvemStatus: () => ipcRenderer.invoke('nuvem:status'),
+  nuvemEntrar: () => ipcRenderer.invoke('nuvem:entrar'),
+  nuvemSair: () => ipcRenderer.invoke('nuvem:sair'),
+  nuvemEnviar: () => ipcRenderer.invoke('nuvem:enviar'),
+  nuvemRestaurar: () => ipcRenderer.invoke('nuvem:restaurar'),
   lerPeriodo: (n) => ipcRenderer.invoke('professor:periodo', n),
   entrar: () => ipcRenderer.invoke('sge:entrar'),
   abrirSge: (atalho) => ipcRenderer.invoke('sge:abrirWeb', atalho ?? null),

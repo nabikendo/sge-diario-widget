@@ -22,6 +22,7 @@ const janelaSge = require('./sge/janelaSge');
 const atualizador = require('./atualizador');
 const avisos = require('./avisos');
 const calendario = require('./calendario');
+const nuvem = require('./nuvem');
 const { gerarBitmap } = require('./iconeContador');
 
 const icone = path.join(__dirname, '..', 'assets', 'sge-diario.ico');
@@ -167,6 +168,18 @@ async function conferirFimDoDia() {
 const hojeLocal = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 
 // ---------- Sincronização ----------
+/** Com o Google conectado e a opção ligada, manda o backup depois de cada leitura. Falha em silêncio: o botão da tela mostra o erro. */
+let ultimoEnvioNuvem = 0;
+async function backupAutomatico() {
+  try {
+    if (!(configAtual ?? await armazenamento.lerConfig()).nuvemAuto) return;
+    if (Date.now() - ultimoEnvioNuvem < 5 * 60_000) return; // no máximo a cada 5 minutos
+    if (!(await nuvem.status()).conectado) return;
+    ultimoEnvioNuvem = Date.now();
+    await nuvem.enviar();
+  } catch { /* tenta de novo na próxima leitura */ }
+}
+
 let ultimaCoord = null;
 async function sincronizarEAvisar({ manual = false } = {}) {
   try {
@@ -176,6 +189,7 @@ async function sincronizarEAvisar({ manual = false } = {}) {
     armazenamento.gravarEstado({ perfil: 'professor' });
     enviar('sync:concluida', ultimoPainel);
     contadorDoProfessor(ultimoPainel);
+    backupAutomatico();
     // Pendência nova vira notificação, a não ser que a pessoa já esteja olhando o app.
     const novas = avisos.novasPendencias(anterior, ultimoPainel);
     if (novas.length && configAtual?.notificarNovas && !(vitrine?.isVisible() && vitrine.isFocused())) notificar(avisos.textoNovas(novas));
@@ -238,6 +252,19 @@ ipcMain.handle('professor:periodo', async (_e, n) => {
   try { return await motor.sincronizar((p) => enviar('sync:progresso', p), { periodo: n }); } catch (e) {
     enviar('sge:erro', { mensagem: e.message || 'Falha ao ler o bimestre.' }); return null;
   } finally { enviar('sync:fim'); }
+});
+ipcMain.handle('nuvem:status', () => nuvem.status());
+ipcMain.handle('nuvem:entrar', async () => { try { return { ok: true, ...(await nuvem.entrar()) }; } catch (e) { return { ok: false, mensagem: e.message }; } });
+ipcMain.handle('nuvem:sair', () => nuvem.sair());
+ipcMain.handle('nuvem:enviar', async () => { try { return { ok: true, ...(await nuvem.enviar()) }; } catch (e) { return { ok: false, mensagem: e.message }; } });
+ipcMain.handle('nuvem:restaurar', async () => {
+  try {
+    const r = await nuvem.restaurar();
+    ultimoPainel = await motor.lerCache(); ultimaCoord = await armazenamento.lerCoordenacao();
+    if (ultimoPainel) { enviar('sync:concluida', ultimoPainel); contadorDoProfessor(ultimoPainel); }
+    enviar('coord:concluida', ultimaCoord);
+    return { ok: true, ...r };
+  } catch (e) { return { ok: false, mensagem: e.message }; }
 });
 ipcMain.handle('sync:agora', () => sincronizarEAvisar({ manual: true }));
 ipcMain.handle('sge:entrar', () => abrirLogin());

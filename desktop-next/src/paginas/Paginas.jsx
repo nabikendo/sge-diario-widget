@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { FileSpreadsheet, FileText, FolderOpen, LogOut, Trash2, Info, TrendingDown, TrendingUp, RefreshCw } from 'lucide-react';
+import { FileSpreadsheet, FileText, FolderOpen, LogOut, Trash2, Info, TrendingDown, TrendingUp, RefreshCw, Cloud, CloudUpload, CloudDownload } from 'lucide-react';
 import { referenciaSemanal, diferencas } from '../lib/comparacao.mjs';
 import CartaoTurma from '../components/CartaoTurma';
 import { CardResumo, CardSincronizacao } from '../components/CardsTopo';
@@ -250,6 +250,8 @@ export function Configuracoes({ logado, aoSair, atualizacao, aoVerTutorial }) {
         </Linha>
       </Grupo>
 
+      <BackupNuvem c={c} mudar={mudar} />
+
       <Grupo titulo="Calendário escolar">
         <div className="px-4 py-3.5">
           <p className="font-medium">Dias sem aula</p>
@@ -335,5 +337,49 @@ function Botao({ icone: Icone, children, perigo, ...props }) {
       className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium ring-1 transition disabled:opacity-40 ${perigo ? 'text-pendente ring-rose-200 hover:bg-rose-50' : 'bg-white ring-tinta/10 hover:bg-white/70'}`}>
       <Icone size={16} /> {children}
     </button>
+  );
+}
+
+
+/* ---------- Backup no Google Drive ---------- */
+function BackupNuvem({ c, mudar }) {
+  const [n, setN] = useState(null);
+  const [ocupado, setOcupado] = useState(false);
+  const [aviso, setAviso] = useState(null);
+  useEffect(() => { sge.nuvemStatus().then(setN); }, []);
+  const rodar = async (fn, ok) => {
+    setOcupado(true); setAviso(null);
+    const r = await fn();
+    if (r?.ok === false) setAviso({ ok: false, texto: r.mensagem });
+    else { setAviso(ok ? { ok: true, texto: ok(r) } : null); }
+    setN(await sge.nuvemStatus());
+    setOcupado(false);
+  };
+  if (!n) return null;
+  const quando = n.ultimoBackup ? new Date(n.ultimoBackup).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : 'ainda não enviado';
+  return (
+    <Grupo titulo="Backup no Google Drive">
+      {!n.configurado ? (
+        <Linha titulo="Indisponível nesta versão" texto="Esta instalação não traz a configuração do Google. Atualize o app." />
+      ) : !n.conectado ? (
+        <Linha titulo="Guarde uma cópia dos seus dados no seu Google Drive" texto="Painéis e históricos ficam numa pasta privada do app, que só ele enxerga. Sua senha do SGE nunca vai para lá. O login é feito no navegador.">
+          <Botao icone={Cloud} disabled={ocupado} onClick={() => rodar(() => sge.nuvemEntrar(), () => 'Conectado ao Google Drive.')}>{ocupado ? 'Aguardando o navegador…' : 'Entrar com o Google'}</Botao>
+        </Linha>
+      ) : (
+        <>
+          <Linha titulo={`Conectado${n.email ? `: ${n.email}` : ''}`} texto={`Último backup: ${quando}.`}>
+            <div className="flex flex-wrap justify-end gap-2">
+              <Botao icone={CloudUpload} disabled={ocupado} onClick={() => rodar(() => sge.nuvemEnviar(), () => 'Backup enviado.')}>Enviar agora</Botao>
+              <Botao icone={CloudDownload} disabled={ocupado} onClick={() => rodar(() => sge.nuvemRestaurar(), () => 'Dados restaurados e unidos aos deste computador.')}>Restaurar</Botao>
+              <Botao icone={LogOut} perigo disabled={ocupado} onClick={() => rodar(() => sge.nuvemSair(), () => 'Desconectado do Google Drive.')}>Sair</Botao>
+            </div>
+          </Linha>
+          <Linha titulo="Enviar automaticamente" texto="Depois de cada leitura do SGE (no máximo a cada 5 minutos).">
+            <Chave ligada={c.nuvemAuto} aoMudar={(v) => mudar({ nuvemAuto: v })} />
+          </Linha>
+        </>
+      )}
+      {aviso && <p role="status" className={`mx-4 mb-3 rounded-2xl px-4 py-3 text-sm ${aviso.ok ? 'bg-emerald-50 text-emerald-900' : 'bg-rose-50 text-rose-900'}`}>{aviso.texto}</p>}
+    </Grupo>
   );
 }

@@ -22,6 +22,13 @@ jobs:
       - name: Testar leitura do SGE
         working-directory: desktop-next
         run: npm test
+      - name: Configuração do Google (backup no Drive)
+        working-directory: desktop-next
+        shell: pwsh
+        run: |
+          '{"segredo":"' + $env:GOOGLE_CLIENT_SECRET + '"}' | Set-Content -NoNewline electron/google.segredo.json
+        env:
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
       - name: Gerar executável portátil
         working-directory: desktop-next
         run: npm run build:win
