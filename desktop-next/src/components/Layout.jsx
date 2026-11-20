@@ -1,17 +1,26 @@
-import { Home, CalendarDays, Users, School, History, FileText, Settings, Search, RefreshCw, LogIn, BookOpenCheck, Eye } from 'lucide-react';
+import { Home, CalendarDays, Users, School, History, FileText, Settings, Search, RefreshCw, LogIn, BookOpenCheck, Eye, LayoutDashboard, GraduationCap, Library } from 'lucide-react';
 import { tempoRelativo } from '../lib/sge';
 
-export const SECOES = [
+/** Perfil Servidor (professor). */
+export const SECOES_PROFESSOR = [
   { id: 'home', rotulo: 'Home', icone: Home },
   { id: 'semana', rotulo: 'Semana', icone: CalendarDays },
   { id: 'turmas', rotulo: 'Turmas', icone: Users },
-  { id: 'coordenacao', rotulo: 'Coordenação', icone: School },
+  { id: 'historico', rotulo: 'Histórico', icone: History },
+  { id: 'relatorios', rotulo: 'Relatórios', icone: FileText },
+];
+/** Perfil Unidade escolar (coordenação): só consulta. */
+export const SECOES_ESCOLA = [
+  { id: 'visao', rotulo: 'Visão geral', icone: LayoutDashboard },
+  { id: 'professores', rotulo: 'Professores', icone: GraduationCap },
+  { id: 'turmas-escola', rotulo: 'Turmas', icone: School },
+  { id: 'componentes', rotulo: 'Componentes', icone: Library },
   { id: 'historico', rotulo: 'Histórico', icone: History },
   { id: 'relatorios', rotulo: 'Relatórios', icone: FileText },
 ];
 
 /** Menu lateral: ícone + rótulo, item ativo em "pílula" de vidro. */
-export function BarraLateral({ ativa, aoTrocar }) {
+export function BarraLateral({ ativa, aoTrocar, secoes }) {
   const Item = ({ id, rotulo, icone: Icone }) => {
     const sel = ativa === id;
     return (
@@ -29,7 +38,7 @@ export function BarraLateral({ ativa, aoTrocar }) {
   };
   return (
     <nav aria-label="Seções" className="flex h-full flex-col items-center gap-1.5 pt-2 pb-4">
-      {SECOES.map((s) => <Item key={s.id} {...s} />)}
+      {secoes.map((s) => <Item key={s.id} {...s} />)}
       <div className="flex-1" />
       <Item id="configuracoes" rotulo="Configurações" icone={Settings} />
     </nav>
@@ -39,7 +48,7 @@ export function BarraLateral({ ativa, aoTrocar }) {
 /** Barra superior: título, busca global e botão de status da sincronização. */
 export function BarraSuperior({ titulo, subtitulo, busca, aoBuscar, refBusca, painel, sincronizando, logado, modoEscola, aoSincronizar, aoEntrar, aoAbrirSge }) {
   return (
-    <header className="grid grid-cols-[1fr_minmax(220px,400px)_1fr] items-center gap-6">
+    <header className="grid grid-cols-[minmax(0,1fr)_minmax(200px,360px)_auto] items-center gap-6">
       <div className="min-w-0">
         <h1 className="truncate text-[28px] leading-tight font-semibold tracking-tight">{titulo}</h1>
         {subtitulo && <p className="truncate text-sm text-tinta-suave">{subtitulo}</p>}
@@ -51,7 +60,7 @@ export function BarraSuperior({ titulo, subtitulo, busca, aoBuscar, refBusca, pa
           ref={refBusca}
           value={busca}
           onChange={(e) => aoBuscar(e.target.value)}
-          placeholder="Buscar turma, disciplina ou escola"
+          placeholder={modoEscola ? 'Buscar professor, turma…' : 'Buscar turma, disciplina ou escola'}
           className="w-full bg-transparent text-[15px] text-tinta outline-none placeholder:text-tinta-suave/70"
         />
         <kbd className="rounded-md bg-tinta/5 px-1.5 py-0.5 text-xs">/</kbd>
@@ -60,7 +69,7 @@ export function BarraSuperior({ titulo, subtitulo, busca, aoBuscar, refBusca, pa
       <div className="flex justify-end gap-2">
         <button type="button" onClick={aoAbrirSge}
           title={modoEscola ? 'Abrir o SGE dentro do app para consultar e corrigir' : 'Abrir o SGE dentro do app para fazer o diário'}
-          className="flex h-12 items-center gap-2 rounded-full bg-lavanda px-5 text-sm font-semibold text-[#fff] shadow-[0_8px_20px_-8px_rgb(107_84_238/0.7)] transition hover:brightness-110 active:scale-[0.98]">
+          className="flex h-12 items-center gap-2 whitespace-nowrap rounded-full bg-lavanda px-5 text-sm font-semibold text-[#fff] shadow-[0_8px_20px_-8px_rgb(107_84_238/0.7)] transition hover:brightness-110 active:scale-[0.98]">
           {modoEscola ? <Eye size={18} aria-hidden /> : <BookOpenCheck size={18} aria-hidden />} {modoEscola ? 'Consultar no SGE' : 'Fazer diário'}
         </button>
         {logado === false ? (
@@ -70,7 +79,7 @@ export function BarraSuperior({ titulo, subtitulo, busca, aoBuscar, refBusca, pa
           </button>
         ) : (
           <button type="button" onClick={aoSincronizar} disabled={sincronizando}
-            className="vidro-forte flex h-12 items-center gap-2.5 rounded-full px-5 text-sm font-medium transition hover:bg-white active:scale-[0.98] disabled:cursor-default">
+            className="vidro-forte flex h-12 items-center gap-2.5 whitespace-nowrap rounded-full px-5 text-sm font-medium transition hover:bg-white active:scale-[0.98] disabled:cursor-default">
             <span className={`size-2 rounded-full ${sincronizando ? 'bg-lavanda animate-pulse' : painel ? 'bg-emdia' : 'bg-tinta-suave/40'}`} aria-hidden />
             {sincronizando ? 'Sincronizando…' : painel ? `Sincronizado ${tempoRelativo(painel.atualizadoEm)}` : 'Sincronizar'}
             <RefreshCw size={16} className={`text-tinta-suave ${sincronizando ? 'animate-spin' : ''}`} aria-hidden />

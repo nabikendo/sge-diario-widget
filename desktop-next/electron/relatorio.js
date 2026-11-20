@@ -38,6 +38,7 @@ function htmlCoordenacao(painel) {
     h2{font-size:13pt;margin:18px 0 4px}h2 small{font-weight:400;color:#c8463e;font-size:10pt;margin-left:8px}
     table{width:100%;border-collapse:collapse}td{padding:5px 8px;border-bottom:1px solid #e6e3f0;vertical-align:top}
   </style><body><h1>Pendências de Conteúdo Aplicado da escola</h1>
+  <p>${painel.periodo === 'ano' || !painel.bimestre ? 'Ano letivo' : `${painel.bimestre.numero}º bimestre`}</p>
   <p>${dias} aulas sem conteúdo · ${profs.length} professores com pendência de ${painel.totalProfessores}</p>
   <p>Dados do SGE lidos em ${new Date(painel.atualizadoEm).toLocaleString('pt-BR')}</p>${corpo}
   ${painel.semPendencia?.length ? `<p style="margin-top:18px"><b>Em dia:</b> ${esc(painel.semPendencia.join(', '))}.</p>` : ''}</body></html>`;

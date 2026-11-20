@@ -184,11 +184,14 @@ function sincronizarEscola(aoProgresso = () => {}) {
       }
     }
 
+    // Bimestre atual: a interface mostra por padrão só ele (o ano inteiro fica disponível).
+    let bimestre = null;
+    try { bimestre = await leitor.bimestreAtual(turmasEscola[0].v); } catch (e) { if (e instanceof SessaoExpirada) throw e; }
+
     if (detalhes) {
       const lista = [...itens.values()].filter((it) => it.professor.id);
       total += lista.length; // os detalhes entram na barra de progresso
       aoProgresso({ etapa: 'Lendo Chamada e Planos', feitas, total });
-      const bimestre = await leitor.bimestreAtual(turmasEscola[0].v);
       await emParalelo(lista, 2, async (it) => {
         const t = { id: it.turmaId, disciplina: it.componente };
         const tentar = async (fn) => { try { return await fn(); } catch (e) { if (e instanceof SessaoExpirada) throw e; return { erro: e.message }; } };
@@ -231,13 +234,14 @@ function sincronizarEscola(aoProgresso = () => {}) {
     const semPendencia = professores.filter((p) => !porProfessor.has(p.id)).map((p) => p.nome);
 
     const painel = {
-      versao: 2, atualizadoEm: new Date().toISOString(), detalhes: { chamada: Boolean(config.coordChamada), planos: Boolean(config.coordPlanos) },
+      versao: 3, atualizadoEm: new Date().toISOString(), bimestre, detalhes: { chamada: Boolean(config.coordChamada), planos: Boolean(config.coordPlanos) },
       turmas: turmas.map((t) => ({ id: t.id, nome: t.nome, dias: new Set(t.pendencias.map((p) => `${p.data}|${p.disciplina}`)).size, erro: t.erro })),
       professores: listaProfessores, semPendencia, totalProfessores: professores.length,
       diagnosticos: diagnosticos.slice(0, 200),
     };
     await armazenamento.gravarCoordenacao(painel);
-    await armazenamento.registrarHistoricoCoordenacao(painel);
+    const { visaoPeriodo } = await import('./escolaVisao.mjs');
+    await armazenamento.registrarHistoricoCoordenacao(visaoPeriodo(painel, 'bimestre')); // o histórico acompanha o bimestre atual
     return painel;
   });
 }

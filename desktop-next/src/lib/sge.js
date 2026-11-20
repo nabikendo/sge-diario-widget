@@ -17,6 +17,7 @@ export const sge = ponte ?? {
   sincronizarEscola: async () => exemploCoordenacao,
   instalarAtualizacao: async () => {},
   verificarAtualizacao: async () => {},
+  obterPerfil: async () => (location.search.includes('escola') ? 'escola' : null),
   obterAgenda: async () => exemploAgenda,
   aoAgenda: nada,
   obterHistoricoCoordenacao: async () => exemploHistoricoCoordenacao,

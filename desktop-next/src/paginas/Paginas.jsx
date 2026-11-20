@@ -83,8 +83,6 @@ export function Turmas({ turmas, aoAbrir }) {
   );
 }
 
-export { Coordenacao } from './Coordenacao';
-
 /* ---------- Histórico ---------- */
 export function Historico() {
   const [lista, setLista] = useState(null);

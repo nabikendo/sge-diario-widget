@@ -134,8 +134,9 @@ function contadorDoProfessor(painel) {
   const n = avisos.totalPainel(painel);
   atualizarContador(n, n ? `${n} ${n === 1 ? 'pendência' : 'pendências'}` : 'tudo em dia');
 }
-function contadorDaEscola(coord) {
-  const n = (coord?.professores ?? []).reduce((s, p) => s + (p.total ?? p.dias), 0);
+async function contadorDaEscola(coord) {
+  const { visaoPeriodo } = await import('./escolaVisao.mjs');
+  const n = (visaoPeriodo(coord, 'bimestre')?.professores ?? []).reduce((s, p) => s + p.total, 0);
   atualizarContador(n, n ? `${n} pendências na escola` : 'escola em dia');
 }
 
@@ -166,6 +167,7 @@ async function sincronizarEAvisar({ manual = false } = {}) {
     const anterior = ultimoPainel ?? await motor.lerCache();
     ultimoPainel = await motor.sincronizar((p) => enviar('sync:progresso', p), { manual });
     enviar('sge:perfil', { escola: false });
+    armazenamento.gravarEstado({ perfil: 'professor' });
     enviar('sync:concluida', ultimoPainel);
     contadorDoProfessor(ultimoPainel);
     // Pendência nova vira notificação, a não ser que a pessoa já esteja olhando o app.
@@ -181,6 +183,7 @@ async function sincronizarEAvisar({ manual = false } = {}) {
     if (e instanceof motor.PerfilEscola) {
       // Perfil Unidade escolar: o diário pessoal fica como estava e a escola é lida no lugar.
       enviar('sge:perfil', { escola: true });
+      armazenamento.gravarEstado({ perfil: 'escola' });
       await sincronizarEscolaEAvisar({ manual });
       return null;
     }
@@ -244,6 +247,7 @@ ipcMain.handle('agenda:obter', async () => {
     return (await armazenamento.lerAgenda()) ?? null;
   }
 });
+ipcMain.handle('perfil:obter', async () => (await armazenamento.lerEstado()).perfil ?? null);
 ipcMain.handle('coord:historico', () => armazenamento.lerHistoricoCoordenacao());
 ipcMain.handle('sge:sair', async () => {
   // Apaga só a sessão do SGE (cookies e armazenamento da partição); a próxima sincronização pede login.
@@ -264,15 +268,16 @@ ipcMain.handle('config:salvar', async (_e, parcial) => {
 });
 ipcMain.handle('dados:abrirPasta', () => shell.openPath(app.getPath('userData')));
 ipcMain.handle('dados:apagar', async () => { await armazenamento.apagarDados(); ultimoPainel = null; ultimaCoord = null; enviar('coord:concluida', null); atualizarContador(0, 'sem dados'); });
-ipcMain.handle('relatorio:salvar', async (_e, formato) => {
+ipcMain.handle('relatorio:salvar', async (_e, formato, opcoes) => {
   const escola = formato === 'coord-csv' || formato === 'coord-pdf';
-  const painel = escola ? (ultimaCoord ?? await armazenamento.lerCoordenacao()) : (ultimoPainel ?? await motor.lerCache());
+  let painel = escola ? (ultimaCoord ?? await armazenamento.lerCoordenacao()) : (ultimoPainel ?? await motor.lerCache());
+  if (escola && painel) { const { visaoPeriodo } = await import('./escolaVisao.mjs'); painel = visaoPeriodo(painel, opcoes?.periodo === 'ano' ? 'ano' : 'bimestre'); } // o relatório sai igual à tela
   if (!painel) return { ok: false, mensagem: escola ? 'Leia a escola na Coordenação antes de gerar o relatório.' : 'Sincronize antes de gerar o relatório.' };
   const pdf = formato === 'pdf' || formato === 'coord-pdf';
   const dia = new Date().toISOString().slice(0, 10);
   const { canceled, filePath } = await dialog.showSaveDialog(vitrine, {
     title: 'Salvar relatório',
-    defaultPath: path.join(app.getPath('documents'), `SGE Diario - ${escola ? 'pendencias da escola' : 'conteudo aplicado'} ${dia}.${pdf ? 'pdf' : 'csv'}`),
+    defaultPath: path.join(app.getPath('documents'), `SGE Diario - ${escola ? `pendencias da escola ${painel?.periodo === 'ano' ? 'ano letivo' : 'bimestre'}` : 'conteudo aplicado'} ${dia}.${pdf ? 'pdf' : 'csv'}`),
     filters: [pdf ? { name: 'PDF', extensions: ['pdf'] } : { name: 'Planilha (CSV)', extensions: ['csv'] }],
   });
   if (canceled || !filePath) return { ok: false };
