@@ -64,7 +64,10 @@ const lerTurmasEscola = () => ler('turmas-escola.json', []);
 async function gravarTurmasEscola(lista) {
   const validas = (Array.isArray(lista) ? lista : []).filter((o) => o && typeof o.v === 'string' && o.v && typeof o.t === 'string')
     .map((o) => ({ v: o.v, t: o.t.trim(), tp: typeof o.tp === 'string' ? o.tp : '0' }));
-  if (validas.length) await gravar('turmas-escola.json', validas);
+  if (!validas.length) return 0;
+  const atual = await lerTurmasEscola();
+  if (JSON.stringify(atual) === JSON.stringify(validas)) return 0; // nada mudou: não regrava nem avisa
+  await gravar('turmas-escola.json', validas);
   return validas.length;
 }
 

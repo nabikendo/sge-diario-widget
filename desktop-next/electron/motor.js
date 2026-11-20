@@ -56,11 +56,15 @@ async function prepararSessao(aoProgresso) {
   return { leitor, config, inicial };
 }
 
-let emAndamento = null;
-const exclusivo = (fn) => {
-  if (emAndamento) return emAndamento; // duas chamadas viram uma só
-  emAndamento = fn().finally(() => { emAndamento = null; });
-  return emAndamento;
+// Duas chamadas do mesmo tipo viram uma só; tipos diferentes esperam a vez (a janela oculta é uma só).
+const emAndamento = new Map();
+let fila = Promise.resolve();
+const exclusivo = (tipo, fn) => {
+  if (emAndamento.has(tipo)) return emAndamento.get(tipo);
+  const p = fila.catch(() => {}).then(fn).finally(() => emAndamento.delete(tipo));
+  fila = p;
+  emAndamento.set(tipo, p);
+  return p;
 };
 
 /**
@@ -69,12 +73,13 @@ const exclusivo = (fn) => {
  * @param {{manual?: boolean}} opcoes manual = relê também os planos
  */
 function sincronizar(aoProgresso = () => {}, { manual = false } = {}) {
-  return exclusivo(async () => {
+  return exclusivo('professor', async () => {
     const { leitor, config, inicial } = await prepararSessao(aoProgresso);
     if ((await leitor.perfil()) === 'escola') throw new PerfilEscola();
 
     aoProgresso({ etapa: 'Lendo suas turmas', feitas: 0, total: null });
     const { turmas } = await leitor.turmas(inicial.opcoesTurma);
+    if (!turmas.length) throw new Error('Nenhuma turma sua foi encontrada no horário do SGE. Confira se o perfil ativo é Servidor (professor).');
     const bimestre = await leitor.bimestreAtual(turmas[0].id);
     const anterior = await armazenamento.lerPainel();
     const anteriores = new Map((anterior?.turmas ?? []).map((t) => [P.chaveVinculo(t.id, t.disciplina), t]));
@@ -127,7 +132,7 @@ function sincronizar(aoProgresso = () => {}, { manual = false } = {}) {
  * atribuídas a cada professor pelo horário dele.
  */
 function sincronizarEscola(aoProgresso = () => {}) {
-  return exclusivo(async () => {
+  return exclusivo('escola', async () => {
     const { leitor } = await prepararSessao(aoProgresso);
     const perfil = await leitor.perfil();
     if (perfil !== 'escola') throw new Error('O perfil ativo no SGE é Servidor (professor). Troque para Unidade escolar no SGE e sincronize de novo.');

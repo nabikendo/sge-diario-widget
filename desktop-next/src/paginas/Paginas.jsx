@@ -109,10 +109,10 @@ export function Coordenacao({ perfilEscola, sincronizando }) {
           <Passo n={2} feito={turmasEscola > 0}>
             No SGE, abra <b>Escola → Conteúdo Aplicado</b>. O app lê a lista de turmas sozinho{turmasEscola > 0 ? ` (${turmasEscola} turmas lidas).` : '.'}
           </Passo>
-          <Passo n={3}>Clique em <b>Ler a escola</b>.</Passo>
+          <Passo n={3}>Clique em <b>Ler a escola</b>. O app só consulta: nada é gravado no SGE.</Passo>
         </ol>
         <div className="mt-8 flex justify-center gap-3">
-          <button type="button" onClick={() => sge.abrirSge()} className="rounded-full bg-white px-5 py-2.5 text-sm font-semibold ring-1 ring-tinta/10 hover:bg-white/70">Abrir o SGE</button>
+          <button type="button" onClick={() => sge.abrirSge()} className="rounded-full bg-white px-5 py-2.5 text-sm font-semibold ring-1 ring-tinta/10 hover:bg-white/70">Abrir o SGE para consulta</button>
           <button type="button" onClick={() => sge.sincronizarEscola()} disabled={!turmasEscola || sincronizando}
             className="rounded-full bg-tinta px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-40">Ler a escola</button>
         </div>
@@ -138,6 +138,8 @@ export function Coordenacao({ perfilEscola, sincronizando }) {
         <h2 className="text-lg font-semibold">Por professor</h2>
         <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Filtrar professor, turma ou componente"
           className="ml-auto w-72 rounded-full bg-white/80 px-4 py-2 text-sm ring-1 ring-white outline-none focus:ring-lavanda/40" />
+        <button type="button" onClick={() => sge.salvarRelatorio('coord-pdf')} className="rounded-full bg-white px-4 py-2 text-sm font-semibold ring-1 ring-tinta/10 hover:bg-white/70">PDF</button>
+        <button type="button" onClick={() => sge.salvarRelatorio('coord-csv')} className="rounded-full bg-white px-4 py-2 text-sm font-semibold ring-1 ring-tinta/10 hover:bg-white/70">Planilha</button>
         <button type="button" onClick={() => sge.sincronizarEscola()} disabled={sincronizando}
           className="rounded-full bg-tinta px-4 py-2 text-sm font-semibold text-white disabled:opacity-40">{sincronizando ? 'Lendo…' : 'Ler de novo'}</button>
       </div>
@@ -304,7 +306,7 @@ export function Configuracoes({ logado, aoSair }) {
 
       <Grupo titulo="Janela">
         <Linha titulo="Abrir maximizado"><Chave ligada={c.abrirMaximizado} aoMudar={(v) => mudar({ abrirMaximizado: v })} /></Linha>
-        <Linha titulo="Abrir junto com o Windows" texto="Funciona com o app instalado numa pasta fixa (não no .exe temporário dos Downloads)."><Chave ligada={c.abrirComWindows} aoMudar={(v) => mudar({ abrirComWindows: v })} /></Linha>
+        <Linha titulo="Abrir junto com o Windows" texto="O app abre quando você entra no Windows e já sincroniza se a sessão do SGE estiver ativa."><Chave ligada={c.abrirComWindows} aoMudar={(v) => mudar({ abrirComWindows: v })} /></Linha>
       </Grupo>
 
       <Grupo titulo="Conta e dados">

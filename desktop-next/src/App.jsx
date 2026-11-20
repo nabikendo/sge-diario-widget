@@ -21,7 +21,7 @@ export default function App() {
   const [erro, setErro] = useState(null);
   const [busca, setBusca] = useState('');
   const [secao, setSecao] = useState(() => location.hash.slice(1) || 'home'); // #secao abre direto numa tela
-  const [aberta, setAberta] = useState(null);
+  const [abertaChave, setAbertaChave] = useState(null);
   const [perfilEscola, setPerfilEscola] = useState(false);
   const [atualizacao, setAtualizacao] = useState(null);
   const [, tique] = useState(0);
@@ -46,6 +46,9 @@ export default function App() {
     return () => { desligar.forEach((f) => f()); clearInterval(relogio); window.removeEventListener('keydown', atalho); };
   }, []);
 
+  // Coordenação não tem diário próprio: ao detectar o perfil Unidade escolar, a tela inicial é a da escola.
+  useEffect(() => { if (perfilEscola && secao === 'home') setSecao('coordenacao'); }, [perfilEscola, secao]);
+
   // Ao trocar de seção, volta ao topo.
   useEffect(() => { conteudo.current?.scrollTo({ top: 0 }); }, [secao]);
 
@@ -58,14 +61,17 @@ export default function App() {
   }, [painel, busca]);
 
   // Buscar leva para Turmas (onde o resultado aparece completo).
-  const buscar = (texto) => { setBusca(texto); if (texto && !['home', 'turmas'].includes(secao)) setSecao('turmas'); };
+  const buscar = (texto) => { setBusca(texto); if (texto && !perfilEscola && !['home', 'turmas'].includes(secao)) setSecao('turmas'); };
   const sincronizar = async () => { setSincronizando(true); setErro(null); const p = await sge.sincronizar(); if (p) setPainel(p); setSincronizando(false); };
   const sair = async () => { if (confirm('Sair do SGE neste computador? Você precisará entrar de novo para sincronizar.')) { await sge.sairDoSge(); setLogado(false); } };
-  const fecharDetalhe = useCallback(() => setAberta(null), []);
+  const fecharDetalhe = useCallback(() => setAbertaChave(null), []);
+  const setAberta = (t) => setAbertaChave(t ? `${t.id}/${t.disciplina}` : null);
+  // O painel aberto acompanha a sincronização: sempre mostra a leitura mais recente da turma.
+  const aberta = abertaChave ? (painel?.turmas ?? []).find((t) => `${t.id}/${t.disciplina}` === abertaChave) ?? null : null;
 
-  const titulo = secao === 'home' ? saudacao() : SECOES.find((s) => s.id === secao)?.rotulo ?? 'Configurações';
+  const titulo = secao === 'home' && !perfilEscola ? saudacao() : SECOES.find((s) => s.id === secao)?.rotulo ?? 'Configurações';
   const hoje = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
-  const subtitulo = secao === 'home' ? hoje.charAt(0).toUpperCase() + hoje.slice(1) : SUBTITULOS[secao];
+  const subtitulo = secao === 'home' && !perfilEscola ? hoje.charAt(0).toUpperCase() + hoje.slice(1) : SUBTITULOS[secao];
 
   return (
     <div className="grid h-full grid-cols-[96px_1fr] grid-rows-[auto_1fr] gap-x-2 gap-y-5 p-5 pl-2">
@@ -74,7 +80,7 @@ export default function App() {
       <BarraSuperior
         titulo={titulo} subtitulo={subtitulo}
         busca={busca} aoBuscar={buscar} refBusca={campoBusca} painel={painel} sincronizando={sincronizando} logado={logado}
-        aoSincronizar={sincronizar} aoEntrar={() => sge.entrar()} aoAbrirSge={() => sge.abrirSge()}
+        modoEscola={perfilEscola} aoSincronizar={sincronizar} aoEntrar={() => sge.entrar()} aoAbrirSge={() => sge.abrirSge()}
       />
 
       <main ref={conteudo} className="vidro min-h-0 overflow-y-auto rounded-[28px] p-6">
@@ -88,7 +94,7 @@ export default function App() {
         )}
         {perfilEscola && secao !== 'coordenacao' && (
           <p className="mb-4 flex items-center justify-between gap-4 rounded-2xl bg-white/70 px-4 py-3 text-sm">
-            O perfil ativo no SGE é Unidade escolar: a escola é lida em Coordenação. Para atualizar o seu diário, troque para o perfil Servidor no SGE.
+            O perfil ativo no SGE é Unidade escolar (coordenação): o app mostra as pendências da escola e só consulta. Para atualizar o seu diário de professor, troque para o perfil Servidor no SGE.
             <button type="button" onClick={() => setSecao('coordenacao')} className="shrink-0 rounded-full bg-tinta px-4 py-1.5 font-semibold text-white">Ver Coordenação</button>
           </p>
         )}

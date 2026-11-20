@@ -61,7 +61,7 @@ export function CardSincronizacao({ painel, progresso, sincronizando }) {
           </>
         ) : (
           <p className="text-sm text-tinta-suave">
-            {painel ? <>Última leitura em <b className="text-tinta">{new Date(painel.atualizadoEm).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</b>. Próxima automática em até 30 min.</>
+            {painel ? <>Última leitura em <b className="text-tinta">{new Date(painel.atualizadoEm).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</b>. A próxima leitura automática segue o intervalo das Configurações.</>
               : 'Ainda sem dados. Entre no SGE para a primeira leitura.'}
           </p>
         )}

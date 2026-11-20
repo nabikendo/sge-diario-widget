@@ -109,7 +109,7 @@ async function sincronizarEAvisar({ manual = false } = {}) {
     if (e instanceof motor.PerfilEscola) {
       // Perfil Unidade escolar: o diário pessoal fica como estava e a escola é lida no lugar.
       enviar('sge:perfil', { escola: true });
-      await sincronizarEscolaEAvisar();
+      await sincronizarEscolaEAvisar({ manual });
       return null;
     }
     console.error('[sync]', e);
@@ -118,8 +118,15 @@ async function sincronizarEAvisar({ manual = false } = {}) {
   }
 }
 
-async function sincronizarEscolaEAvisar() {
+async function sincronizarEscolaEAvisar({ manual = true } = {}) {
   try {
+    if (!manual) {
+      // Leitura automática da escola inteira é pesada: só se a lista de turmas já existe e a última leitura tem mais de 1 hora.
+      const conhecidas = await armazenamento.lerTurmasEscola();
+      const ultima = ultimaCoord ?? (ultimaCoord = await armazenamento.lerCoordenacao());
+      const recente = ultima && Date.now() - Date.parse(ultima.atualizadoEm) < 60 * 60_000;
+      if (!conhecidas.length || recente) { enviar('sync:fim', {}); return null; }
+    }
     ultimaCoord = await motor.sincronizarEscola((p) => enviar('sync:progresso', p));
     enviar('coord:concluida', ultimaCoord);
     enviar('sync:fim', {});
@@ -155,7 +162,7 @@ ipcMain.handle('sge:abrirWeb', (_e, atalho) => {
     horario: typeof atalho.horario === 'string' ? atalho.horario.slice(0, 5) : '' } : null);
 });
 ipcMain.handle('coord:obter', async () => ({ painel: ultimaCoord ?? (ultimaCoord = await armazenamento.lerCoordenacao()), turmasEscola: (await armazenamento.lerTurmasEscola()).length }));
-ipcMain.handle('coord:sincronizar', () => sincronizarEscolaEAvisar());
+ipcMain.handle('coord:sincronizar', () => sincronizarEscolaEAvisar({ manual: true }));
 ipcMain.handle('app:atualizar', () => atualizador.instalarAgora());
 ipcMain.handle('sge:sair', async () => {
   // Apaga só a sessão do SGE (cookies e armazenamento da partição); a próxima sincronização pede login.
@@ -173,19 +180,21 @@ ipcMain.handle('config:salvar', async (_e, parcial) => {
   return { ...config, versao: app.getVersion(), pastaDados: app.getPath('userData') };
 });
 ipcMain.handle('dados:abrirPasta', () => shell.openPath(app.getPath('userData')));
-ipcMain.handle('dados:apagar', async () => { await armazenamento.apagarDados(); ultimoPainel = null; });
+ipcMain.handle('dados:apagar', async () => { await armazenamento.apagarDados(); ultimoPainel = null; ultimaCoord = null; enviar('coord:concluida', null); });
 ipcMain.handle('relatorio:salvar', async (_e, formato) => {
-  const painel = ultimoPainel ?? await motor.lerCache();
-  if (!painel) return { ok: false, mensagem: 'Sincronize antes de gerar o relatório.' };
-  const pdf = formato === 'pdf';
+  const escola = formato === 'coord-csv' || formato === 'coord-pdf';
+  const painel = escola ? (ultimaCoord ?? await armazenamento.lerCoordenacao()) : (ultimoPainel ?? await motor.lerCache());
+  if (!painel) return { ok: false, mensagem: escola ? 'Leia a escola na Coordenação antes de gerar o relatório.' : 'Sincronize antes de gerar o relatório.' };
+  const pdf = formato === 'pdf' || formato === 'coord-pdf';
   const dia = new Date().toISOString().slice(0, 10);
   const { canceled, filePath } = await dialog.showSaveDialog(vitrine, {
     title: 'Salvar relatório',
-    defaultPath: path.join(app.getPath('documents'), `SGE Diario - conteudo aplicado ${dia}.${pdf ? 'pdf' : 'csv'}`),
+    defaultPath: path.join(app.getPath('documents'), `SGE Diario - ${escola ? 'pendencias da escola' : 'conteudo aplicado'} ${dia}.${pdf ? 'pdf' : 'csv'}`),
     filters: [pdf ? { name: 'PDF', extensions: ['pdf'] } : { name: 'Planilha (CSV)', extensions: ['csv'] }],
   });
   if (canceled || !filePath) return { ok: false };
-  await fs.writeFile(filePath, pdf ? await relatorio.pdf(painel) : relatorio.csv(painel));
+  const conteudo = escola ? (pdf ? await relatorio.pdfCoordenacao(painel) : relatorio.csvCoordenacao(painel)) : (pdf ? await relatorio.pdf(painel) : relatorio.csv(painel));
+  await fs.writeFile(filePath, conteudo);
   shell.showItemInFolder(filePath);
   return { ok: true, caminho: filePath };
 });
@@ -198,10 +207,10 @@ function agendar(config) {
 
 // ---------- Ciclo de vida ----------
 const unico = app.requestSingleInstanceLock();
-if (!unico) app.quit();
+if (!unico) app.exit(0); // segunda cópia: sai já, sem abrir janela nem sincronizar
 app.on('second-instance', () => { if (vitrine) { if (vitrine.isMinimized()) vitrine.restore(); vitrine.focus(); } });
 
-app.whenReady().then(async () => {
+if (unico) app.whenReady().then(async () => {
   const config = await armazenamento.lerConfig();
   app.setAppUserModelId('br.to.seduc.sgediariowidget.desktop');
   Menu.setApplicationMenu(null); // sem a barra "File, Edit, View…" do Electron
@@ -210,7 +219,7 @@ app.whenReady().then(async () => {
   vitrine.webContents.once('did-finish-load', () => sincronizarEAvisar());
   agendar(config);
   atualizador.iniciar((info) => enviar('app:atualizacao', info));
-  powerMonitor.on('resume', () => sincronizarEAvisar());
+  powerMonitor.on('resume', () => setTimeout(() => sincronizarEAvisar(), 20_000)); // dá tempo da rede voltar
   app.on('activate', async () => { if (BrowserWindow.getAllWindows().length === 0) criarVitrine(await armazenamento.lerConfig()); });
 });
 

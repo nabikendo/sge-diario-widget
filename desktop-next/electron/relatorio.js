@@ -17,6 +17,32 @@ function csv(painel) {
   return '﻿' + linhas.map((l) => l.map(campo).join(';')).join('\r\n');
 }
 
+/** Coordenação: uma linha por professor × turma × componente, com as datas sem conteúdo. */
+function csvCoordenacao(painel) {
+  const campo = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  const linhas = [['Professor', 'Turma', 'Componente', 'Aulas sem conteúdo', 'Datas sem conteúdo']];
+  for (const p of painel.professores ?? []) {
+    for (const i of p.itens) linhas.push([p.nome, i.turma, i.componente, i.datas.length, i.datas.map(brData).join(', ')]);
+  }
+  for (const nome of painel.semPendencia ?? []) linhas.push([nome, '', '', 0, '']);
+  return '﻿' + linhas.map((l) => l.map(campo).join(';')).join('\r\n');
+}
+
+function htmlCoordenacao(painel) {
+  const profs = painel.professores ?? [];
+  const dias = profs.reduce((s, p) => s + p.dias, 0);
+  const corpo = profs.map((p) => `<h2>${esc(p.nome)} <small>${p.dias} ${p.dias === 1 ? 'aula' : 'aulas'} sem conteúdo</small></h2><table><tbody>${
+    p.itens.map((i) => `<tr><td>${esc(i.turma)}</td><td>${esc(i.componente)}</td><td>${i.datas.map(brData).join(', ')}</td></tr>`).join('')}</tbody></table>`).join('');
+  return `<!doctype html><html lang="pt-BR"><meta charset="utf-8"><style>
+    body{font:11pt "Segoe UI",system-ui,sans-serif;color:#14121c;margin:28px}h1{font-size:20pt;margin:0 0 4px}p{margin:2px 0;color:#5f5a78}
+    h2{font-size:13pt;margin:18px 0 4px}h2 small{font-weight:400;color:#c8463e;font-size:10pt;margin-left:8px}
+    table{width:100%;border-collapse:collapse}td{padding:5px 8px;border-bottom:1px solid #e6e3f0;vertical-align:top}
+  </style><body><h1>Pendências de Conteúdo Aplicado da escola</h1>
+  <p>${dias} aulas sem conteúdo · ${profs.length} professores com pendência de ${painel.totalProfessores}</p>
+  <p>Dados do SGE lidos em ${new Date(painel.atualizadoEm).toLocaleString('pt-BR')}</p>${corpo}
+  ${painel.semPendencia?.length ? `<p style="margin-top:18px"><b>Em dia:</b> ${esc(painel.semPendencia.join(', '))}.</p>` : ''}</body></html>`;
+}
+
 function html(painel) {
   const turmas = painel.turmas ?? [];
   const dias = turmas.reduce((s, t) => s + (t.pendentes?.length ?? 0), 0);
@@ -42,12 +68,14 @@ function html(painel) {
   </body></html>`;
 }
 
-async function pdf(painel) {
+const pdf = (painel) => paraPdf(html(painel));
+const pdfCoordenacao = (painel) => paraPdf(htmlCoordenacao(painel));
+async function paraPdf(documento) {
   const w = new BrowserWindow({ show: false, webPreferences: { sandbox: true, javascript: false } });
   try {
-    await w.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html(painel)));
+    await w.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(documento));
     return await w.webContents.printToPDF({ pageSize: 'A4', printBackground: true, margins: { marginType: 'default' } });
   } finally { w.destroy(); }
 }
 
-module.exports = { csv, pdf };
+module.exports = { csv, pdf, csvCoordenacao, pdfCoordenacao };
