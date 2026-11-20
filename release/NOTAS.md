@@ -1,12 +1,15 @@
-SGE Diário 2.9.2
+SGE Diário 2.9.3
 
-### Novidades
-- **Tema Lavanda:** em Ajustes → Personalização → Aparência → Cores, escolha entre Verde, Lavanda ou as cores do sistema. O verde continua indicando "em dia".
-- **Nova barra de progresso em segmentos**, que acende conforme a sincronização avança e mostra a porcentagem. Aparece no painel, na fila da escola, no resumo de turmas em dia e no download de atualizações.
-- **Painel mais limpo:** saudação conforme o horário, título em destaque, brilho suave no topo e busca em formato de pílula.
-- **Animações mais naturais e consistentes:** telas que entram desaceleram e as que saem aceleram, a barra de abas não quica mais e a seta da fila gira ao abrir e fechar.
+### Novidade: desktop autônomo (Windows)
+- **O app do computador agora entra no SGE sozinho.** Não é mais preciso exportar o backup do celular. Na primeira vez, entre no SGE pela janela que abre. O app guarda só a sessão, nunca a sua senha.
+- **Sincronização automática** ao abrir, a cada 30 minutos e quando o computador volta da suspensão.
+- **Visual novo**, com cartões de vidro, menu lateral, busca global e status da sincronização.
+- **Painel inicial:**
+  - Pendências gerais.
+  - Última sincronização e progresso do bimestre.
+  - Lista de turmas com barra de progresso e selo "Em dia" ou "Pendente".
 
-### Correções
-- Com "Remover animações" ligado no Android, todas as animações ficam instantâneas, inclusive as da barra de abas.
+### Atenção
+- Esta primeira versão do desktop novo mostra só o painel de Conteúdo Aplicado. Frequência, planos, coordenação, histórico e relatórios voltam nas próximas versões.
 
-Instala por cima da versão anterior.
+O app Android não muda nesta versão.

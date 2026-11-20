@@ -67,7 +67,7 @@ jobs:
         with:
           node-version: '22'
       - name: Instalar, testar e compilar Windows
-        working-directory: desktop
+        working-directory: desktop-next
         run: |
           npm version "$env:SGE_VERSAO" --no-git-tag-version --allow-same-version
           npm install --no-audit --no-fund
@@ -79,7 +79,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: desktop-estavel
-          path: desktop/dist/SGE-Diario-Desktop-*.exe
+          path: desktop-next/release-dist/SGE-Diario-Desktop-*.exe
   release:
     needs: [versao, desktop, android-play]
     if: github.ref == 'refs/heads/main'
