@@ -33,6 +33,8 @@ jobs:
     outputs:
       numero: ${{ steps.versao.outputs.numero }}
       estavel: ${{ steps.versao.outputs.estavel }}
+      android: ${{ steps.versao.outputs.android }}
+      anterior: ${{ steps.versao.outputs.anterior }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -56,6 +58,17 @@ jobs:
             if [[ -n "$alteracoes" ]]; then
               echo "estavel=true" >> "$GITHUB_OUTPUT"
             fi
+          fi
+          # O app Android só é gerado e enviado à Play Store quando o código Android mudou desde a última versão.
+          anterior=$(git tag -l 'v*' --sort=-v:refname | grep -vx "v$SGE_VERSAO" | head -1)
+          echo "anterior=$anterior" >> "$GITHUB_OUTPUT"
+          if [[ "$GITHUB_EVENT_NAME" == workflow_dispatch || -z "$anterior" ]]; then
+            echo "android=true" >> "$GITHUB_OUTPUT"
+          elif [[ -n "$(git diff --name-only "$anterior" "$GITHUB_SHA" -- app AndroidManifest.xml '*.gradle.kts' gradle.properties gradle scripts/metadata-atualizacao.py)" ]]; then
+            echo "android=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "android=false" >> "$GITHUB_OUTPUT"
+            echo "Android sem mudanças desde $anterior: APK e Play Store ficam de fora."
           fi
   desktop:
     needs: versao
@@ -82,22 +95,27 @@ jobs:
           path: desktop-next/release-dist/SGE-Diario-Desktop-*.exe
   release:
     needs: [versao, desktop, android-play]
-    if: github.ref == 'refs/heads/main'
+    # android-play pode ter sido pulado (Android sem mudanças): a release segue mesmo assim.
+    if: always() && github.ref == 'refs/heads/main' && needs.versao.outputs.estavel == 'true' && needs.desktop.result == 'success' && needs.android-play.result != 'failure'
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-java@v5
+      - if: needs.versao.outputs.android == 'true'
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
-      - uses: gradle/actions/setup-gradle@v4
+      - if: needs.versao.outputs.android == 'true'
+        uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '9.5.0'
       - name: Restaurar chave de assinatura
+        if: needs.versao.outputs.android == 'true'
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
         run: echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
       - name: Gerar APK assinado
+        if: needs.versao.outputs.android == 'true'
         env:
           SGE_VERSAO: ${{ needs.versao.outputs.numero }}
           KEYSTORE_FILE: ${{ runner.temp }}/release.jks
@@ -133,16 +151,26 @@ jobs:
         continue-on-error: false
         env:
           SGE_VERSAO: ${{ needs.versao.outputs.numero }}
+          SGE_ANDROID: ${{ needs.versao.outputs.android }}
+          SGE_ANTERIOR: ${{ needs.versao.outputs.anterior }}
           GH_TOKEN: ${{ github.token }}
         run: |
-          cp app/build/outputs/apk/release/app-release.apk "SGE-Diario-$SGE_VERSAO.apk"
-          python scripts/metadata-atualizacao.py "SGE-Diario-$SGE_VERSAO.apk" atualizacao.json
-          gh release create "v$SGE_VERSAO" "SGE-Diario-$SGE_VERSAO.apk" "SGE-Diario-Desktop-$SGE_VERSAO.exe" atualizacao.json --latest --target "$GITHUB_SHA" \
+          if [[ "$SGE_ANDROID" == true ]]; then
+            apk="SGE-Diario-$SGE_VERSAO.apk"
+            cp app/build/outputs/apk/release/app-release.apk "$apk"
+            python scripts/metadata-atualizacao.py "$apk" atualizacao.json
+          else
+            # Só o desktop mudou: repete o APK e o atualizacao.json da versão anterior,
+            # para o app Android não ver "atualização" nova.
+            gh release download "$SGE_ANTERIOR" -p '*.apk' -p atualizacao.json
+            apk=$(ls SGE-Diario-*.apk | head -1)
+          fi
+          gh release create "v$SGE_VERSAO" "$apk" "SGE-Diario-Desktop-$SGE_VERSAO.exe" atualizacao.json --latest --target "$GITHUB_SHA" \
             --title "SGE Diário $SGE_VERSAO" \
             --notes-file release/NOTAS.md
   android-play:
     needs: versao
-    if: github.ref == 'refs/heads/main' && (needs.versao.outputs.estavel == 'true' || vars.PLAY_PUBLICAR_AUTOMATICAMENTE == 'true')
+    if: github.ref == 'refs/heads/main' && needs.versao.outputs.android == 'true' && (needs.versao.outputs.estavel == 'true' || vars.PLAY_PUBLICAR_AUTOMATICAMENTE == 'true')
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
@@ -177,7 +205,7 @@ jobs:
 
   play-store:
     needs: [versao, android-play]
-    if: vars.PLAY_PUBLICAR_AUTOMATICAMENTE == 'true'
+    if: vars.PLAY_PUBLICAR_AUTOMATICAMENTE == 'true' && needs.android-play.result == 'success'
     runs-on: ubuntu-22.04
     permissions:
       contents: read

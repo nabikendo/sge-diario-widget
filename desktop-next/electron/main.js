@@ -9,30 +9,31 @@
  *  - Login: janela visível do SGE, só quando a sessão expira. A senha é digitada na própria
  *    página do SGE; o app não lê nem guarda a senha (mesma regra do Android).
  */
-const { app, BrowserWindow, Menu, ipcMain, shell, powerMonitor } = require('electron');
+const { app, BrowserWindow, Menu, ipcMain, shell, powerMonitor, dialog, session } = require('electron');
+const fs = require('node:fs/promises');
 const path = require('node:path');
 const { SGE, PARTICAO } = require('./sge/constantes');
 const { naTelaDeLogin } = require('./sge/janelaOculta');
 const janelaOculta = require('./sge/janelaOculta');
 const motor = require('./motor');
+const armazenamento = require('./armazenamento');
+const relatorio = require('./relatorio');
 
 const icone = path.join(__dirname, '..', 'assets', 'sge-diario.ico');
 const DEV_URL = process.env.VITE_DEV_SERVER_URL; // definido pelo script "dev"
-const INTERVALO_AUTOMATICO_MS = 30 * 60 * 1000;
+let relogioAutomatico = null;
 
 let vitrine = null;
 let janelaLogin = null;
 let ultimoPainel = null;
 
 // ---------- Vitrine (janela visível) ----------
-function criarVitrine() {
+function criarVitrine(config) {
   vitrine = new BrowserWindow({
     icon: icone,
     width: 1280, height: 820, minWidth: 960, minHeight: 640,
     title: 'SGE Diário',
     backgroundColor: '#eef0fb',
-    // Windows 11: material translúcido nativo atrás do gradiente (ignorado em sistemas sem suporte).
-    backgroundMaterial: 'acrylic',
     show: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -41,7 +42,10 @@ function criarVitrine() {
       sandbox: true,
     },
   });
-  vitrine.once('ready-to-show', () => vitrine.show());
+  vitrine.once('ready-to-show', () => {
+    if (config.abrirMaximizado) vitrine.maximize();
+    vitrine.show();
+  });
   vitrine.webContents.setWindowOpenHandler(({ url }) => {
     if (url.startsWith('https://')) shell.openExternal(url);
     return { action: 'deny' };
@@ -109,21 +113,59 @@ ipcMain.handle('painel:obter', async () => ultimoPainel ?? (ultimoPainel = await
 ipcMain.handle('sync:agora', () => sincronizarEAvisar());
 ipcMain.handle('sge:entrar', () => abrirLogin());
 ipcMain.handle('sge:abrirWeb', () => shell.openExternal(SGE));
+ipcMain.handle('sge:sair', async () => {
+  // Apaga só a sessão do SGE (cookies e armazenamento da partição); a próxima sincronização pede login.
+  await session.fromPartition(PARTICAO).clearStorageData();
+  janelaOculta.fechar();
+  enviar('sge:sessao', { logado: false });
+});
+ipcMain.handle('historico:obter', () => armazenamento.lerHistorico());
+ipcMain.handle('config:obter', async () => ({ ...(await armazenamento.lerConfig()), versao: app.getVersion(), pastaDados: app.getPath('userData') }));
+ipcMain.handle('config:salvar', async (_e, parcial) => {
+  const config = await armazenamento.gravarConfig(parcial);
+  app.setLoginItemSettings({ openAtLogin: config.abrirComWindows });
+  agendar(config);
+  return { ...config, versao: app.getVersion(), pastaDados: app.getPath('userData') };
+});
+ipcMain.handle('dados:abrirPasta', () => shell.openPath(app.getPath('userData')));
+ipcMain.handle('dados:apagar', async () => { await armazenamento.apagarDados(); ultimoPainel = null; });
+ipcMain.handle('relatorio:salvar', async (_e, formato) => {
+  const painel = ultimoPainel ?? await motor.lerCache();
+  if (!painel) return { ok: false, mensagem: 'Sincronize antes de gerar o relatório.' };
+  const pdf = formato === 'pdf';
+  const dia = new Date().toISOString().slice(0, 10);
+  const { canceled, filePath } = await dialog.showSaveDialog(vitrine, {
+    title: 'Salvar relatório',
+    defaultPath: path.join(app.getPath('documents'), `SGE Diario - conteudo aplicado ${dia}.${pdf ? 'pdf' : 'csv'}`),
+    filters: [pdf ? { name: 'PDF', extensions: ['pdf'] } : { name: 'Planilha (CSV)', extensions: ['csv'] }],
+  });
+  if (canceled || !filePath) return { ok: false };
+  await fs.writeFile(filePath, pdf ? await relatorio.pdf(painel) : relatorio.csv(painel));
+  shell.showItemInFolder(filePath);
+  return { ok: true, caminho: filePath };
+});
+
+/** (Re)agenda a sincronização automática conforme a configuração (0 = só manual). */
+function agendar(config) {
+  clearInterval(relogioAutomatico);
+  relogioAutomatico = config.intervaloMin > 0 ? setInterval(() => sincronizarEAvisar(), config.intervaloMin * 60_000) : null;
+}
 
 // ---------- Ciclo de vida ----------
 const unico = app.requestSingleInstanceLock();
 if (!unico) app.quit();
 app.on('second-instance', () => { if (vitrine) { if (vitrine.isMinimized()) vitrine.restore(); vitrine.focus(); } });
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  const config = await armazenamento.lerConfig();
   app.setAppUserModelId('br.to.seduc.sgediariowidget.desktop');
   Menu.setApplicationMenu(null); // sem a barra "File, Edit, View…" do Electron
-  criarVitrine();
-  // Primeira leitura ao abrir; depois a cada 30 min e ao voltar da suspensão.
+  criarVitrine(config);
+  // Primeira leitura ao abrir; depois no intervalo escolhido e ao voltar da suspensão.
   vitrine.webContents.once('did-finish-load', () => sincronizarEAvisar());
-  setInterval(() => sincronizarEAvisar(), INTERVALO_AUTOMATICO_MS);
+  agendar(config);
   powerMonitor.on('resume', () => sincronizarEAvisar());
-  app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) criarVitrine(); });
+  app.on('activate', async () => { if (BrowserWindow.getAllWindows().length === 0) criarVitrine(await armazenamento.lerConfig()); });
 });
 
 app.on('window-all-closed', () => {

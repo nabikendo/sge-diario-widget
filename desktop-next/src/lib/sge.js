@@ -2,7 +2,7 @@
  * Acesso da interface ao motor. No Electron, usa a ponte do preload (window.sgeDesktop).
  * Aberto no navegador (npm run build:ui + vite preview, ou testes de layout), usa dados de exemplo.
  */
-import { exemploPainel } from './exemplo';
+import { exemploPainel, exemploHistorico } from './exemplo';
 
 const ponte = typeof window !== 'undefined' ? window.sgeDesktop : undefined;
 const nada = () => () => {};
@@ -12,6 +12,13 @@ export const sge = ponte ?? {
   sincronizar: async () => exemploPainel,
   entrar: async () => {},
   abrirSgeWeb: async () => {},
+  sairDoSge: async () => {},
+  obterHistorico: async () => exemploHistorico,
+  obterConfig: async () => ({ intervaloMin: 30, incluirDiversificada: false, incluirAee: false, abrirComWindows: false, abrirMaximizado: true, versao: 'exemplo', pastaDados: '' }),
+  salvarConfig: async (c) => ({ intervaloMin: 30, incluirDiversificada: false, incluirAee: false, abrirComWindows: false, abrirMaximizado: true, versao: 'exemplo', ...c }),
+  abrirPastaDados: async () => {},
+  apagarDados: async () => {},
+  salvarRelatorio: async () => ({ ok: false, mensagem: 'Disponível só no app instalado.' }),
   aoProgresso: nada, aoConcluir: nada, aoSessao: nada, aoErro: nada,
 };
 export const modoExemplo = !ponte;
@@ -29,3 +36,6 @@ export function tempoRelativo(iso, agora = Date.now()) {
 
 /** "2026-11-19" → "19/11". */
 export const diaMes = (iso) => iso.slice(8, 10) + '/' + iso.slice(5, 7);
+
+/** Data por extenso curta: "2026-11-19" → "qui., 19/11". */
+export const diaSemana = (iso) => new Date(iso + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit' });

@@ -16,3 +16,10 @@ export const exemploPainel = {
     { id: '6', nome: '13.03', escola: 'CE José Luiz Siqueira', disciplina: 'Química', registradas: 0, pendentes: [], progresso: 0, status: 'erro', erro: 'Componente não identificado: Química' },
   ],
 };
+
+/** Histórico fictício: uma sincronização por dia nos últimos 21 dias. */
+export const exemploHistorico = Array.from({ length: 21 }, (_, i) => {
+  const d = new Date(agora.getTime() - (20 - i) * 86_400_000);
+  const dias = Math.max(0, Math.round(14 - i * 0.45 + 3 * Math.sin(i / 2)));
+  return { em: d.toISOString(), dias, pendentes: Math.min(6, Math.ceil(dias / 3)), emDia: 6 - Math.min(6, Math.ceil(dias / 3)), erros: 0, total: 6, porTurma: {} };
+});

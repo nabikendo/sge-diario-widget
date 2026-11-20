@@ -3,25 +3,14 @@
  * Motor de sincronização: junta janela oculta + cliente HTTP + leitor e entrega à interface
  * um "painel" já limpo. A interface nunca vê HTML do SGE.
  */
-const { app, session } = require('electron');
-const fs = require('node:fs/promises');
-const path = require('node:path');
+const { session } = require('electron');
 const { PARTICAO } = require('./sge/constantes');
 const { criarCliente, SessaoExpirada } = require('./sge/cliente');
 const { criarLeitor } = require('./sge/leitor');
 const janelaOculta = require('./sge/janelaOculta');
 
-const arquivoCache = () => path.join(app.getPath('userData'), 'painel.json');
-
-async function lerCache() {
-  try { return JSON.parse(await fs.readFile(arquivoCache(), 'utf8')); } catch { return null; }
-}
-async function gravarCache(painel) {
-  const destino = arquivoCache();
-  await fs.mkdir(path.dirname(destino), { recursive: true });
-  await fs.writeFile(destino + '.tmp', JSON.stringify(painel, null, 2));
-  await fs.rename(destino + '.tmp', destino); // gravação atômica
-}
+const armazenamento = require('./armazenamento');
+const lerCache = () => armazenamento.lerPainel();
 
 /** Executa tarefas com no máximo `limite` ao mesmo tempo (para não sobrecarregar o SGE). */
 async function emParalelo(itens, limite, fn) {
@@ -43,7 +32,9 @@ function sincronizar(aoProgresso = () => {}) {
   emAndamento = (async () => {
     const sessao = session.fromPartition(PARTICAO);
     const cliente = criarCliente(sessao);
-    const leitor = criarLeitor(cliente);
+    const config = await armazenamento.lerConfig();
+    const incluir = new Set([config.incluirDiversificada && 'DIVERSIFICADA', config.incluirAee && 'AEE'].filter(Boolean));
+    const leitor = criarLeitor(cliente, { incluir });
 
     aoProgresso({ etapa: 'Conferindo a sessão do SGE', feitas: 0, total: null });
     const inicial = await janelaOculta.lerPaginaInicial();
@@ -71,7 +62,8 @@ function sincronizar(aoProgresso = () => {}) {
     });
 
     const painel = { versao: 1, atualizadoEm: new Date().toISOString(), perfil: perfilEscola ? 'coordenacao' : 'professor', bimestre, turmas: resultado };
-    await gravarCache(painel);
+    await armazenamento.gravarPainel(painel);
+    await armazenamento.registrarHistorico(painel);
     return painel;
   })().finally(() => { emAndamento = null; });
   return emAndamento;
