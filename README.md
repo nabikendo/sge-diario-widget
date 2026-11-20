@@ -11,7 +11,7 @@ Acompanhe as pendências do diário escolar no SGE 3.0 — do seu diário e da e
 | Plataforma | Arquivo | Observação |
 |---|---|---|
 | Android | `SGE-Diario-2.9.0.apk` | Android 8.0 ou superior. |
-| Windows | `SGE-Diario-Desktop-2.9.0.exe` | Portátil para Windows x64. Abre backups do Android. |
+| Windows | `SGE-Diario-Desktop-Setup-<versão>.exe` | Instalador para Windows x64. Entra no SGE sozinho e se atualiza. Veja o [guia do app Windows](desktop-next/README.md). |
 | Canal de testes | [release `latest`](https://github.com/nabikendo/sge-diario-widget/releases/tag/latest) | Pré-versões automáticas. |
 
 Todas as versões estão em [Releases](https://github.com/nabikendo/sge-diario-widget/releases).
@@ -28,11 +28,11 @@ O app lê o que o SGE mostra na sua sessão e monta o painel no aparelho. Não g
 
 ## Como começar no Windows
 
-1. No Android, exporte um backup em **Ajustes → Backup**.
-2. No Windows, abra o executável e selecione **Importar backup JSON**.
-3. Escolha **Meu diário** ou **Coordenação**, filtre os resultados e salve o PDF do recorte exibido.
+1. Baixe e instale o `SGE-Diario-Desktop-Setup-<versão>.exe` da [última release](https://github.com/nabikendo/sge-diario-widget/releases/latest).
+2. Abra o app e clique em **Entrar no SGE**. O app reconhece sozinho se o perfil é Servidor (professor) ou Unidade escolar (coordenação).
+3. Pronto: as pendências aparecem e o app se atualiza e avisa sozinho. Detalhes, privacidade e backup no Google Drive no [guia do app Windows](desktop-next/README.md).
 
-O painel Windows usa os dados da última consulta salva no backup. O botão **Abrir SGE Web** abre o site oficial em uma sessão independente. Veja o [guia do Windows](desktop/README.md) para detalhes.
+O app antigo, que abria backups do Android, continua descrito no [guia anterior](desktop/README.md).
 
 ---
 
