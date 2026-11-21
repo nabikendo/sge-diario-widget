@@ -10,7 +10,7 @@ Também tem: notificação do Windows para pendência nova, resumo no fim da tar
 
 ## Instalar
 
-Baixe `SGE-Diario-Desktop-Setup-<versão>.exe` na [última release](https://github.com/nabikendo/sge-diario-widget/releases/latest) e instale. Depois disso o app se atualiza sozinho (Configurações → Atualizações → Verificar agora). Como o instalador ainda não é assinado, o Windows pode mostrar o aviso azul do SmartScreen: clique em "Mais informações → Executar assim mesmo".
+Baixe `SGE-Diario-Desktop-Setup-<versão>.exe` na [última release](https://github.com/nabikendo/sge-diario-widget/releases/latest) e instale. Depois disso o app se atualiza sozinho (Configurações → Atualizações → Verificar agora). Como o instalador ainda não é assinado, o Windows pode mostrar o aviso azul do SmartScreen: clique em **Mais informações** e depois em **Executar assim mesmo**. O passo a passo com imagens está no [README principal](../README.md#passo-a-passo-para-instalar-para-quem-nunca-instalou-um-programa-fora-da-loja).
 
 ## Primeiro uso
 
