@@ -10,6 +10,13 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.fadeIn
+import androidx.compose.animation.core.animateFloatAsState
+import android.provider.Settings
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -54,8 +61,8 @@ fun TelaIntroducao(concluir: (Boolean) -> Unit) {
         AnimatedContent(targetState = pagina, label = "introducao",
             transitionSpec = { SgeMotion.lateral(if (targetState > initialState) 1 else -1, fracaoEntra = 4, fracaoSai = 8) }, modifier = Modifier.weight(1f), contentAlignment = Alignment.TopCenter) { etapa ->
             Column(Modifier.widthIn(max = 640.dp).fillMaxSize().verticalScroll(rememberScrollState()).padding(28.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
-                Surface(shape = MaterialTheme.shapes.extraLarge, color = MaterialTheme.colorScheme.surface, shadowElevation = 3.dp) {
-                    Icon(when(etapa) { 0 -> SgeIcons.Cards; 1 -> SgeIcons.Globe; else -> SgeIcons.Check }, null,
+                if (etapa == 0) CartoesIntroducao() else Surface(shape = MaterialTheme.shapes.extraLarge, color = MaterialTheme.colorScheme.surface, shadowElevation = 3.dp) {
+                    Icon(when(etapa) { 1 -> SgeIcons.Globe; else -> SgeIcons.Check }, null,
                         Modifier.padding(24.dp).size(52.dp), tint = MaterialTheme.colorScheme.primary)
                 }
                 Text(when(etapa) { 0 -> "Seu diário,\ncom clareza."; 1 -> "Conecte. Consulte.\nAcompanhe."; else -> "Cada estado\ntem um significado." }, style = MaterialTheme.typography.displaySmall)
@@ -99,6 +106,41 @@ fun TelaIntroducao(concluir: (Boolean) -> Unit) {
             } else {
                 Button(onClick = { concluir(true) }, modifier = Modifier.fillMaxWidth()) { Text("Conectar ao SGE") }
                 TextButton(onClick = { concluir(false) }, modifier = Modifier.fillMaxWidth()) { Text("Ver meu painel") }
+            }
+        }
+    }
+}
+
+/** Três cartões de estado que se alinham ao entrar. Decorativo: fica oculto para o TalkBack. */
+@Composable
+private fun CartoesIntroducao() {
+    val contexto = LocalContext.current
+    // Com animações desligadas nas configurações de acessibilidade, os cartões já aparecem prontos.
+    val semMovimento = remember { Settings.Global.getFloat(contexto.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f }
+    var entrou by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(Unit) { entrou = true }
+    val p by animateFloatAsState(if (entrou || semMovimento) 1f else 0f, tween(600, easing = SgeMotion.Entrada), label = "cartoes")
+    val cartoes = listOf(
+        Triple("Pendências", MaterialTheme.colorScheme.error, "Chamada · 3 dias"),
+        Triple("A conferir", corAlerta(), "Planos · leitura parcial"),
+        Triple("Em dia", MaterialTheme.colorScheme.tertiary, "Conteúdo Aplicado"))
+    // Posição final de cada cartão (dp) e rotação; partem empilhados no centro.
+    val finais = listOf(Triple(14f, 26f, -6f), Triple(50f, 12f, -1f), Triple(86f, 0f, 4f))
+    Box(Modifier.fillMaxWidth().height(170.dp).clearAndSetSemantics { }, contentAlignment = Alignment.TopStart) {
+        cartoes.forEachIndexed { i, (titulo, cor, detalhe) ->
+            val (x, y, giro) = finais[i]
+            Surface(
+                modifier = Modifier
+                    .offset(x = (68f + (x - 68f) * p).dp, y = (30f + (y - 30f) * p).dp)
+                    .width(200.dp)
+                    .graphicsLayer { rotationZ = giro * p; alpha = (0.4f + 0.6f * p) },
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.surface,
+                border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outline)) {
+                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(titulo, style = MaterialTheme.typography.labelMedium, color = cor)
+                    Text(detalhe, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
+                }
             }
         }
     }
