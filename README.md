@@ -32,6 +32,25 @@ O app lê o que o SGE mostra na sua sessão e monta o painel no aparelho. Não g
 2. Abra o app e clique em **Entrar no SGE**. O app reconhece sozinho se o perfil é Servidor (professor) ou Unidade escolar (coordenação).
 3. Pronto: as pendências aparecem e o app se atualiza e avisa sozinho. Detalhes, privacidade e backup no Google Drive no [guia do app Windows](desktop-next/README.md).
 
+### Passo a passo para instalar (para quem nunca instalou um programa fora da loja)
+
+1. Abra a [página das versões](https://github.com/nabikendo/sge-diario-widget/releases/latest) e, na parte **Assets** (no fim da página), clique no arquivo que termina em `.exe` e começa com `SGE-Diario-Desktop-Setup`. O download começa sozinho.
+2. Quando terminar, abra o arquivo baixado (na pasta **Downloads**, ou clicando nele no navegador).
+3. O Windows pode mostrar uma tela azul com o título **"O Windows protegeu o computador"**. Isso é normal: acontece com qualquer programa novo que ainda não é conhecido pela Microsoft. O app não é um vírus; o código está aberto neste repositório.
+
+   Clique em **Mais informações** (o texto sublinhado, abaixo da mensagem):
+
+   ![Tela azul do Windows com o link "Mais informações" destacado](docs/imagens/smartscreen-1-mais-informacoes.png)
+
+4. Vai aparecer o botão **Executar assim mesmo**. Clique nele:
+
+   ![Tela azul com o botão "Executar assim mesmo" destacado](docs/imagens/smartscreen-2-executar-assim-mesmo.png)
+
+   Nesta tela o "Fornecedor" aparece como *desconhecido* porque o instalador ainda não tem assinatura digital paga. Não use o botão "Não executar", ele cancela a instalação.
+5. Siga o instalador até o fim e abra o **SGE Diário** pelo ícone na área de trabalho ou pelo menu Iniciar.
+
+> As imagens acima são exemplos do aviso do Windows; o nome do arquivo na sua tela será `SGE-Diario-Desktop-Setup-…exe`.
+
 O app antigo, que abria backups do Android, continua descrito no [guia anterior](desktop/README.md).
 
 ---
