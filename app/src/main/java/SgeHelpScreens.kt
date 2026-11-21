@@ -12,10 +12,11 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.animate
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.animation.core.AnimationSpec
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.runtime.rememberCoroutineScope
@@ -60,34 +61,27 @@ import br.to.seduc.sgediariowidget.widget.TipoWidget
 fun TelaIntroducao(concluir: (Boolean) -> Unit) {
     var pagina by rememberSaveable { mutableStateOf(0) }
     val escopo = rememberCoroutineScope()
-    // Deslocamento da página em px: é atualizado na hora pelo dedo e animado ao soltar.
+    // Deslocamento da página em px: o dedo o atualiza na hora; ao soltar, o Animatable leva até o alvo.
     var deslPx by remember { mutableFloatStateOf(0f) }
     var largura by remember { mutableFloatStateOf(0f) }
+    val anim = remember { Animatable(0f) }
     val ocupado = remember { mutableStateOf(false) }
-    fun irPara(nova: Int) {
+    val arrastoEstado = rememberDraggableState { dx -> if (!ocupado.value) deslPx += dx }
+    suspend fun animarPara(alvo: Float, spec: AnimationSpec<Float>) {
+        anim.snapTo(deslPx)
+        anim.animateTo(alvo, spec) { deslPx = value }
+    }
+    suspend fun trocar(nova: Int) {
         if (ocupado.value || nova !in 0..2 || nova == pagina) return
         val sentido = if (nova > pagina) 1 else -1
         ocupado.value = true
-        escopo.launch {
-            try {
-                animate(deslPx, -sentido * largura, tween(SgeMotion.PAGINA, easing = SgeMotion.Saida)) { v, _ -> deslPx = v }
-                pagina = nova
-                deslPx = sentido * largura
-                animate(deslPx, 0f, tween(SgeMotion.PAGINA, easing = SgeMotion.Entrada)) { v, _ -> deslPx = v }
-            } finally {
-                ocupado.value = false
-            }
-        }
-    }
-    fun voltarAoCentro() {
-        escopo.launch { animate(deslPx, 0f, tween(SgeMotion.PADRAO, easing = SgeMotion.Padrao)) { v, _ -> deslPx = v } }
-    }
-    fun soltar() {
-        val limite = largura * .25f
-        when {
-            deslPx < -limite && pagina < 2 -> irPara(pagina + 1)
-            deslPx > limite && pagina > 0 -> irPara(pagina - 1)
-            else -> voltarAoCentro()
+        try {
+            animarPara(-sentido * largura, tween(SgeMotion.PAGINA, easing = SgeMotion.Saida))
+            pagina = nova
+            deslPx = sentido * largura
+            animarPara(0f, tween(SgeMotion.PAGINA, easing = SgeMotion.Entrada))
+        } finally {
+            ocupado.value = false
         }
     }
     // Fundo praticamente opaco (e fosco sobre a tela borrada, no Android 12+) para o texto ficar sempre legível.
@@ -101,12 +95,16 @@ fun TelaIntroducao(concluir: (Boolean) -> Unit) {
         Box(Modifier.weight(1f).fillMaxWidth()
             .onSizeChanged { largura = it.width.toFloat() }
             .clipToBounds()
-            .pointerInput(Unit) {
-                detectHorizontalDragGestures(
-                    onDragEnd = { if (!ocupado.value) soltar() },
-                    onDragCancel = { if (!ocupado.value) voltarAoCentro() },
-                    onHorizontalDrag = { _, dx -> if (!ocupado.value) deslPx += dx })
-            }) {
+            .draggable(orientation = Orientation.Horizontal, state = arrastoEstado, onDragStopped = {
+                if (!ocupado.value) {
+                    val limite = largura * .25f
+                    when {
+                        deslPx < -limite && pagina < 2 -> trocar(pagina + 1)
+                        deslPx > limite && pagina > 0 -> trocar(pagina - 1)
+                        else -> animarPara(0f, tween(SgeMotion.PADRAO, easing = SgeMotion.Padrao))
+                    }
+                }
+            })) {
             Column(Modifier.widthIn(max = 640.dp).fillMaxSize().align(Alignment.TopCenter)
                 .graphicsLayer { translationX = deslPx }
                 .verticalScroll(rememberScrollState()).padding(28.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
@@ -150,8 +148,8 @@ fun TelaIntroducao(concluir: (Boolean) -> Unit) {
                     if (i == pagina) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline, CircleShape)) }
             }
             if (pagina < 2) Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                if (pagina > 0) OutlinedButton(onClick = { irPara(pagina - 1) }) { Text("Voltar") }
-                Button(onClick = { irPara(pagina + 1) }, modifier = Modifier.weight(1f)) { Text("Continuar") }
+                if (pagina > 0) OutlinedButton(onClick = { escopo.launch { trocar(pagina - 1) } }) { Text("Voltar") }
+                Button(onClick = { escopo.launch { trocar(pagina + 1) } }, modifier = Modifier.weight(1f)) { Text("Continuar") }
             } else {
                 Button(onClick = { concluir(true) }, modifier = Modifier.fillMaxWidth()) { Text("Conectar ao SGE") }
                 TextButton(onClick = { concluir(false) }, modifier = Modifier.fillMaxWidth()) { Text("Ver meu painel") }
