@@ -12,6 +12,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.animate
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.input.pointer.pointerInput
@@ -59,8 +60,8 @@ import br.to.seduc.sgediariowidget.widget.TipoWidget
 fun TelaIntroducao(concluir: (Boolean) -> Unit) {
     var pagina by rememberSaveable { mutableStateOf(0) }
     val escopo = rememberCoroutineScope()
-    // Deslocamento horizontal da página: segue o dedo e anima ao soltar.
-    val desl = remember { Animatable(0f) }
+    // Deslocamento da página em px: é atualizado na hora pelo dedo e animado ao soltar.
+    var deslPx by remember { mutableFloatStateOf(0f) }
     var largura by remember { mutableFloatStateOf(0f) }
     val ocupado = remember { mutableStateOf(false) }
     fun irPara(nova: Int) {
@@ -68,19 +69,25 @@ fun TelaIntroducao(concluir: (Boolean) -> Unit) {
         val sentido = if (nova > pagina) 1 else -1
         ocupado.value = true
         escopo.launch {
-            desl.animateTo(-sentido * largura, tween(SgeMotion.PAGINA, easing = SgeMotion.Saida))
-            pagina = nova
-            desl.snapTo(sentido * largura)
-            desl.animateTo(0f, tween(SgeMotion.PAGINA, easing = SgeMotion.Entrada))
-            ocupado.value = false
+            try {
+                animate(deslPx, -sentido * largura, tween(SgeMotion.PAGINA, easing = SgeMotion.Saida)) { v, _ -> deslPx = v }
+                pagina = nova
+                deslPx = sentido * largura
+                animate(deslPx, 0f, tween(SgeMotion.PAGINA, easing = SgeMotion.Entrada)) { v, _ -> deslPx = v }
+            } finally {
+                ocupado.value = false
+            }
         }
+    }
+    fun voltarAoCentro() {
+        escopo.launch { animate(deslPx, 0f, tween(SgeMotion.PADRAO, easing = SgeMotion.Padrao)) { v, _ -> deslPx = v } }
     }
     fun soltar() {
         val limite = largura * .25f
         when {
-            desl.value < -limite && pagina < 2 -> irPara(pagina + 1)
-            desl.value > limite && pagina > 0 -> irPara(pagina - 1)
-            else -> escopo.launch { desl.animateTo(0f, tween(SgeMotion.PADRAO, easing = SgeMotion.Padrao)) }
+            deslPx < -limite && pagina < 2 -> irPara(pagina + 1)
+            deslPx > limite && pagina > 0 -> irPara(pagina - 1)
+            else -> voltarAoCentro()
         }
     }
     // Fundo praticamente opaco (e fosco sobre a tela borrada, no Android 12+) para o texto ficar sempre legível.
@@ -94,14 +101,14 @@ fun TelaIntroducao(concluir: (Boolean) -> Unit) {
         Box(Modifier.weight(1f).fillMaxWidth()
             .onSizeChanged { largura = it.width.toFloat() }
             .clipToBounds()
-            .pointerInput(pagina) {
+            .pointerInput(Unit) {
                 detectHorizontalDragGestures(
-                    onDragEnd = { soltar() },
-                    onDragCancel = { escopo.launch { desl.animateTo(0f) } },
-                    onHorizontalDrag = { _, dx -> escopo.launch { desl.snapTo(desl.value + dx) } })
+                    onDragEnd = { if (!ocupado.value) soltar() },
+                    onDragCancel = { if (!ocupado.value) voltarAoCentro() },
+                    onHorizontalDrag = { _, dx -> if (!ocupado.value) deslPx += dx })
             }) {
             Column(Modifier.widthIn(max = 640.dp).fillMaxSize().align(Alignment.TopCenter)
-                .graphicsLayer { translationX = desl.value }
+                .graphicsLayer { translationX = deslPx }
                 .verticalScroll(rememberScrollState()).padding(28.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
                 if (pagina == 0) CartoesIntroducao() else Surface(shape = MaterialTheme.shapes.extraLarge, color = MaterialTheme.colorScheme.surface, shadowElevation = 3.dp) {
                     Icon(if (pagina == 1) SgeIcons.Globe else SgeIcons.Check, null,
