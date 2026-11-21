@@ -11,6 +11,14 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.Animatable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import android.provider.Settings
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.offset
@@ -50,6 +58,31 @@ import br.to.seduc.sgediariowidget.widget.TipoWidget
 @Composable
 fun TelaIntroducao(concluir: (Boolean) -> Unit) {
     var pagina by rememberSaveable { mutableStateOf(0) }
+    val escopo = rememberCoroutineScope()
+    // Deslocamento horizontal da página: segue o dedo e anima ao soltar.
+    val desl = remember { Animatable(0f) }
+    var largura by remember { mutableFloatStateOf(0f) }
+    val ocupado = remember { mutableStateOf(false) }
+    fun irPara(nova: Int) {
+        if (ocupado.value || nova !in 0..2 || nova == pagina) return
+        val sentido = if (nova > pagina) 1 else -1
+        ocupado.value = true
+        escopo.launch {
+            desl.animateTo(-sentido * largura, tween(SgeMotion.PAGINA, easing = SgeMotion.Saida))
+            pagina = nova
+            desl.snapTo(sentido * largura)
+            desl.animateTo(0f, tween(SgeMotion.PAGINA, easing = SgeMotion.Entrada))
+            ocupado.value = false
+        }
+    }
+    fun soltar() {
+        val limite = largura * .25f
+        when {
+            desl.value < -limite && pagina < 2 -> irPara(pagina + 1)
+            desl.value > limite && pagina > 0 -> irPara(pagina - 1)
+            else -> escopo.launch { desl.animateTo(0f, tween(SgeMotion.PADRAO, easing = SgeMotion.Padrao)) }
+        }
+    }
     // Fundo praticamente opaco (e fosco sobre a tela borrada, no Android 12+) para o texto ficar sempre legível.
     Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background.copy(alpha = if (Build.VERSION.SDK_INT >= 31) .92f else 1f))
         .background(Brush.verticalGradient(listOf(MaterialTheme.colorScheme.primaryContainer.copy(alpha = .45f), MaterialTheme.colorScheme.background.copy(alpha = 0f)))),
@@ -58,37 +91,46 @@ fun TelaIntroducao(concluir: (Boolean) -> Unit) {
             Text("SGE DIÁRIO", style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f))
             TextButton(onClick = { concluir(false) }) { Text("Agora não") }
         }
-        AnimatedContent(targetState = pagina, label = "introducao",
-            transitionSpec = { SgeMotion.lateral(if (targetState > initialState) 1 else -1, fracaoEntra = 4, fracaoSai = 8) }, modifier = Modifier.weight(1f), contentAlignment = Alignment.TopCenter) { etapa ->
-            Column(Modifier.widthIn(max = 640.dp).fillMaxSize().verticalScroll(rememberScrollState()).padding(28.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
-                if (etapa == 0) CartoesIntroducao() else Surface(shape = MaterialTheme.shapes.extraLarge, color = MaterialTheme.colorScheme.surface, shadowElevation = 3.dp) {
-                    Icon(when(etapa) { 1 -> SgeIcons.Globe; else -> SgeIcons.Check }, null,
+        Box(Modifier.weight(1f).fillMaxWidth()
+            .onSizeChanged { largura = it.width.toFloat() }
+            .clipToBounds()
+            .pointerInput(pagina) {
+                detectHorizontalDragGestures(
+                    onDragEnd = { soltar() },
+                    onDragCancel = { escopo.launch { desl.animateTo(0f) } },
+                    onHorizontalDrag = { _, dx -> escopo.launch { desl.snapTo(desl.value + dx) } })
+            }) {
+            Column(Modifier.widthIn(max = 640.dp).fillMaxSize().align(Alignment.TopCenter)
+                .graphicsLayer { translationX = desl.value }
+                .verticalScroll(rememberScrollState()).padding(28.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
+                if (pagina == 0) CartoesIntroducao() else Surface(shape = MaterialTheme.shapes.extraLarge, color = MaterialTheme.colorScheme.surface, shadowElevation = 3.dp) {
+                    Icon(if (pagina == 1) SgeIcons.Globe else SgeIcons.Check, null,
                         Modifier.padding(24.dp).size(52.dp), tint = MaterialTheme.colorScheme.primary)
                 }
-                Text(when(etapa) { 0 -> "Seu diário,\ncom clareza."; 1 -> "Conecte. Consulte.\nAcompanhe."; else -> "Cada estado\ntem um significado." }, style = MaterialTheme.typography.displaySmall)
-                Text(when(etapa) {
+                Text(when(pagina) { 0 -> "Seu diário,\ncom clareza."; 1 -> "Conecte. Consulte.\nAcompanhe."; else -> "Cada estado\ntem um significado." }, style = MaterialTheme.typography.displaySmall)
+                Text(when(pagina) {
                     0 -> "Acompanhe conteúdos, frequência e planejamentos em cartões. Toque em uma turma para abrir os detalhes dos cinco módulos."
                     1 -> "O app consulta o SGE usando a sessão do SGE Web. A senha fica na página de login; o app não pede nem guarda sua senha."
                     else -> "Os números mostram a última consulta. Uma informação não verificada nunca aparece como uma pendência igual a zero."
                 }, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Surface(color = MaterialTheme.colorScheme.surface, shape = MaterialTheme.shapes.large) {
                     Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(17.dp)) {
-                        when(etapa) {
+                        when(pagina) {
                             0 -> {
                                 Text("COMO VOCÊ NAVEGA", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                LinhaExplicacao(SgeIcons.Cards, "Seu diário", "Suas turmas e componentes, com busca e filtros por situação.")
-                                LinhaExplicacao(SgeIcons.People, "Coordenação", "Visões por turma, componente e vínculo do professor.")
-                                LinhaExplicacao(SgeIcons.Settings, "Widgets", "Escolha o recorte e o formato para cada widget.")
+                                Escalonado(0) { LinhaExplicacao(SgeIcons.Cards, "Seu diário", "Suas turmas e componentes, com busca e filtros por situação.") }
+                                Escalonado(1) { LinhaExplicacao(SgeIcons.People, "Coordenação", "Visões por turma, componente e vínculo do professor.") }
+                                Escalonado(2) { LinhaExplicacao(SgeIcons.Settings, "Widgets", "Escolha o recorte e o formato para cada widget.") }
                             }
                             1 -> {
-                                LinhaExplicacao(SgeIcons.Globe, "1. Entre no SGE Web", "Use Servidor para seu diário ou Unidade escolar para a coordenação.")
-                                LinhaExplicacao(SgeIcons.Refresh, "2. Atualize os dados", "Na coordenação, abra Escola → Conteúdo Aplicado e carregue as turmas primeiro.")
-                                LinhaExplicacao(SgeIcons.Book, "3. Resolva no SGE", "O aplicativo só consulta. Os lançamentos e correções continuam no SGE.")
+                                Escalonado(0) { LinhaExplicacao(SgeIcons.Globe, "1. Entre no SGE Web", "Use Servidor para seu diário ou Unidade escolar para a coordenação.") }
+                                Escalonado(1) { LinhaExplicacao(SgeIcons.Refresh, "2. Atualize os dados", "Na coordenação, abra Escola → Conteúdo Aplicado e carregue as turmas primeiro.") }
+                                Escalonado(2) { LinhaExplicacao(SgeIcons.Book, "3. Resolva no SGE", "O aplicativo só consulta. Os lançamentos e correções continuam no SGE.") }
                             }
                             else -> {
-                                EstadoExplicado(EstadoGrupo.PENDENTE, "Há dias ou documentos pendentes conhecidos.")
-                                EstadoExplicado(EstadoGrupo.CONFERIR, "A leitura é parcial ou falta verificar algum módulo. * indica contagem parcial; — indica que não há contagem confirmada.")
-                                EstadoExplicado(EstadoGrupo.EM_DIA, "Todos os módulos consultados têm cobertura completa e nenhuma pendência.")
+                                Escalonado(0) { EstadoExplicado(EstadoGrupo.PENDENTE, "Há algo para resolver no SGE.") }
+                                Escalonado(1) { EstadoExplicado(EstadoGrupo.CONFERIR, "Leitura parcial: confira antes de confiar. * é contagem parcial; — não há contagem confirmada.") }
+                                Escalonado(2) { EstadoExplicado(EstadoGrupo.EM_DIA, "Módulos consultados sem nenhuma pendência.") }
                             }
                         }
                     }
@@ -101,14 +143,25 @@ fun TelaIntroducao(concluir: (Boolean) -> Unit) {
                     if (i == pagina) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline, CircleShape)) }
             }
             if (pagina < 2) Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                if (pagina > 0) OutlinedButton(onClick = { pagina-- }) { Text("Voltar") }
-                Button(onClick = { pagina++ }, modifier = Modifier.weight(1f)) { Text("Continuar") }
+                if (pagina > 0) OutlinedButton(onClick = { irPara(pagina - 1) }) { Text("Voltar") }
+                Button(onClick = { irPara(pagina + 1) }, modifier = Modifier.weight(1f)) { Text("Continuar") }
             } else {
                 Button(onClick = { concluir(true) }, modifier = Modifier.fillMaxWidth()) { Text("Conectar ao SGE") }
                 TextButton(onClick = { concluir(false) }, modifier = Modifier.fillMaxWidth()) { Text("Ver meu painel") }
             }
         }
     }
+}
+
+/** Cada linha entra em sequência (fade e subida curta). Com animações desligadas, aparece pronta. */
+@Composable
+private fun Escalonado(indice: Int, conteudo: @Composable () -> Unit) {
+    val contexto = LocalContext.current
+    val densidade = LocalDensity.current
+    val semMovimento = remember { Settings.Global.getFloat(contexto.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f }
+    val p = remember { Animatable(if (semMovimento) 1f else 0f) }
+    LaunchedEffect(Unit) { if (!semMovimento) p.animateTo(1f, tween(360, delayMillis = 90 * indice, easing = SgeMotion.Entrada)) }
+    Box(Modifier.graphicsLayer { alpha = p.value; translationY = (1f - p.value) * with(densidade) { 16.dp.toPx() } }) { conteudo() }
 }
 
 /** Três cartões de estado que se alinham ao entrar. Decorativo: fica oculto para o TalkBack. */
