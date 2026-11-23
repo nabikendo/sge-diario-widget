@@ -23,7 +23,23 @@ object SgeCalendario {
             .map { (dia, mes) -> LocalDate.of(ano, mes, dia) }
         (fixos + listOf(p.minusDays(48), p.minusDays(47), p.minusDays(2), p.plusDays(60))).toSet()
     }
-    fun util(d: LocalDate) = d.dayOfWeek != DayOfWeek.SATURDAY && d.dayOfWeek != DayOfWeek.SUNDAY && d !in feriados(d.year)
+    /** Calendário oficial lido do SGE. Quando existe, substitui a estimativa de feriados. */
+    @Volatile var oficial: CalendarioOficial? = null
+
+    fun util(d: LocalDate): Boolean {
+        val o = oficial
+        if (o != null && o.bimestres.any { !d.isBefore(it.inicio) && !d.isAfter(it.fim) }) return o.ehDiaLetivo(d)
+        return d.dayOfWeek != DayOfWeek.SATURDAY && d.dayOfWeek != DayOfWeek.SUNDAY && d !in feriados(d.year)
+    }
+
+    /** Aviso para lançar justificativa numa data: null quando a data é dia letivo (ou o calendário oficial não foi lido). */
+    fun avisoData(d: LocalDate): String? {
+        val o = oficial ?: return null
+        o.feriados.firstOrNull { it.data == d }?.let { return "Feriado ou recesso: ${it.nome}" }
+        if (d.dayOfWeek == DayOfWeek.SATURDAY || d.dayOfWeek == DayOfWeek.SUNDAY) return "Fim de semana"
+        if (o.bimestres.none { !d.isBefore(it.inicio) && !d.isAfter(it.fim) }) return "Fora de bimestre letivo"
+        return if (o.ehDiaLetivo(d)) null else "Fora de dia letivo"
+    }
     /** Dias úteis transcorridos depois de [desde], até [ate] (inclusive). */
     fun diasUteisEntre(desde: LocalDate, ate: LocalDate): Int {
         var n = 0; var d = desde.plusDays(1)
