@@ -118,7 +118,7 @@ class SgeUiSmokeTest {
     }
     @Test fun introducaoExplicaEstadosEConclui() {
         var terminou = false
-        content { TelaIntroducao { terminou = true } }
+        content { TelaIntroducao(papel = 1, aoPapel = {}) { terminou = true } }
         foto("04-introducao")
         compose.onNodeWithText("Continuar").performClick()
         compose.onNodeWithText("Continuar").performClick()
