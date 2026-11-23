@@ -18,6 +18,7 @@ import android.provider.ContactsPickerSessionContract
 import androidx.activity.result.contract.ActivityResultContracts
 import br.to.seduc.sgediariowidget.worker.LembreteWorker
 import android.webkit.CookieManager
+import android.webkit.WebStorage
 import androidx.activity.result.IntentSenderRequest
 import com.google.android.gms.auth.api.identity.AuthorizationRequest
 import com.google.android.gms.auth.api.identity.Identity
@@ -662,18 +663,28 @@ class MainActivity : FragmentActivity() {
         SgeCoordStore.salvar(this, coordenacao.copy(sincronizando = false, inicioConsulta = 0L,
             mensagem = "Sessão encerrada. Dados abaixo são da última consulta."))
         coordDesbloqueada.value = false; SgeSessaoStore.salvar(this, PerfilSge.EXPIRADO)
+        limparNavegacaoWeb()
         CookieManager.getInstance().removeAllCookies { CookieManager.getInstance().flush(); if (!isFinishing && !isDestroyed) web.loadUrl(SgeSyncWorker.BASE + "/") }
         val prefs = getSharedPreferences(SgePainelStore.PREFS_NAME, MODE_PRIVATE)
         prefs.edit().remove("turmas_contexto").remove("turmas_escola").apply()
         Toast.makeText(this, "Sessão encerrada neste aparelho", Toast.LENGTH_SHORT).show()
     }
+    /** Cookies, armazenamento local e cache do WebView: sem isso a sessão da coordenação continua valendo ao voltar para o professor. */
+    private fun limparNavegacaoWeb() {
+        CookieManager.getInstance().removeAllCookies(null)
+        CookieManager.getInstance().flush()
+        WebStorage.getInstance().deleteAllData()
+        web.clearCache(true)
+        web.clearHistory()
+    }
+    /** Apaga tudo o que o app guarda neste aparelho e recomeça pela introdução (a escolha de perfil volta a aparecer). */
     private fun limparDadosLocais() {
         cancelarConsultas()
-        val prefs = getSharedPreferences(SgePainelStore.PREFS_NAME, MODE_PRIVATE)
-        val manter = SgeEconomia.chaves + setOf("tema", "estilo", "papel", "lembrete", "lembrete_minuto", "introducao_v2", "web_user_agent", "web_user_agent_celular", "web_computador", "coord_biometria", "coord_noturna", "coord_retry_pending", "sessao_geracao")
-        prefs.edit().also { e -> prefs.all.keys.filter { it !in manter }.forEach { e.remove(it) } }.apply()
+        limparNavegacaoWeb()
+        getSharedPreferences(SgePainelStore.PREFS_NAME, MODE_PRIVATE).edit().clear().commit()
         lifecycleScope.launch { SgeWidgets.atualizar(this@MainActivity) }
-        Toast.makeText(this, "Dados locais apagados", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, "Tudo apagado. Começando do zero", Toast.LENGTH_SHORT).show()
+        recreate()
     }
     private fun abrirUrl(url: String) { runCatching { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) } }
 

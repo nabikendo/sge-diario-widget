@@ -58,7 +58,7 @@ import br.to.seduc.sgediariowidget.widget.TipoWidget
 }
 
 @Composable
-fun TelaIntroducao(concluir: (Boolean) -> Unit) {
+fun TelaIntroducao(papel: Int, aoPapel: (Int) -> Unit, concluir: (Boolean) -> Unit) {
     var pagina by rememberSaveable { mutableStateOf(0) }
     val escopo = rememberCoroutineScope()
     // Deslocamento da página em px: o dedo o atualiza na hora; ao soltar, o Animatable leva até o alvo.
@@ -151,7 +151,10 @@ fun TelaIntroducao(concluir: (Boolean) -> Unit) {
                 if (pagina > 0) OutlinedButton(onClick = { escopo.launch { trocar(pagina - 1) } }) { Text("Voltar") }
                 Button(onClick = { escopo.launch { trocar(pagina + 1) } }, modifier = Modifier.weight(1f)) { Text("Continuar") }
             } else {
-                Button(onClick = { concluir(true) }, modifier = Modifier.fillMaxWidth()) { Text("Conectar ao SGE") }
+                // Perfil escolhido aqui (Professor = 1, Coordenador = 2): define o que aparece no app e qual perfil entrar no SGE Web.
+                Text("Você usa o app como:", style = MaterialTheme.typography.labelLarge)
+                Segmentado(listOf("Professor", "Coordenador"), when (papel) { 1 -> 0; 2 -> 1; else -> -1 }) { aoPapel(if (it == 0) 1 else 2) }
+                Button(onClick = { concluir(true) }, enabled = papel in 1..2, modifier = Modifier.fillMaxWidth()) { Text("Conectar ao SGE") }
                 TextButton(onClick = { concluir(false) }, modifier = Modifier.fillMaxWidth()) { Text("Ver meu painel") }
             }
         }
@@ -461,9 +464,9 @@ fun TelaAjustes(tema: Int, cor: Int, versao: String, aoTema: (Int) -> Unit, aoCo
     }
     if (saude) SaudeDialog { saude = false }
     if (confirmar != 0) AlertDialog(onDismissRequest = { confirmar = 0 },
-        title = { Text(if (confirmar == 1) "Sair do SGE?" else "Apagar dados locais?") },
-        text = { Text(if (confirmar == 1) "A sessão será encerrada neste aparelho. Você precisará entrar de novo no SGE Web."
-            else "Os painéis, histórico e vínculos guardados neste aparelho serão apagados. Suas preferências são mantidas. O SGE não é alterado.") },
+        title = { Text(if (confirmar == 1) "Sair do SGE?" else "Apagar tudo e recomeçar?") },
+        text = { Text(if (confirmar == 1) "A sessão será encerrada neste aparelho e os dados de navegação do SGE Web serão removidos. Você precisará entrar de novo no SGE Web."
+            else "Painéis, histórico, preferências e a sessão do SGE Web serão apagados neste aparelho. O app recomeça pela introdução e você escolhe de novo se é professor ou coordenador. O SGE não é alterado.") },
         confirmButton = { Button(onClick = { if (confirmar == 1) aoSair() else aoLimpar(); confirmar = 0 }) { Text(if (confirmar == 1) "Sair" else "Apagar") } },
         dismissButton = { TextButton(onClick = { confirmar = 0 }) { Text("Cancelar") } })
 }

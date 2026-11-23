@@ -400,7 +400,7 @@ fun AppDiario(
             if (!largo && !tecladoAberto && pagina == null && detalhe == null) DockVidro(aba, visiveis) { focus.clearFocus(); aba = it }
         }
         }
-        if (intro) TelaIntroducao { abrirSge ->
+        if (intro) TelaIntroducao(papel, aoPapel) { abrirSge ->
             intro = false; aoIntroduzido(); pagina = null
             if (abrirSge) { detalhe = null; aba = 2 }
         }
