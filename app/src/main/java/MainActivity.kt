@@ -863,6 +863,8 @@ class MainActivity : FragmentActivity() {
             r.modalArvore=A(document.querySelectorAll('.modal.in')).slice(0,1).map(function(m){var fila=[[m,0]],out=[];while(fila.length&&out.length<45){var it=fila.shift(),x=it[0],d=it[1];var c=getComputedStyle(x),q=x.getBoundingClientRect();
                 out.push({nv:d,tag:x.tagName,id:x.id,cls:(x.className||'').toString().slice(0,50),disp:c.display,vis:c.visibility,op:c.opacity,pos:c.position,z:c.zIndex,bg:c.backgroundColor,box:[Math.round(q.top),Math.round(q.height)]});
                 if(d<6)A(x.children).forEach(function(f){if(!/^(SCRIPT|STYLE|LINK|META|OPTION|BR|I|SPAN|LABEL)$/.test(f.tagName))fila.push([f,d+1])})}return out;})[0]||[];
+            var gf=document.getElementById('gridFrequencia');if(gf){var cad=[],ef=gf,nf=0;while(ef&&nf++<10){var cf=getComputedStyle(ef),qf=ef.getBoundingClientRect();cad.push({tag:ef.tagName,id:ef.id,cls:(ef.className||'').toString().slice(0,50),disp:cf.display,vis:cf.visibility,op:cf.opacity,pos:cf.position,ov:cf.overflowX+'/'+cf.overflowY,h:cf.height,tx:cf.transform==='none'?'':cf.transform,sw:ef.scrollWidth,cw:ef.clientWidth,box:[Math.round(qf.left),Math.round(qf.top),Math.round(qf.width),Math.round(qf.height)]});ef=ef.parentElement;}
+              var ag=document.getElementById('aguarde-frequencia');r.grade={cadeia:cad,aguarde:ag?getComputedStyle(ag).display:null,linhas:gf.querySelectorAll('tbody tr').length,celulas:gf.querySelectorAll('tbody tr:first-child td').length,primeiraLinha:t((gf.querySelector('tbody tr')||{textContent:''}).textContent).slice(0,120)};}
             r.erros=(window.__erros||[]).slice(-20);
             r.xhr=(window.__xhr||[]).slice(-40);
             return JSON.stringify(r)})()"""
@@ -899,7 +901,17 @@ class MainActivity : FragmentActivity() {
             XMLHttpRequest.prototype.send=function(){var x=this;try{x.addEventListener('loadend',function(){window.__xhr.push(x.__sgeU+' -> '+x.status);if(window.__xhr.length>60)window.__xhr.shift();});}catch(e){}return sd.apply(this,arguments);};
             if(window.fetch){var f=window.fetch;window.fetch=function(u,op){var d=((op&&op.method)||'GET')+' '+String(u&&u.url||u).split('?')[0].slice(0,80);return f.apply(this,arguments).then(function(r){window.__xhr.push('fetch '+d+' -> '+r.status);return r;},function(e){window.__xhr.push('fetch '+d+' -> falhou');throw e;});};}
             window.__cliques=window.__cliques||[];document.addEventListener('click',function(ev){try{var e=ev.target.closest('button,a,input,[onclick],td');if(!e)return;window.__cliques.push(e.tagName+'#'+(e.id||'')+' '+(e.textContent||e.value||'').replace(/\s+/g,' ').trim().slice(0,30)+' | '+(e.getAttribute('onclick')||'').slice(0,90));if(window.__cliques.length>30)window.__cliques.shift();}catch(x){}},true);
-            function jq(){var J=window.jQuery;if(!J||J.__sgeHook){return;}J.__sgeHook=true;J(document).ajaxComplete(function(e,x,o){window.__xhr.push('jq '+(o.type||'GET')+' '+String(o.url).split('?')[0].slice(0,80)+' -> '+x.status);if(window.__xhr.length>60)window.__xhr.shift();});}
+            window.__resgateFreq=function(){try{var g=document.getElementById('gridFrequencia');if(!g||!g.querySelector('tbody tr'))return;
+              var el=g;while(el&&el!==document.body){var c=getComputedStyle(el);
+                if(c.display==='none')el.style.setProperty('display',el.tagName==='TABLE'?'table':'block','important');
+                if(c.visibility==='hidden')el.style.setProperty('visibility','visible','important');
+                if(parseFloat(c.opacity)<1)el.style.setProperty('opacity','1','important');
+                if(el!==g&&(c.overflowY!=='visible'&&c.height!=='auto')&&el.getBoundingClientRect().height<30&&g.getBoundingClientRect().height>30)el.style.setProperty('height','auto','important');
+                el=el.parentElement;}
+              var a=document.getElementById('aguarde-frequencia');if(a&&getComputedStyle(a).display!=='none')a.style.setProperty('display','none','important');
+              var w=g.parentElement;if(w&&w.scrollWidth>w.clientWidth+4&&getComputedStyle(w).overflowX==='visible')w.style.setProperty('overflow-x','auto','important');
+            }catch(x){}};
+            function jq(){var J=window.jQuery;if(!J||J.__sgeHook){return;}J.__sgeHook=true;J(document).ajaxComplete(function(e,x,o){if(/ListarFrequencia/i.test(String(o.url))){setTimeout(window.__resgateFreq,400);setTimeout(window.__resgateFreq,2000);}window.__xhr.push('jq '+(o.type||'GET')+' '+String(o.url).split('?')[0].slice(0,80)+' -> '+x.status);if(window.__xhr.length>60)window.__xhr.shift();});}
             jq();setTimeout(jq,1500);
             })()""", null)
         // Correção da tela cheia de Conteúdo Aplicado: o modal do SGE fica transparente e esmaecido no WebView.
