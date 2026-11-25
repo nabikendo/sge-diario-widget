@@ -2,7 +2,7 @@
 
 Acompanhe as pendências do diário escolar no SGE 3.0 — do seu diário e da escola inteira.
 
-[![Versão 2.6.0](https://img.shields.io/badge/versão-2.6.0-168B75)](https://github.com/nabikendo/sge-diario-widget/releases/tag/v2.6.0) [![Licença MIT](https://img.shields.io/badge/licença-MIT-2D7A46)](LICENSE)
+[![Versão 2.9.10](https://img.shields.io/badge/versão-2.9.10-168B75)](https://github.com/nabikendo/sge-diario-widget/releases/tag/v2.9.10) [![Licença MIT](https://img.shields.io/badge/licença-MIT-2D7A46)](LICENSE)
 
 ---
 
@@ -10,7 +10,7 @@ Acompanhe as pendências do diário escolar no SGE 3.0 — do seu diário e da e
 
 | Plataforma | Arquivo | Observação |
 |---|---|---|
-| Android | `SGE-Diario-2.9.0.apk` | Android 8.0 ou superior. |
+| Android | `SGE-Diario-2.9.10.apk` | Android 8.0 ou superior. Também na Google Play (teste fechado). |
 | Windows | `SGE-Diario-Desktop-Setup-<versão>.exe` | Instalador para Windows x64. Entra no SGE sozinho e se atualiza. Veja o [guia do app Windows](desktop-next/README.md). |
 | Canal de testes | [release `latest`](https://github.com/nabikendo/sge-diario-widget/releases/tag/latest) | Pré-versões automáticas. |
 
@@ -22,7 +22,7 @@ Todas as versões estão em [Releases](https://github.com/nabikendo/sge-diario-w
 
 1. Instale o APK e abra o app.
 2. Na aba **SGE Web**, entre com seu perfil no SGE 3.0.
-3. Volte a **Meu diário** ou **Coordenação** e toque em atualizar.
+3. Volte a **Meu diário** ou **Coordenação** e toque em atualizar. Na Coordenação, use **Ler turmas do SGE** para carregar as turmas da escola.
 
 O app lê o que o SGE mostra na sua sessão e monta o painel no aparelho. Não grava nada no SGE.
 
@@ -102,6 +102,9 @@ Uma turma só aparece **em dia** quando os cinco módulos foram conferidos por c
 - **Widgets:** seis opções para a tela inicial, com horário da última consulta, avisos de cobertura e atalhos por módulo.
 - **Fila de coordenação:** veja o progresso, pause, retome depois de renovar a sessão e reprocesse as turmas que falharam.
 - **Histórico:** compare consultas e veja pendências novas, resolvidas ou sem verificação.
+- **Atalhos em Meu diário:** **Histórico da semana** abre o resumo e o ranking da semana; **Lembrete do dia** leva ao horário do lembrete diário (Ajustes → Sincronização).
+- **Aviso de perfil:** o app avisa quando o SGE muda entre Servidor e Unidade escolar.
+- **Diário de Classe no celular:** na aba SGE Web, a tabela de frequência aparece ao tocar em Gerar, com a coluna do estudante fixa ao rolar para o lado.
 - **Conferência semanal:** em Coordenação, selecione uma semana e um professor, revise o que o SGE retornou e confira a prévia do PDF ou do texto.
 - **Relatórios:** texto para WhatsApp ou PDF para a coordenação, com o bimestre no cabeçalho.
 - **Tablets:** painel lado a lado em telas largas.
@@ -116,7 +119,7 @@ As consultas manuais exibem progresso no app. Se as notificações estiverem aut
 
 ## Privacidade
 
-O painel consulta dados em modo somente leitura. O backup, em arquivo ou na pasta oculta do Google Drive, é feito por ação sua e pode conter informações escolares. Guarde o arquivo e os relatórios em local de acesso restrito. A janela oficial do SGE Web no Windows mantém sua própria sessão local.
+O painel consulta dados em modo somente leitura. O backup, em arquivo ou na pasta oculta do Google Drive, é feito por ação sua e pode conter informações escolares. Guarde o arquivo e os relatórios em local de acesso restrito. A janela oficial do SGE Web no Windows mantém sua própria sessão local. O diagnóstico **Copiar página** copia só a estrutura da tela (ids, colunas e medidas), sem nomes de estudantes.
 
 ---
 
@@ -124,6 +127,7 @@ O painel consulta dados em modo somente leitura. O backup, em arquivo ou na past
 
 - Os resultados valem para o último sync. Depois de trocar o bimestre, o painel atualiza sozinho, mas leva alguns minutos.
 - A conferência semanal usa as datas que o SGE retornou e os vínculos docentes locais. Confira o horário oficial e a adequação do conteúdo à matriz, ao plano e ao PEI nas fontes originais.
+- No Diário de Classe do celular, só a coluna do estudante fica fixa ao rolar a tabela; a coluna Nº rola junto.
 - Não é oficial nem tem vínculo com a Seduc-TO ou a Ponto iD.
 
 ---
@@ -152,6 +156,6 @@ O workflow **Release estável** gera o APK do GitHub e um AAB assinado para a lo
 1. No Play Console, cadastre o app `br.to.seduc.sgediariowidget` e configure o Play App Signing. Use como chave de upload a chave que já assina os builds do workflow, ou ajuste a assinatura antes de enviar. Se quiser que a Play atualize instalações do APK do GitHub, confirme que a **chave de assinatura do app** da Play corresponde à do APK já distribuído.
 2. Envie o primeiro AAB pelo Play Console e conclua a configuração do app e os testes exigidos. Confirme que o app tem acesso à faixa de produção. Se já houver versões na Play, o próximo número de execução do workflow precisa superar o maior `versionCode` já enviado.
 3. No Google Cloud, habilite a **Google Play Android Developer API** e crie uma conta de serviço. No Play Console, conceda a essa conta permissão de publicar em produção para este app. Salve o JSON da conta em **Settings → Secrets and variables → Actions → Secrets** como `PLAY_SERVICE_ACCOUNT_JSON`.
-4. Em **Settings → Secrets and variables → Actions → Variables**, defina `PLAY_PUBLICAR_AUTOMATICAMENTE` como `true`. A partir daí, quando o workflow publicar um release estável no GitHub, ele enviará o AAB para produção. A disponibilidade na loja depende do processamento e da revisão do Google Play.
+4. Em **Settings → Secrets and variables → Actions → Variables**, defina `PLAY_PUBLICAR_AUTOMATICAMENTE` como `true`. A partir daí, o workflow envia o AAB para a faixa **alpha** (teste fechado) da Play. Com a variável ligada, isso acontece a cada merge na `main` que mude o código Android, mesmo sem mudar `release/versao.txt`. A disponibilidade na loja depende do processamento e da revisão do Google Play.
 
 Se o GitHub Releases já estiver publicado e apenas o envio à Play falhar, corrija a configuração e use **Re-run failed jobs** na mesma execução, enquanto o artefato estiver disponível. Confira no Play Console se o envio anterior chegou antes de tentar novamente.
