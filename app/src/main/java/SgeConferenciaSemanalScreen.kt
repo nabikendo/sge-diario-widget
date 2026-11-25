@@ -1,5 +1,6 @@
 package br.to.seduc.sgediariowidget
 
+import androidx.compose.foundation.lazy.itemsIndexed
 import android.content.ClipData
 import android.content.Intent
 import android.graphics.Color
@@ -88,7 +89,7 @@ fun TelaConferenciaSemanal(
                 }) { Text("Prévia do relatório") }
                 if (visiveis.isEmpty()) Text("Nenhum item neste filtro.")
             }
-            items(visiveis) { linha ->
+            itemsIndexed(visiveis, key = { i, l -> "$i|${l.turma}|${l.componente}" }) { _, linha ->
                 Surface(shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.surface) {
                     Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text("${linha.turma} · ${linha.componente}", style = MaterialTheme.typography.titleSmall)

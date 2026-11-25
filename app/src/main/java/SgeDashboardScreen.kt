@@ -205,7 +205,8 @@ fun TelaCartoes(
     aoAbrir: (GrupoPendencias) -> Unit, aoSincronizar: () -> Unit, aoCarregarTurmas: () -> Unit,
     aoAtualizarDocentes: () -> Unit, aoAbrirSge: () -> Unit, aoAjuda: () -> Unit, selecionada: String? = null, filtroAvancado: FiltroAvancado = FiltroAvancado(), organizacao: Map<String,DadosTurma> = emptyMap(), aoFiltros: ()->Unit = {}, aoMapa: ()->Unit = {}, aoLote: ()->Unit = {}, aoSemana: ()->Unit = {},
     filtrosSalvos: List<FiltroSalvo> = emptyList(), aoAplicarFiltro: (FiltroAvancado)->Unit = {}, aoSalvarFiltro: (FiltroSalvo)->Unit = {}, aoExcluirFiltro: (String)->Unit = {},
-    filaCoord: FilaCoord? = null, aoPausarFila: ()->Unit = {}, aoRetomarFila: ()->Unit = {}, aoTentarFalhas: ()->Unit = {}, pausaDiario: PausaPessoal? = null, aoPausarDiario: ()->Unit = {}, aoRetomarDiario: ()->Unit = {}, perfil: PerfilSge? = null
+    filaCoord: FilaCoord? = null, aoPausarFila: ()->Unit = {}, aoRetomarFila: ()->Unit = {}, aoTentarFalhas: ()->Unit = {}, pausaDiario: PausaPessoal? = null, aoPausarDiario: ()->Unit = {}, aoRetomarDiario: ()->Unit = {}, perfil: PerfilSge? = null,
+    aoLembrete: (() -> Unit)? = null, aoHistorico: (() -> Unit)? = null
 ) {
     var busca by rememberSaveable(fonte.name) { mutableStateOf("") }
     val filtro = filtroAvancado.estado
@@ -390,6 +391,11 @@ fun TelaCartoes(
                     OutlinedButton(onClick = aoLote, modifier = Modifier.weight(1f)) { Text("Relatórios em lote") }
                 }
                 if (escola) OutlinedButton(onClick = aoSemana, modifier = Modifier.fillMaxWidth()) { Text("Conferência semanal") }
+                // Issue #23: atalhos para o histórico da semana e o lembrete do dia no "Meu diário".
+                if (!escola && (aoHistorico != null || aoLembrete != null)) Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (aoHistorico != null) OutlinedButton(onClick = aoHistorico, modifier = Modifier.weight(1f)) { Text("Histórico da semana") }
+                    if (aoLembrete != null) OutlinedButton(onClick = aoLembrete, modifier = Modifier.weight(1f)) { Text("Lembrete do dia") }
+                }
             }
         }
         item(span = { GridItemSpan(maxLineSpan) }) {

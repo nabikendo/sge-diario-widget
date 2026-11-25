@@ -1,6 +1,7 @@
 @file:OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class, androidx.compose.material3.ExperimentalMaterial3Api::class)
 package br.to.seduc.sgediariowidget
 
+import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -97,7 +98,7 @@ fun descreverFiltro(f: FiltroAvancado, docentes: PainelDocentes): String = listO
         } }
         items(grupos,key={it.chave}) { g ->
             Row(Modifier.horizontalScroll(scroll),horizontalArrangement=Arrangement.spacedBy(6.dp),verticalAlignment=Alignment.CenterVertically) {
-                Column(Modifier.width(176.dp).clickable { abrir(g,-1) }.padding(vertical=10.dp)) { Text(g.titulo,style=MaterialTheme.typography.titleSmall); Text(g.subtitulo,style=MaterialTheme.typography.labelSmall,maxLines=3) }
+                Column(Modifier.width(176.dp).clickable(role = Role.Button) { abrir(g,-1) }.padding(vertical=10.dp)) { Text(g.titulo,style=MaterialTheme.typography.titleSmall); Text(g.subtitulo,style=MaterialTheme.typography.labelSmall,maxLines=3) }
                 g.modulos.forEach { m -> val estado=when { (m.quantidade?:0)>0->EstadoGrupo.PENDENTE; !m.completa->EstadoGrupo.CONFERIR;else->EstadoGrupo.EM_DIA }
                     Surface(onClick={ abrir(g,m.indice) },modifier=Modifier.width(110.dp).heightIn(min=70.dp),color=corEstado(estado).copy(alpha=.09f),shape=MaterialTheme.shapes.medium) {
                         Column(Modifier.padding(10.dp)) { Text(m.valor(),style=MaterialTheme.typography.titleLarge,color=corEstado(estado)); Text(if(m.quantidade==null) "A conferir" else m.unidade(),style=MaterialTheme.typography.labelSmall) }

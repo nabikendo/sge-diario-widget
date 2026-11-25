@@ -312,7 +312,9 @@ fun AppDiario(
                                         aoExcluirFiltro = { recursos.aoExcluirFiltro(fonte, it) },
                                         filaCoord = recursos.filaCoord, aoPausarFila = recursos.aoPausarFila,
                                         aoRetomarFila = recursos.aoRetomarFila, aoTentarFalhas = recursos.aoTentarFalhas, perfil = perfil,
-                                        pausaDiario = recursos.pausaDiario, aoPausarDiario = recursos.aoPausarDiario, aoRetomarDiario = recursos.aoRetomarDiario)
+                                        pausaDiario = recursos.pausaDiario, aoPausarDiario = recursos.aoPausarDiario, aoRetomarDiario = recursos.aoRetomarDiario,
+                                        aoHistorico = { abrirPagina("historico") },
+                                        aoLembrete = { abrirPagina("ajustes"); categoriaAjustes = CategoriaAjustes.SINCRONIZACAO })
                                 }
                             }
                             @Composable fun detalhes(g: GrupoPendencias) {

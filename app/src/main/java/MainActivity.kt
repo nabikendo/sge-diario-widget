@@ -612,7 +612,17 @@ class MainActivity : FragmentActivity() {
                     SgeReadClient(cookies, agente, contexto) {}.let { c -> runCatching { c.ehPerfilEscola() }; c.perfilObservado }
                 } }.getOrNull()
             }
-            if (perfil == PerfilSge.PROFESSOR || perfil == PerfilSge.COORDENACAO) SgeSessaoStore.salvar(this@MainActivity, perfil)
+            if (perfil == PerfilSge.PROFESSOR || perfil == PerfilSge.COORDENACAO) salvarPerfilComAviso(perfil)
+        }
+    }
+    /** Salva o perfil do SGE e avisa quando ele muda entre Servidor e Unidade escolar (issue #21). */
+    private fun salvarPerfilComAviso(novo: PerfilSge) {
+        val anterior = SgeSessaoStore.perfil(this)
+        SgeSessaoStore.salvar(this, novo)
+        val conhecido = anterior == PerfilSge.PROFESSOR || anterior == PerfilSge.COORDENACAO
+        if (conhecido && anterior != novo) {
+            val nome = if (novo == PerfilSge.COORDENACAO) "Unidade escolar" else "Servidor"
+            Toast.makeText(this, "O SGE mudou para o perfil $nome.", Toast.LENGTH_LONG).show()
         }
     }
     private fun lerPerfilDaPagina() {
@@ -623,7 +633,7 @@ class MainActivity : FragmentActivity() {
                 if (value is String) {
                     val j = org.json.JSONObject(value)
                     val e = j.optString("escola").equals("true", true); val p = j.optString("professor").equals("true", true)
-                    if (e != p) SgeSessaoStore.salvar(this, if (e) PerfilSge.COORDENACAO else PerfilSge.PROFESSOR)
+                    if (e != p) salvarPerfilComAviso(if (e) PerfilSge.COORDENACAO else PerfilSge.PROFESSOR)
                 }
             }
         }
@@ -921,8 +931,7 @@ class MainActivity : FragmentActivity() {
             var st=document.createElement('style');st.id='sge-fix-freq';
             st.textContent='.tableCustomizada,#divTabelaFrequencia{height:auto!important;max-height:none!important;overflow-y:visible!important;overflow-x:auto!important}'
               +'#gridFrequencia{display:table!important;font-size:15px!important}'
-              +'#gridFrequencia th:nth-child(1),#gridFrequencia td:nth-child(1){position:sticky!important;left:0;z-index:2;background:#fff;width:40px!important;min-width:40px!important;max-width:40px!important;box-sizing:border-box}'
-              +'#gridFrequencia th:nth-child(2),#gridFrequencia td:nth-child(2){position:sticky!important;left:40px;z-index:1;background:#fff}';
+              +'#gridFrequencia th:nth-child(2),#gridFrequencia td:nth-child(2){position:sticky!important;left:0;z-index:2;background:#fff}';
             (document.head||document.documentElement).appendChild(st);})()""", null)
     }
     private fun verificarSessao() {

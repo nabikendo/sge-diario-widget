@@ -1,5 +1,6 @@
 package br.to.seduc.sgediariowidget
 
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -132,7 +133,7 @@ private fun ComparacaoHistorico(dias: List<DiaHistorico>, voltar: () -> Unit) {
                 SeletorDataConsulta("Mais recente", dataAtual, datas.filter { dataAnterior == null || it > dataAnterior!! }) { dataAtual = it }
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     item { FilterChip(selected = filtro == null, onClick = { filtro = null }, label = { Text("Todas") }) }
-                    items(TipoVariacaoConsulta.entries.toList()) { tipo ->
+                    items(TipoVariacaoConsulta.entries.toList(), key = { it.name }) { tipo ->
                         FilterChip(selected = filtro == tipo, onClick = { filtro = tipo }, label = { Text(tipo.titulo) })
                     }
                 }
@@ -140,7 +141,7 @@ private fun ComparacaoHistorico(dias: List<DiaHistorico>, voltar: () -> Unit) {
                     style = MaterialTheme.typography.bodySmall)
             }
             if (visiveis.isEmpty()) item { Text("Nenhuma variação neste filtro.") }
-            items(visiveis) { linha ->
+            itemsIndexed(visiveis, key = { i, l -> "$i|${l.turma}|${l.componente}" }) { _, linha ->
                 Surface(shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.surface) {
                     Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text("${linha.turma} · ${linha.componente}", style = MaterialTheme.typography.titleSmall)
