@@ -921,8 +921,8 @@ class MainActivity : FragmentActivity() {
             var st=document.createElement('style');st.id='sge-fix-freq';
             st.textContent='.tableCustomizada,#divTabelaFrequencia{height:auto!important;max-height:none!important;overflow-y:visible!important;overflow-x:auto!important}'
               +'#gridFrequencia{display:table!important;font-size:15px!important}'
-              +'#gridFrequencia th:nth-child(1),#gridFrequencia td:nth-child(1){position:sticky!important;left:0;z-index:2;background:#fff}'
-              +'#gridFrequencia th:nth-child(2),#gridFrequencia td:nth-child(2){position:sticky!important;left:56px;z-index:2;background:#fff}';
+              +'#gridFrequencia th:nth-child(1),#gridFrequencia td:nth-child(1){position:sticky!important;left:0;z-index:2;background:#fff;width:40px!important;min-width:40px!important;max-width:40px!important;box-sizing:border-box}'
+              +'#gridFrequencia th:nth-child(2),#gridFrequencia td:nth-child(2){position:sticky!important;left:40px;z-index:1;background:#fff}';
             (document.head||document.documentElement).appendChild(st);})()""", null)
     }
     private fun verificarSessao() {
