@@ -147,6 +147,10 @@ jobs:
           # O disco padrão do emulador do Android 37 não tem espaço para instalar o APK
           # ("Requested internal only, but not enough space"). Damos mais disco a todos.
           disk-size: 6000M
+          # Com a memória padrão, o serviço de pacotes do Android 37 cai durante a instalação
+          # ("Failure calling service package: Broken pipe").
+          ram-size: 4096M
+          heap-size: 576M
           disable-animations: true
           script: bash scripts/verify-ui.sh -Pversao="$(cat release/versao.txt)-preview.$GITHUB_RUN_NUMBER" -Pcodigo="$GITHUB_RUN_NUMBER"
         env:
