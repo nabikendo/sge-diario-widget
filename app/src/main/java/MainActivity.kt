@@ -926,6 +926,12 @@ class MainActivity : FragmentActivity() {
               +'#ModalConteudoTelaCheia.in .modal-body{height:auto!important;max-height:none!important;overflow:visible!important;flex:none!important}'
               +'#ModalConteudoTelaCheia.in .modal-footer{position:sticky!important;bottom:0!important;background:#fff!important;z-index:5!important;border-top:1px solid #ddd!important}';
             (document.head||document.documentElement).appendChild(st);})()""", null)
+        // Diário de Classe: o wrapper da grade de frequência colapsa para altura 0 no celular (tabela existe, fica invisível).
+        web.evaluateJavascript("""(function(){if(document.getElementById('sge-fix-freq'))return;
+            var st=document.createElement('style');st.id='sge-fix-freq';
+            st.textContent='.tableCustomizada,#divTabelaFrequencia{height:auto!important;max-height:none!important;overflow-y:visible!important;overflow-x:auto!important}'
+              +'#gridFrequencia{display:table!important}';
+            (document.head||document.documentElement).appendChild(st);})()""", null)
     }
     private fun verificarSessao() {
         if (!::web.isInitialized) return
