@@ -18,7 +18,7 @@ data class CoordTurma(
 )
 data class CoordPainel(
     val turmas: List<CoordTurma> = emptyList(),
-    val mensagem: String = "Entre com o perfil Unidade escolar, abra Escola → Conteúdo Aplicado na aba SGE Web e toque em Carregar turmas.",
+    val mensagem: String = "Entre com o perfil Unidade escolar, abra Escola → Conteúdo Aplicado na aba SGE Web e toque em Ler turmas do SGE.",
     val sincronizando: Boolean = false,
     val inicioConsulta: Long = 0L,
     val mudancas: List<MudancaModulo> = emptyList()

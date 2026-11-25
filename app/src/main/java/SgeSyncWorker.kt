@@ -216,7 +216,7 @@ class SgeSyncWorker(private val ctx: Context, params: WorkerParameters) : Corout
         var painel = SgeCoordStore.ler(ctx)
         if (o == null) {
             registrarErroCoord(alvo, "Turma não encontrada na lista atual do SGE.")
-            SgeCoordStore.salvar(ctx, SgeCoordStore.ler(ctx).copy(sincronizando = false, mensagem = "Turma não encontrada. Abra Escola → Conteúdo Aplicado na aba SGE Web e toque em Carregar turmas."))
+            SgeCoordStore.salvar(ctx, SgeCoordStore.ler(ctx).copy(sincronizando = false, mensagem = "Turma não encontrada. Abra Escola → Conteúdo Aplicado na aba SGE Web e toque em Ler turmas do SGE."))
             return Result.success()
         }
         val nome = o.getString("t")

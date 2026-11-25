@@ -612,7 +612,17 @@ class MainActivity : FragmentActivity() {
                     SgeReadClient(cookies, agente, contexto) {}.let { c -> runCatching { c.ehPerfilEscola() }; c.perfilObservado }
                 } }.getOrNull()
             }
-            if (perfil == PerfilSge.PROFESSOR || perfil == PerfilSge.COORDENACAO) SgeSessaoStore.salvar(this@MainActivity, perfil)
+            if (perfil == PerfilSge.PROFESSOR || perfil == PerfilSge.COORDENACAO) salvarPerfilComAviso(perfil)
+        }
+    }
+    /** Salva o perfil do SGE e avisa quando ele muda entre Servidor e Unidade escolar (issue #21). */
+    private fun salvarPerfilComAviso(novo: PerfilSge) {
+        val anterior = SgeSessaoStore.perfil(this)
+        SgeSessaoStore.salvar(this, novo)
+        val conhecido = anterior == PerfilSge.PROFESSOR || anterior == PerfilSge.COORDENACAO
+        if (conhecido && anterior != novo) {
+            val nome = if (novo == PerfilSge.COORDENACAO) "Unidade escolar" else "Servidor"
+            Toast.makeText(this, "O SGE mudou para o perfil $nome.", Toast.LENGTH_LONG).show()
         }
     }
     private fun lerPerfilDaPagina() {
@@ -623,7 +633,7 @@ class MainActivity : FragmentActivity() {
                 if (value is String) {
                     val j = org.json.JSONObject(value)
                     val e = j.optString("escola").equals("true", true); val p = j.optString("professor").equals("true", true)
-                    if (e != p) SgeSessaoStore.salvar(this, if (e) PerfilSge.COORDENACAO else PerfilSge.PROFESSOR)
+                    if (e != p) salvarPerfilComAviso(if (e) PerfilSge.COORDENACAO else PerfilSge.PROFESSOR)
                 }
             }
         }
@@ -864,7 +874,7 @@ class MainActivity : FragmentActivity() {
                 out.push({nv:d,tag:x.tagName,id:x.id,cls:(x.className||'').toString().slice(0,50),disp:c.display,vis:c.visibility,op:c.opacity,pos:c.position,z:c.zIndex,bg:c.backgroundColor,box:[Math.round(q.top),Math.round(q.height)]});
                 if(d<6)A(x.children).forEach(function(f){if(!/^(SCRIPT|STYLE|LINK|META|OPTION|BR|I|SPAN|LABEL)$/.test(f.tagName))fila.push([f,d+1])})}return out;})[0]||[];
             var gf=document.getElementById('gridFrequencia');if(gf){var cad=[],ef=gf,nf=0;while(ef&&nf++<10){var cf=getComputedStyle(ef),qf=ef.getBoundingClientRect();cad.push({tag:ef.tagName,id:ef.id,cls:(ef.className||'').toString().slice(0,50),disp:cf.display,vis:cf.visibility,op:cf.opacity,pos:cf.position,ov:cf.overflowX+'/'+cf.overflowY,h:cf.height,tx:cf.transform==='none'?'':cf.transform,sw:ef.scrollWidth,cw:ef.clientWidth,box:[Math.round(qf.left),Math.round(qf.top),Math.round(qf.width),Math.round(qf.height)]});ef=ef.parentElement;}
-              var ag=document.getElementById('aguarde-frequencia');r.grade={cadeia:cad,aguarde:ag?getComputedStyle(ag).display:null,linhas:gf.querySelectorAll('tbody tr').length,celulas:gf.querySelectorAll('tbody tr:first-child td').length,primeiraLinha:t((gf.querySelector('tbody tr')||{textContent:''}).textContent).slice(0,120)};}
+              var ag=document.getElementById('aguarde-frequencia');r.grade={cadeia:cad,aguarde:ag?getComputedStyle(ag).display:null,linhas:gf.querySelectorAll('tbody tr').length,celulas:gf.querySelectorAll('tbody tr:first-child td').length,celulasPrimeiraLinha:gf.querySelectorAll('tbody tr:first-child td').length};}
             r.erros=(window.__erros||[]).slice(-20);
             r.xhr=(window.__xhr||[]).slice(-40);
             return JSON.stringify(r)})()"""
@@ -901,17 +911,7 @@ class MainActivity : FragmentActivity() {
             XMLHttpRequest.prototype.send=function(){var x=this;try{x.addEventListener('loadend',function(){window.__xhr.push(x.__sgeU+' -> '+x.status);if(window.__xhr.length>60)window.__xhr.shift();});}catch(e){}return sd.apply(this,arguments);};
             if(window.fetch){var f=window.fetch;window.fetch=function(u,op){var d=((op&&op.method)||'GET')+' '+String(u&&u.url||u).split('?')[0].slice(0,80);return f.apply(this,arguments).then(function(r){window.__xhr.push('fetch '+d+' -> '+r.status);return r;},function(e){window.__xhr.push('fetch '+d+' -> falhou');throw e;});};}
             window.__cliques=window.__cliques||[];document.addEventListener('click',function(ev){try{var e=ev.target.closest('button,a,input,[onclick],td');if(!e)return;window.__cliques.push(e.tagName+'#'+(e.id||'')+' '+(e.textContent||e.value||'').replace(/\s+/g,' ').trim().slice(0,30)+' | '+(e.getAttribute('onclick')||'').slice(0,90));if(window.__cliques.length>30)window.__cliques.shift();}catch(x){}},true);
-            window.__resgateFreq=function(){try{var g=document.getElementById('gridFrequencia');if(!g||!g.querySelector('tbody tr'))return;
-              var el=g;while(el&&el!==document.body){var c=getComputedStyle(el);
-                if(c.display==='none')el.style.setProperty('display',el.tagName==='TABLE'?'table':'block','important');
-                if(c.visibility==='hidden')el.style.setProperty('visibility','visible','important');
-                if(parseFloat(c.opacity)<1)el.style.setProperty('opacity','1','important');
-                if(el!==g&&(c.overflowY!=='visible'&&c.height!=='auto')&&el.getBoundingClientRect().height<30&&g.getBoundingClientRect().height>30)el.style.setProperty('height','auto','important');
-                el=el.parentElement;}
-              var a=document.getElementById('aguarde-frequencia');if(a&&getComputedStyle(a).display!=='none')a.style.setProperty('display','none','important');
-              var w=g.parentElement;if(w&&w.scrollWidth>w.clientWidth+4&&getComputedStyle(w).overflowX==='visible')w.style.setProperty('overflow-x','auto','important');
-            }catch(x){}};
-            function jq(){var J=window.jQuery;if(!J||J.__sgeHook){return;}J.__sgeHook=true;J(document).ajaxComplete(function(e,x,o){if(/ListarFrequencia/i.test(String(o.url))){setTimeout(window.__resgateFreq,400);setTimeout(window.__resgateFreq,2000);}window.__xhr.push('jq '+(o.type||'GET')+' '+String(o.url).split('?')[0].slice(0,80)+' -> '+x.status);if(window.__xhr.length>60)window.__xhr.shift();});}
+            function jq(){var J=window.jQuery;if(!J||J.__sgeHook){return;}J.__sgeHook=true;J(document).ajaxComplete(function(e,x,o){window.__xhr.push('jq '+(o.type||'GET')+' '+String(o.url).split('?')[0].slice(0,80)+' -> '+x.status);if(window.__xhr.length>60)window.__xhr.shift();});}
             jq();setTimeout(jq,1500);
             })()""", null)
         // Correção da tela cheia de Conteúdo Aplicado: o modal do SGE fica transparente e esmaecido no WebView.
@@ -925,6 +925,13 @@ class MainActivity : FragmentActivity() {
               +'#ModalConteudoTelaCheia.in .modal-content{height:auto!important;min-height:100%!important;max-height:none!important}'
               +'#ModalConteudoTelaCheia.in .modal-body{height:auto!important;max-height:none!important;overflow:visible!important;flex:none!important}'
               +'#ModalConteudoTelaCheia.in .modal-footer{position:sticky!important;bottom:0!important;background:#fff!important;z-index:5!important;border-top:1px solid #ddd!important}';
+            (document.head||document.documentElement).appendChild(st);})()""", null)
+        // Diário de Classe: o wrapper da grade de frequência colapsa para altura 0 no celular (tabela existe, fica invisível).
+        web.evaluateJavascript("""(function(){if(document.getElementById('sge-fix-freq'))return;
+            var st=document.createElement('style');st.id='sge-fix-freq';
+            st.textContent='.tableCustomizada,#divTabelaFrequencia{height:auto!important;max-height:none!important;overflow-y:visible!important;overflow-x:auto!important}'
+              +'#gridFrequencia{display:table!important;font-size:15px!important}'
+              +'#gridFrequencia th:nth-child(2),#gridFrequencia td:nth-child(2){position:sticky!important;left:0;z-index:2;background:#fff}';
             (document.head||document.documentElement).appendChild(st);})()""", null)
     }
     private fun verificarSessao() {
