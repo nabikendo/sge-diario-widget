@@ -336,7 +336,7 @@ fun TelaCartoes(
                     else if (diarioPausando) TextButton(onClick = {}, enabled = false) { Text("Pausando…") }
                     else if (podeContinuar && perfil == PerfilSge.EXPIRADO) Button(onClick = aoAbrirSge) { Text("Entrar no SGE") }
                     else if (podeContinuar) Button(onClick = if (escola) aoRetomarFila else aoRetomarDiario) { Text("Continuar") }
-                    if (escola) TextButton(onClick = aoCarregarTurmas) { Text(if (conhecidas.isEmpty()) "Carregar turmas" else "Reler turmas") }
+                    if (escola) TextButton(onClick = aoCarregarTurmas) { Text(if (conhecidas.isEmpty()) "Ler turmas do SGE" else "Reler turmas do SGE") }
                 }
             }
         }
