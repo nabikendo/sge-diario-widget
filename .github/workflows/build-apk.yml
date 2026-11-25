@@ -144,6 +144,9 @@ jobs:
           arch: x86_64
           target: google_apis
           profile: ${{ matrix.perfil }}
+          # O disco padrão do emulador do Android 37 não tem espaço para instalar o APK
+          # ("Requested internal only, but not enough space"). Damos mais disco a todos.
+          disk-size: 6000M
           disable-animations: true
           script: bash scripts/verify-ui.sh -Pversao="$(cat release/versao.txt)-preview.$GITHUB_RUN_NUMBER" -Pcodigo="$GITHUB_RUN_NUMBER"
         env:
