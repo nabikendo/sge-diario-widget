@@ -55,6 +55,8 @@ desktop-next/
 │  └─ sge/                   ← tudo que fala com o SGE (cliente, leitor, parsing, janelas)
 ├─ src/                      ← interface: React 19 + Tailwind 4 (sem Node, sem acesso ao SGE)
 │  ├─ App.jsx · paginas/ (Escola, Semana, Boasvindas, Paginas) · components/ · lib/
+│  ├─ components/GraficoBarras.jsx   ← gráficos de barras (Recharts, sem animação)
+│  └─ components/Painel.jsx          ← painéis de turma, detalhe e cobrança (Radix Dialog)
 ├─ tests/                    ← node --test
 └─ index.html · vite.config.js · package.json
 ```
@@ -68,6 +70,8 @@ npm test           # testes (parsing, avisos, calendário, nuvem, coordenação)
 npm run build:win    # instalador .exe em release-dist/
 npm run build:linux  # pacote .deb em release-dist/ (rodar no Linux)
 ```
+
+Bibliotecas da interface: Recharts (gráficos de Escola e Páginas), `@radix-ui/react-dialog` (painéis de turma, detalhe e cobrança, com foco preso e Esc para fechar) e `@radix-ui/react-switch` (interruptores de Configurações). Ícones vêm do `lucide-react`.
 
 Fora do Electron (`npm run build:ui` + `vite preview`), a interface usa dados de exemplo; `?escola` mostra a coordenação e `?intro` o tutorial.
 

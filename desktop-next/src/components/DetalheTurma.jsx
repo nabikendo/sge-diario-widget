@@ -1,5 +1,5 @@
-import { useEffect } from 'react';
 import { X, ArrowUpRight, CheckCircle2, AlertTriangle } from 'lucide-react';
+import Painel from './Painel';
 import { diaSemana, diaMes, MODULOS, atalho } from '../lib/sge';
 
 /**
@@ -7,22 +7,13 @@ import { diaSemana, diaMes, MODULOS, atalho } from '../lib/sge';
  * o SGE dentro do app, já na tela certa. Fecha com Esc ou clicando fora.
  */
 export default function DetalheTurma({ turma, aoFechar, aoAbrirSge }) {
-  useEffect(() => {
-    const tecla = (e) => e.key === 'Escape' && aoFechar();
-    window.addEventListener('keydown', tecla);
-    return () => window.removeEventListener('keydown', tecla);
-  }, [aoFechar]);
   if (!turma) return null;
   const pct = Math.round((turma.progresso ?? 0) * 100);
   const modulos = turma.modulos ?? { conteudo: { pendentes: turma.pendentes ?? [], registradas: turma.registradas, erro: turma.status === 'erro' ? turma.erro : undefined } };
 
   return (
-    <div className="fixed inset-0 z-40 flex justify-end bg-tinta/15 backdrop-blur-[2px]" onClick={aoFechar}>
-      <div
-        role="dialog" aria-modal="true" aria-label={`Turma ${turma.nome}`}
-        onClick={(e) => e.stopPropagation()}
-        className="vidro-forte deslizar m-3 flex w-[min(480px,94vw)] flex-col rounded-[28px] p-6 shadow-2xl"
-      >
+    <Painel rotulo={`Turma ${turma.nome}`} aoFechar={aoFechar} className="w-[min(480px,94vw)]">
+      <>
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="text-sm text-tinta-suave">{turma.disciplina}</p>
@@ -50,8 +41,8 @@ export default function DetalheTurma({ turma, aoFechar, aoAbrirSge }) {
           className="mt-4 flex h-11 items-center justify-center gap-2 rounded-full bg-tinta text-sm font-semibold text-white transition hover:opacity-90 active:scale-[0.98]">
           <ArrowUpRight size={18} /> Fazer o diário desta turma no SGE
         </button>
-      </div>
-    </div>
+      </>
+    </Painel>
   );
 }
 

@@ -3,6 +3,8 @@ import { FileSpreadsheet, FileText, FolderOpen, LogOut, Trash2, Info, TrendingDo
 import { referenciaSemanal, diferencas } from '../lib/comparacao.mjs';
 import CartaoTurma from '../components/CartaoTurma';
 import { CardResumo, CardSincronizacao } from '../components/CardsTopo';
+import * as Interruptor from '@radix-ui/react-switch';
+import GraficoBarras from '../components/GraficoBarras';
 import { sge } from '../lib/sge';
 
 const PESO = { pendente: 0, erro: 1, 'em-dia': 2 };
@@ -95,7 +97,6 @@ export function Historico() {
   }, [lista]);
   if (!lista) return null;
   if (!lista.length) return <p className="rounded-2xl bg-white/60 p-6 text-center text-tinta-suave">O histórico começa a ser registrado a partir da próxima sincronização.</p>;
-  const max = Math.max(1, ...porDia.map(([, h]) => h.dias));
   const ultimo = lista[lista.length - 1];
   const ref = referenciaSemanal(lista.slice(0, -1));
   const semana = ref && ref.porTurma && ultimo.porTurma ? diferencas(ultimo.porTurma, ref.porTurma) : null;
@@ -116,16 +117,7 @@ export function Historico() {
           <h2 className="text-[15px] font-semibold">Dias sem conteúdo ao longo do tempo</h2>
           <span className="text-xs text-tinta-suave">último registro de cada dia</span>
         </div>
-        <div className="mt-6 flex h-48 items-end gap-1.5" role="img" aria-label="Gráfico de dias sem conteúdo por dia">
-          {porDia.map(([dia, h], i) => (
-            <div key={dia} className="group flex max-w-16 flex-1 flex-col items-center justify-end gap-1">
-              <span className="text-[11px] tabular-nums text-tinta-suave opacity-0 transition group-hover:opacity-100">{h.dias}</span>
-              <div className={`w-full rounded-xl transition-[height] duration-500 ease-(--ease-entrada) ${i === porDia.length - 1 ? 'bg-lavanda-solido' : 'bg-lavanda-solido/35'}`}
-                style={{ height: `${Math.max(6, (h.dias / max) * 150)}px` }} title={`${dia.split('-').reverse().join('/')}: ${h.dias} dias`} />
-              <span className="text-[10px] text-tinta-suave">{dia.slice(8, 10)}/{dia.slice(5, 7)}</span>
-            </div>
-          ))}
-        </div>
+        <GraficoBarras descricao="Gráfico de dias sem conteúdo por dia" unidade=" dias" dados={porDia.map(([dia, h]) => ({ rotulo: dia.slice(8, 10) + '/' + dia.slice(5, 7), valor: h.dias, titulo: `${dia.split('-').reverse().join('/')}: ${h.dias} dias` }))} />
       </section>
       <Titulo direita={`${lista.length} sincronizações`}>Sincronizações</Titulo>
       <div className="overflow-hidden rounded-3xl bg-white/60">
@@ -330,10 +322,10 @@ function Linha({ titulo, texto, children }) {
 function Chave({ ligada, aoMudar }) {
   const rotulo = useContext(RotuloCtx);
   return (
-    <button type="button" role="switch" aria-checked={ligada} aria-label={rotulo || undefined} onClick={() => aoMudar(!ligada)}
+    <Interruptor.Root checked={ligada} onCheckedChange={aoMudar} aria-label={rotulo || undefined}
       className={`relative h-7 w-12 rounded-full transition-colors duration-200 ${ligada ? 'bg-lavanda-solido' : 'bg-tinta/15'}`}>
-      <span className={`absolute top-0.5 left-0.5 size-6 rounded-full bg-white shadow transition-transform duration-200 ease-(--ease-padrao) ${ligada ? 'translate-x-5' : ''}`} />
-    </button>
+      <Interruptor.Thumb className={`block size-6 rounded-full bg-white shadow transition-transform duration-200 ease-(--ease-padrao) ${ligada ? 'translate-x-[22px]' : 'translate-x-0.5'}`} />
+    </Interruptor.Root>
   );
 }
 function Botao({ icone: Icone, children, perigo, ...props }) {
