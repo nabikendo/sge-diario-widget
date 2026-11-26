@@ -2,7 +2,7 @@
 
 Acompanhe as pendências do diário escolar no SGE 3.0 — do seu diário e da escola inteira.
 
-[![Versão 2.9.10](https://img.shields.io/badge/versão-2.9.10-168B75)](https://github.com/nabikendo/sge-diario-widget/releases/tag/v2.9.10) [![Licença MIT](https://img.shields.io/badge/licença-MIT-2D7A46)](LICENSE)
+[![Versão 2.10.0](https://img.shields.io/badge/versão-2.10.0-168B75)](https://github.com/nabikendo/sge-diario-widget/releases/tag/v2.10.0) [![Licença MIT](https://img.shields.io/badge/licença-MIT-2D7A46)](LICENSE)
 
 ---
 
