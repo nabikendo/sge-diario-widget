@@ -144,11 +144,6 @@ Usamos três números no formato **MAIOR.MENOR.CORREÇÃO**. Em **2.5.15**, o **
 
 O fluxo estável usa [release/versao.txt](release/versao.txt) ou a versão informada no disparo manual para compilar o APK e o EXE. O Android também usa um código interno de compilação para ordenar instalações. [Referência do versionamento semântico](https://semver.org/lang/pt-BR/).
 
-## Licença
-
-MIT. Consulte [LICENSE](LICENSE).
-
-
 ## Publicação na Google Play
 
 O workflow **Release estável** gera o APK do GitHub e um AAB assinado para a loja. Ambos usam a mesma versão e o mesmo `versionCode` (número da execução do workflow). O AAB fica no artefato `android-play-estavel`, na execução em **Actions**.
@@ -159,3 +154,9 @@ O workflow **Release estável** gera o APK do GitHub e um AAB assinado para a lo
 4. Em **Settings → Secrets and variables → Actions → Variables**, defina `PLAY_PUBLICAR_AUTOMATICAMENTE` como `true`. A partir daí, o workflow envia o AAB para a faixa **alpha** (teste fechado) da Play. Com a variável ligada, isso acontece a cada merge na `main` que mude o código Android, mesmo sem mudar `release/versao.txt`. A disponibilidade na loja depende do processamento e da revisão do Google Play.
 
 Se o GitHub Releases já estiver publicado e apenas o envio à Play falhar, corrija a configuração e use **Re-run failed jobs** na mesma execução, enquanto o artefato estiver disponível. Confira no Play Console se o envio anterior chegou antes de tentar novamente.
+
+---
+
+## Licença
+
+MIT. Consulte [LICENSE](LICENSE).
