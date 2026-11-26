@@ -81,7 +81,7 @@ const PASSOS = [
   { icone: BellRing, titulo: 'Avisos que ajudam', texto: 'O app trabalha em segundo plano e avisa só quando importa.',
     itens: ['Notificação quando aparece pendência nova.', 'Resumo no fim da tarde, em dias úteis (o horário é seu).', 'O ícone ao lado do relógio mostra o número de pendências.'] },
   { icone: RefreshCw, titulo: 'Sempre em dia', texto: 'Nada para atualizar à mão.',
-    itens: ['O app se atualiza sozinho quando sai versão nova.', 'Tema claro, escuro ou o do Windows, em Configurações.', 'Coordenação: mensagens de cobrança prontas para o WhatsApp, PDF e planilha.'] },
+    itens: ['O app se atualiza sozinho quando sai versão nova.', 'Tema claro, escuro ou o do sistema, em Configurações.', 'Coordenação: mensagens de cobrança prontas para o WhatsApp, PDF e planilha.'] },
 ];
 
 export function Tutorial({ aoConcluir }) {

@@ -19,16 +19,21 @@ async function segredoDoCliente() {
 }
 const configurado = async () => Boolean(await segredoDoCliente());
 
-/* ---------- Token guardado, criptografado pelo Windows (DPAPI) ---------- */
+/* ---------- Token guardado, criptografado pelo sistema (DPAPI no Windows, chaveiro no Linux) ---------- */
+// No Linux sem chaveiro (GNOME Keyring, KWallet), o Electron cai para "basic_text", que não protege de verdade: aí recusa.
+const armazenamentoSeguro = () => safeStorage.isEncryptionAvailable()
+  && !(process.platform === 'linux' && safeStorage.getSelectedStorageBackend?.() === 'basic_text');
 async function lerSessao() {
   try {
     const bruto = JSON.parse(await fs.readFile(arquivoToken(), 'utf8'));
-    if (!safeStorage.isEncryptionAvailable()) return null;
+    if (!armazenamentoSeguro()) return null;
     return { email: bruto.email, ultimoBackup: bruto.ultimoBackup ?? null, refresh: safeStorage.decryptString(Buffer.from(bruto.refresh, 'base64')) };
   } catch { return null; }
 }
 async function gravarSessao({ refresh, email, ultimoBackup }) {
-  if (!safeStorage.isEncryptionAvailable()) throw new Error('O Windows não ofereceu armazenamento seguro para guardar o login.');
+  if (!armazenamentoSeguro()) throw new Error(process.platform === 'linux'
+    ? 'O Linux não ofereceu um chaveiro para guardar o login. Instale e desbloqueie o GNOME Keyring ou o KWallet.'
+    : 'O Windows não ofereceu armazenamento seguro para guardar o login.');
   await fs.writeFile(arquivoToken(), JSON.stringify({ email, ultimoBackup: ultimoBackup ?? null, refresh: safeStorage.encryptString(refresh).toString('base64') }));
 }
 

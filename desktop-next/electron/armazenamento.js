@@ -20,11 +20,11 @@ const CONFIG_PADRAO = Object.freeze({
   intervaloMin: 30,          // 0 = só manual
   incluirDiversificada: false,
   incluirAee: false,
-  abrirComWindows: false,
+  abrirComWindows: false,    // abrir junto com o sistema (nome antigo mantido para não perder a escolha)
   abrirMaximizado: true,
   tema: 'sistema',           // 'sistema' | 'claro' | 'escuro'
   fecharNaBandeja: true,     // fechar a janela mantém o app ao lado do relógio
-  notificarNovas: true,      // notificação do Windows quando aparece pendência nova
+  notificarNovas: true,      // notificação do sistema quando aparece pendência nova
   avisoFimDia: true,         // resumo no fim da tarde (dias úteis)
   horaAviso: '17:30',
   coordChamada: true,        // Coordenação: ler também a Chamada de cada professor (mais consultas)

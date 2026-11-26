@@ -1,4 +1,4 @@
-name: Build Windows Desktop
+name: Build Desktop (Windows e Linux)
 on:
   push:
     paths: [ 'desktop-next/**', 'release/versao.txt', '.github/workflows/build-desktop.yml' ]
@@ -41,3 +41,30 @@ jobs:
         with:
           name: sge-diario-desktop-windows
           path: desktop-next/release-dist/SGE-Diario-Desktop-Setup-*.exe
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Instalar dependências
+        working-directory: desktop-next
+        run: |
+          npm version "$(tr -d '[:space:]' < ../release/versao.txt)" --no-git-tag-version --allow-same-version
+          npm install --no-audit --no-fund
+      - name: Testar leitura do SGE
+        working-directory: desktop-next
+        run: npm test
+      - name: Configuração do Google (backup no Drive)
+        working-directory: desktop-next
+        run: printf '{"segredo":"%s"}' "$GOOGLE_CLIENT_SECRET" > electron/google.segredo.json
+        env:
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+      - name: Gerar pacote .deb
+        working-directory: desktop-next
+        run: npm run build:linux
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sge-diario-desktop-linux
+          path: desktop-next/release-dist/SGE-Diario-Desktop-*-amd64.deb

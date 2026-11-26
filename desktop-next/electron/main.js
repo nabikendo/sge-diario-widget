@@ -25,8 +25,9 @@ const avisos = require('./avisos');
 const calendario = require('./calendario');
 const nuvem = require('./nuvem');
 const { gerarBitmap } = require('./iconeContador');
+const plataforma = require('./plataforma');
 
-const icone = path.join(__dirname, '..', 'assets', 'sge-diario.ico');
+const { icone } = plataforma;
 const DEV_URL = process.env.VITE_DEV_SERVER_URL; // definido pelo script "dev"
 let relogioAutomatico = null;
 
@@ -36,7 +37,7 @@ let ultimoPainel = null;
 let bandeja = null;
 let configAtual = null;
 let saindo = false; // true só quando a pessoa escolheu Sair (senão fechar a janela esconde o app na bandeja)
-const iniciouOculto = process.argv.includes('--oculto'); // aberto junto com o Windows
+const iniciouOculto = process.argv.includes('--oculto'); // aberto junto com o sistema
 const TEMAS = { sistema: 'system', claro: 'light', escuro: 'dark' };
 
 // ---------- Vitrine (janela visível) ----------
@@ -303,14 +304,14 @@ ipcMain.handle('sge:sair', async () => {
   enviar('sge:sessao', { logado: false });
 });
 ipcMain.handle('historico:obter', () => armazenamento.lerHistorico());
-ipcMain.handle('config:obter', async () => ({ ...(await armazenamento.lerConfig()), versao: app.getVersion(), pastaDados: app.getPath('userData') }));
+ipcMain.handle('config:obter', async () => ({ ...(await armazenamento.lerConfig()), versao: app.getVersion(), pastaDados: app.getPath('userData'), sistema: plataforma.nomeSistema }));
 ipcMain.handle('config:salvar', async (_e, parcial) => {
   const config = await armazenamento.gravarConfig(parcial);
   configAtual = config;
   nativeTheme.themeSource = TEMAS[config.tema] ?? 'system';
-  app.setLoginItemSettings({ openAtLogin: config.abrirComWindows, args: ['--oculto'] });
+  plataforma.abrirComSistema(config.abrirComWindows);
   agendar(config);
-  return { ...config, versao: app.getVersion(), pastaDados: app.getPath('userData') };
+  return { ...config, versao: app.getVersion(), pastaDados: app.getPath('userData'), sistema: plataforma.nomeSistema };
 });
 ipcMain.handle('dados:abrirPasta', () => shell.openPath(app.getPath('userData')));
 ipcMain.handle('dados:apagar', async () => { await armazenamento.apagarDados(); ultimoPainel = null; ultimaCoord = null; enviar('coord:concluida', null); atualizarContador(0, 'sem dados'); });

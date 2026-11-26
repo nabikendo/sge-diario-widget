@@ -196,6 +196,7 @@ export function Configuracoes({ logado, aoSair, atualizacao, aoVerTutorial }) {
   const [c, setC] = useState(null);
   useEffect(() => { sge.obterConfig().then(setC); }, []);
   if (!c) return null;
+  const sistema = c.sistema ?? 'Windows'; // nome do sistema nos textos (Windows ou Linux)
   const mudar = async (parcial) => setC(await sge.salvarConfig(parcial));
 
   return (
@@ -217,16 +218,16 @@ export function Configuracoes({ logado, aoSair, atualizacao, aoVerTutorial }) {
       </Grupo>
 
       <Grupo titulo="Aparência">
-        <Linha titulo="Tema" texto="Claro, escuro ou o mesmo do Windows.">
+        <Linha titulo="Tema" texto={`Claro, escuro ou o mesmo do ${sistema}.`}>
           <select aria-label="Tema" value={c.tema} onChange={(e) => mudar({ tema: e.target.value })}
             className="rounded-full bg-white px-4 py-2 text-sm ring-1 ring-tinta/10 outline-none focus:ring-lavanda">
-            <option value="sistema">Do Windows</option><option value="claro">Claro</option><option value="escuro">Escuro</option>
+            <option value="sistema">Do {sistema}</option><option value="claro">Claro</option><option value="escuro">Escuro</option>
           </select>
         </Linha>
       </Grupo>
 
       <Grupo titulo="Avisos">
-        <Linha titulo="Notificar pendência nova" texto="Notificação do Windows quando a sincronização achar uma pendência que não existia (se o app não estiver à sua frente).">
+        <Linha titulo="Notificar pendência nova" texto={`Notificação do ${sistema} quando a sincronização achar uma pendência que não existia (se o app não estiver à sua frente).`}>
           <Chave ligada={c.notificarNovas} aoMudar={(v) => mudar({ notificarNovas: v })} />
         </Linha>
         <Linha titulo="Resumo no fim da tarde" texto="Uma notificação por dia letivo: quantas aulas você deu hoje e o que falta registrar delas.">
@@ -281,7 +282,7 @@ export function Configuracoes({ logado, aoSair, atualizacao, aoVerTutorial }) {
 
       <Grupo titulo="Janela">
         <Linha titulo="Abrir maximizado"><Chave ligada={c.abrirMaximizado} aoMudar={(v) => mudar({ abrirMaximizado: v })} /></Linha>
-        <Linha titulo="Abrir junto com o Windows" texto="O app abre quando você entra no Windows e já sincroniza se a sessão do SGE estiver ativa."><Chave ligada={c.abrirComWindows} aoMudar={(v) => mudar({ abrirComWindows: v })} /></Linha>
+        <Linha titulo={`Abrir junto com o ${sistema}`} texto={`O app abre quando você entra no ${sistema} e já sincroniza se a sessão do SGE estiver ativa.`}><Chave ligada={c.abrirComWindows} aoMudar={(v) => mudar({ abrirComWindows: v })} /></Linha>
       </Grupo>
 
       <Grupo titulo="Conta e dados">
