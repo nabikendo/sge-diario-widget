@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { School, Printer, MessageSquareText, X, Copy, Check, TrendingDown, TrendingUp, ChevronRight, ChevronDown, FileText, FileSpreadsheet, Files } from 'lucide-react';
 import { sge } from '../lib/sge';
+import Painel from '../components/Painel';
+import GraficoBarras from '../components/GraficoBarras';
 import { referenciaSemanal, diferencas } from '../lib/comparacao.mjs';
 import { mensagensEmLote } from '../lib/mensagens.mjs';
 import { visaoPeriodo, porProfessor, porTurma, porComponente, casaBusca, resumoDatas } from '../../electron/escolaVisao.mjs';
@@ -237,11 +239,6 @@ function Cartao({ sobre, titulo, total, max, chips, resumo, indice, aoAbrir }) {
 
 /* ---------- Painel lateral de detalhe ---------- */
 function Detalhe({ visao, tipo, chave, periodo, aoFechar }) {
-  useEffect(() => {
-    const tecla = (e) => e.key === 'Escape' && aoFechar();
-    window.addEventListener('keydown', tecla);
-    return () => window.removeEventListener('keydown', tecla);
-  }, [aoFechar]);
   const grupo = { professor: porProfessor, turma: porTurma, componente: porComponente }[tipo](visao).find((g) => g.chave === chave);
   if (!grupo) return null;
   // Como organizar por dentro: professor → turmas; turma → componentes; componente → turmas.
@@ -252,9 +249,8 @@ function Detalhe({ visao, tipo, chave, periodo, aoFechar }) {
   const sobre = { professor: 'Professor', turma: 'Turma', componente: 'Componente' }[tipo];
 
   return (
-    <div className="fixed inset-0 z-40 flex justify-end bg-tinta/15 backdrop-blur-[2px]" onClick={aoFechar}>
-      <div role="dialog" aria-modal="true" aria-label={`${sobre} ${grupo.rotulo}`} onClick={(ev) => ev.stopPropagation()}
-        className="vidro-forte deslizar m-3 flex w-[min(560px,94vw)] flex-col rounded-[28px] p-6 shadow-2xl">
+    <Painel rotulo={`${sobre} ${grupo.rotulo}`} aoFechar={aoFechar} className="w-[min(560px,94vw)]">
+      <>
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="text-sm text-tinta-suave">{sobre} · {periodo === 'ano' ? 'ano letivo' : `${periodo}º bimestre`}</p>
@@ -275,8 +271,8 @@ function Detalhe({ visao, tipo, chave, periodo, aoFechar }) {
             </section>
           ))}
         </div>
-      </div>
-    </div>
+      </>
+    </Painel>
   );
 }
 
@@ -315,20 +311,11 @@ function HistoricoEscola({ e }) {
   const lista = e.historico;
   const porDia = useMemo(() => { const m = new Map(); for (const h of lista) m.set(h.em.slice(0, 10), h); return [...m.entries()].slice(-30); }, [lista]);
   if (!lista.length) return <p className="rounded-2xl bg-white/60 p-6 text-center text-tinta-suave">O histórico da escola começa a ser registrado a cada leitura. Volte depois de algumas leituras.</p>;
-  const max = Math.max(1, ...porDia.map(([, h]) => h.total));
   return (
     <>
       <section className="surgir vidro rounded-3xl p-6">
         <div className="flex items-baseline justify-between"><h2 className="text-[15px] font-semibold">Pendências da escola no bimestre</h2><span className="text-xs text-tinta-suave">última leitura de cada dia</span></div>
-        <div className="mt-6 flex h-48 items-end gap-1.5" role="img" aria-label="Gráfico de pendências da escola por dia">
-          {porDia.map(([dia, h], i) => (
-            <div key={dia} className="group flex flex-1 flex-col items-center justify-end gap-1">
-              <span className="text-[11px] tabular-nums text-tinta-suave opacity-0 transition group-hover:opacity-100">{h.total}</span>
-              <div className={`w-full rounded-xl transition-[height] duration-500 ease-(--ease-entrada) ${i === porDia.length - 1 ? 'bg-lavanda-solido' : 'bg-lavanda-solido/35'}`} style={{ height: `${Math.max(6, (h.total / max) * 150)}px` }} title={`${brData(dia)}: ${h.total}`} />
-              <span className="text-[10px] text-tinta-suave">{brData(dia)}</span>
-            </div>
-          ))}
-        </div>
+        <GraficoBarras descricao="Gráfico de pendências da escola por dia" dados={porDia.map(([dia, h]) => ({ rotulo: brData(dia), valor: h.total, titulo: `${brData(dia)}: ${h.total}` }))} />
       </section>
       <div className="mt-5 overflow-hidden rounded-3xl bg-white/60">
         <table className="w-full text-sm">
@@ -447,16 +434,11 @@ function Cobranca({ professores, aoFechar }) {
   const [prazo, setPrazo] = useState('até sexta-feira');
   const [coordenador, setCoordenador] = useState('');
   const [copiado, setCopiado] = useState(null);
-  useEffect(() => {
-    const tecla = (ev) => ev.key === 'Escape' && aoFechar();
-    window.addEventListener('keydown', tecla);
-    return () => window.removeEventListener('keydown', tecla);
-  }, [aoFechar]);
   const mensagens = useMemo(() => mensagensEmLote(professores, { prazo, coordenador }), [professores, prazo, coordenador]);
   const copiar = async (chave, texto) => { await navigator.clipboard.writeText(texto); setCopiado(chave); setTimeout(() => setCopiado((c) => (c === chave ? null : c)), 1800); };
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center bg-tinta/20 p-6 backdrop-blur-[2px]" onClick={aoFechar}>
-      <div role="dialog" aria-modal="true" aria-label="Mensagens de cobrança" onClick={(ev) => ev.stopPropagation()} className="vidro-forte surgir flex max-h-full w-[min(760px,100%)] flex-col rounded-[28px] p-6 shadow-2xl">
+    <Painel rotulo="Mensagens de cobrança" lado="centro" aoFechar={aoFechar} className="w-[min(760px,100%)]">
+      <>
         <div className="flex items-start justify-between gap-3">
           <div><h2 className="text-xl font-semibold">Mensagens de cobrança</h2><p className="text-sm text-tinta-suave">Uma por professor, no período escolhido, pronta para colar no WhatsApp. O app não envia nada.</p></div>
           <button type="button" onClick={aoFechar} aria-label="Fechar" className="rounded-full p-2 text-tinta-suave hover:bg-tinta/5"><X size={20} /></button>
@@ -480,8 +462,8 @@ function Cobranca({ professores, aoFechar }) {
           <button type="button" onClick={() => copiar('todas', mensagens.map((m) => `*${m.professor}*\n${m.texto}`).join('\n\n———\n\n'))} className="mt-4 flex h-11 items-center justify-center gap-2 rounded-full bg-tinta text-sm font-semibold text-white hover:opacity-90">
             {copiado === 'todas' ? <><Check size={18} aria-hidden /> Copiado</> : <><Copy size={18} aria-hidden /> Copiar todas</>}</button>
         )}
-      </div>
-    </div>
+      </>
+    </Painel>
   );
 }
 
