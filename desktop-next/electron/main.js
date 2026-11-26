@@ -9,7 +9,7 @@
  *  - Login: janela visível do SGE, só quando a sessão expira. A senha é digitada na própria
  *    página do SGE; o app não lê nem guarda a senha (mesma regra do Android).
  */
-const { app, BrowserWindow, Menu, Tray, Notification, nativeImage, nativeTheme, ipcMain, shell, powerMonitor, dialog, session, net } = require('electron');
+const { app, BrowserWindow, Menu, Tray, Notification, nativeImage, nativeTheme, ipcMain, shell, powerMonitor, dialog, session, net, screen } = require('electron');
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const { SGE, PARTICAO } = require('./sge/constantes');
@@ -43,9 +43,13 @@ const TEMAS = { sistema: 'system', claro: 'light', escuro: 'dark' };
 
 // ---------- Vitrine (janela visível) ----------
 function criarVitrine(config) {
+  // Linux (Wayland/XWayland): o pedido de maximizar logo ao abrir às vezes é ignorado pelo gerenciador de janelas.
+  // Por isso a janela já nasce do tamanho da área útil da tela e o maximize vem depois que ela aparece.
+  const area = plataforma.ehLinux && config.abrirMaximizado ? screen.getPrimaryDisplay().workArea : null;
   vitrine = new BrowserWindow({
     icon: icone,
-    width: 1280, height: 820, minWidth: 960, minHeight: 640,
+    ...(area ? { x: area.x, y: area.y, width: area.width, height: area.height } : { width: 1280, height: 820 }),
+    minWidth: 960, minHeight: 640,
     title: 'SGE Diário',
     backgroundColor: nativeTheme.shouldUseDarkColors ? '#17171b' : '#eef0fb',
     show: false,
@@ -60,7 +64,7 @@ function criarVitrine(config) {
     // No Windows, maximizar antes de mostrar evita o "pulo" de tamanho. No Linux (X11/Wayland),
     // maximize() numa janela escondida é ignorado: lá maximiza na primeira vez que a janela aparece.
     if (config.abrirMaximizado && !plataforma.ehLinux) vitrine.maximize();
-    if (config.abrirMaximizado && plataforma.ehLinux) vitrine.once('show', () => vitrine.maximize());
+    if (config.abrirMaximizado && plataforma.ehLinux) vitrine.once('show', () => setTimeout(() => vitrine?.isDestroyed() || vitrine.maximize(), 150));
     if (!(iniciouOculto && bandeja)) vitrine.show();
   });
   // Fechar a janela mantém o app na bandeja (ao lado do relógio), lendo e avisando. Sair pelo menu da bandeja.
