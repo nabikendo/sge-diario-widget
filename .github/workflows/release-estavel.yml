@@ -49,26 +49,33 @@ jobs:
           SGE_VERSAO="${SGE_VERSAO_MANUAL:-$(cat release/versao.txt)}"
           [[ "$SGE_VERSAO" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo 'Versão inválida.'; exit 1; }
           echo "numero=$SGE_VERSAO" >> "$GITHUB_OUTPUT"
+          estavel=false
           if [[ "$GITHUB_EVENT_NAME" == workflow_dispatch ]]; then
             if [[ "$SGE_SOMENTE_TESTE_FECHADO" != true ]]; then
-              echo "estavel=true" >> "$GITHUB_OUTPUT"
+              estavel=true; echo "estavel=true" >> "$GITHUB_OUTPUT"
             fi
           else
             alteracoes=$(git diff --name-only "$SGE_COMMIT_ANTERIOR" "$GITHUB_SHA" -- release/versao.txt)
             if [[ -n "$alteracoes" ]]; then
-              echo "estavel=true" >> "$GITHUB_OUTPUT"
+              estavel=true; echo "estavel=true" >> "$GITHUB_OUTPUT"
             fi
           fi
-          # O app Android só é gerado e enviado à Play Store quando o código Android mudou desde a última versão.
+          # O app Android só é gerado e enviado à Play Store quando o código Android mudou desde a última versão publicada.
           anterior=$(git tag -l 'v*' --sort=-v:refname | grep -vx "v$SGE_VERSAO" | head -1)
           echo "anterior=$anterior" >> "$GITHUB_OUTPUT"
-          if [[ "$GITHUB_EVENT_NAME" == workflow_dispatch || -z "$anterior" ]]; then
+          # Versão estável nova: compara com a anterior. Fora dela (merge comum), a versão do versao.txt
+          # já foi publicada; compara com a tag dela, senão todo merge parece ter mudado o Android.
+          base="$anterior"
+          if [[ "$estavel" != true ]] && git rev-parse -q --verify "refs/tags/v$SGE_VERSAO" > /dev/null; then
+            base="v$SGE_VERSAO"
+          fi
+          if [[ "$GITHUB_EVENT_NAME" == workflow_dispatch || -z "$base" ]]; then
             echo "android=true" >> "$GITHUB_OUTPUT"
-          elif [[ -n "$(git diff --name-only "$anterior" "$GITHUB_SHA" -- app AndroidManifest.xml '*.gradle.kts' gradle.properties gradle scripts/metadata-atualizacao.py)" ]]; then
+          elif [[ -n "$(git diff --name-only "$base" "$GITHUB_SHA" -- app AndroidManifest.xml '*.gradle.kts' gradle.properties gradle scripts/metadata-atualizacao.py)" ]]; then
             echo "android=true" >> "$GITHUB_OUTPUT"
           else
             echo "android=false" >> "$GITHUB_OUTPUT"
-            echo "Android sem mudanças desde $anterior: APK e Play Store ficam de fora."
+            echo "Android sem mudanças desde $base: APK e Play Store ficam de fora."
           fi
   desktop:
     needs: versao
