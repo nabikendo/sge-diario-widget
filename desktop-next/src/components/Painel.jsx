@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 
 /**
@@ -7,6 +8,13 @@ import * as Dialog from '@radix-ui/react-dialog';
  */
 export default function Painel({ rotulo, lado = 'direita', aoFechar, className = '', children }) {
   const lateral = lado === 'direita';
+  // Quem usa o Painel o desmonta ao fechar (não passa open=false), e aí o Radix não devolve o foco.
+  // Guarda o elemento que tinha o foco ao abrir e volta para ele quando o painel sai da tela.
+  const quemAbriu = useRef(typeof document !== 'undefined' ? document.activeElement : null);
+  useEffect(() => () => {
+    const el = quemAbriu.current;
+    setTimeout(() => { if (el?.isConnected && typeof el.focus === 'function') el.focus(); }, 0);
+  }, []);
   return (
     <Dialog.Root open onOpenChange={(aberto) => { if (!aberto) aoFechar(); }}>
       <Dialog.Portal>
