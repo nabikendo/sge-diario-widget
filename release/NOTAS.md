@@ -1,12 +1,12 @@
-SGE Diário 2.9.10
+SGE Diário 2.10.0
+
+### Desktop
+- **Nova versão para Linux:** pacote `.deb` (`SGE-Diario-Desktop-2.10.0-amd64.deb`) para Ubuntu, Zorin, Mint, Debian e derivados. Tem atualização automática, abre junto com o sistema e mostra o ícone com as pendências perto do relógio. O backup no Google Drive guarda o login no chaveiro do sistema.
+- **Semana:** "Hoje" e "Amanhã" mostram só as aulas daquele dia. Antes apareciam as aulas da semana inteira, e o resumo do fim da tarde contava aulas a mais.
+- **Sincronização:** sem internet, a sincronização automática não mostra erro e roda sozinha quando a conexão volta. Depois da suspensão, espera a rede voltar.
+- **Janelas pequenas:** o título não é mais cortado; os botões da barra superior encolhem.
+- **Gráficos e painéis:** gráficos novos (Recharts). Os painéis de turma, detalhe e cobrança prendem o foco do teclado, fecham com Esc e devolvem o foco ao fechar. Os interruptores de Configurações também são novos (Radix).
+- **Atualização:** não aparece mais erro de internet quando a versão para o seu sistema ainda não existe.
 
 ### Android
-- **Diário de Classe:** a tabela de frequência volta a aparecer no celular ao tocar em Gerar. A coluna do nome do estudante fica fixa ao rolar para o lado, e o texto ficou maior.
-- **Privacidade:** o diagnóstico "Copiar página" não copia mais o nome de estudantes.
-- **Perfil:** o app avisa quando o SGE muda entre os perfis Servidor e Unidade escolar.
-- **Meu diário:** novos atalhos para o Histórico da semana e o Lembrete do dia.
-- **Coordenação:** o botão "Carregar turmas" agora se chama "Ler turmas do SGE".
-- **Acessibilidade:** os cartões de ferramentas são anunciados como botões pelo TalkBack, e as listas do histórico e da conferência semanal ficaram mais estáveis.
-
-### Desktop (Windows)
-- Sem mudanças nesta versão.
+- Sem mudanças nesta versão. O APK é o mesmo da 2.9.10.
