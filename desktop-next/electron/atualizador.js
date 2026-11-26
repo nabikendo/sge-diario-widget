@@ -19,7 +19,12 @@ function iniciar(aoMudar) {
   atualizador.on('update-available', (i) => avisar({ estado: 'baixando', versao: i.version }));
   atualizador.on('update-not-available', () => avisar({ estado: 'atual', verificadoEm: new Date().toISOString() }));
   atualizador.on('update-downloaded', (i) => avisar({ estado: 'pronta', versao: i.version }));
-  atualizador.on('error', (e) => { console.error('[atualização]', e?.message); avisar({ estado: 'erro', mensagem: 'Não foi possível verificar agora. Confira a internet.' }); });
+  atualizador.on('error', (e) => {
+    console.error('[atualização]', e?.message);
+    // Release sem o arquivo deste sistema (ex.: versão publicada antes do pacote Linux): não há o que baixar.
+    if (/Cannot find latest|HttpError: 404/.test(e?.message ?? '')) { avisar({ estado: 'atual', verificadoEm: new Date().toISOString() }); return; }
+    avisar({ estado: 'erro', mensagem: 'Não foi possível verificar agora. Confira a internet.' });
+  });
   const procurar = () => atualizador.checkForUpdates().catch(() => {});
   setTimeout(procurar, 15_000);
   setInterval(procurar, 6 * 60 * 60 * 1000);

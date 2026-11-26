@@ -18,7 +18,7 @@ export default function GraficoBarras({ dados, descricao, unidade = '' }) {
             separator=""
             contentStyle={{ borderRadius: 12, border: 'none', boxShadow: '0 4px 20px rgb(0 0 0 / 0.12)', fontSize: 12 }}
           />
-          <Bar dataKey="valor" radius={[10, 10, 4, 4]} minPointSize={6} isAnimationActive={false} label={{ position: 'top', fontSize: 11, fill: 'currentColor', className: 'text-tinta-suave' }}>
+          <Bar dataKey="valor" radius={[10, 10, 4, 4]} minPointSize={6} maxBarSize={64} isAnimationActive={false} label={{ position: 'top', fontSize: 11, fill: 'currentColor', className: 'text-tinta-suave' }}>
             {dados.map((d, i) => <Cell key={d.rotulo + i} style={{ fill: 'var(--color-lavanda-solido)', fillOpacity: i === dados.length - 1 ? 1 : 0.35 }} />)}
           </Bar>
         </BarChart>

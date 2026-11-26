@@ -62,3 +62,22 @@ test('categoriaTurma', () => {
   assert.equal(P.categoriaTurma('331.01'), 'DIVERSIFICADA');
   assert.equal(P.categoriaTurma('3301.01'), 'AEE');
 });
+
+test('aulasDoQuadro: o quadro é semanal; só entram as aulas do dia da semana pedido', () => {
+  const tabela = (dia, linhas) => `<table><thead><tr><th colspan="3"><i class="fa fa-calendar"></i> ${dia} </th></tr>
+    <tr><th>Horário</th><th>Componente Curricular</th><th>Turma</th></tr></thead><tbody>
+    ${linhas.map(([h, c, t]) => `<tr><td>${h}</td><td>${c}</td><td>${t}</td></tr>`).join('')}</tbody></table>`;
+  const html = tabela('Segunda', [['07:00 às 07:50', 'QUÍMICA', '13.01/EM']])
+    + tabela('Terça', [['07:50 às 08:40', 'FÍSICA', '33.03/EM']])
+    + tabela('Quinta', [['10:35 às 11:25', 'QUÍMICA', '23.02/EM'], ['13:00 às 13:50', 'QUÍMICA', '13.02/EM']]);
+  assert.deepEqual(P.aulasDoQuadro(html, '2026-11-26').map((a) => a.turma), ['23.02/EM', '13.02/EM']); // quinta
+  assert.deepEqual(P.aulasDoQuadro(html, '2026-11-24').map((a) => a.turma), ['33.03/EM']);             // terça (com acento)
+  assert.deepEqual(P.aulasDoQuadro(html, '2026-11-25'), []);                                             // quarta: sem tabela
+  assert.deepEqual(P.aulasDoQuadro(html, '2026-11-29'), []);                                             // domingo
+  assert.equal(P.aulasDoQuadro(html).length, 4);                                                         // sem data: tudo
+});
+
+test('aulasDoQuadro: formato sem tabelas por dia continua lendo todas as linhas', () => {
+  const html = '<table><tr><td>07:00 às 07:50</td><td>QUÍMICA</td><td>13.01/EM</td></tr></table>';
+  assert.equal(P.aulasDoQuadro(html, '2026-11-26').length, 1);
+});

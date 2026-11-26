@@ -102,7 +102,7 @@ const JS_TURMAS_ESCOLA = `(function(){var s=document.querySelector('#SelecaoDeTu
 function criar(pai) {
   janela = new BrowserWindow({
     title: 'SGE Web', width: 1280, height: 860, show: false, autoHideMenuBar: true,
-    icon: require('node:path').join(__dirname, '..', '..', 'assets', 'sge-diario.ico'),
+    icon: require('../plataforma').icone,
     webPreferences: { partition: PARTICAO, contextIsolation: true, nodeIntegration: false, sandbox: true },
   });
   janela.removeMenu();

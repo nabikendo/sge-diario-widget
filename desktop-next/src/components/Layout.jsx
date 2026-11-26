@@ -49,7 +49,7 @@ export function BarraLateral({ ativa, aoTrocar, secoes }) {
 /** Barra superior: título, busca global e botão de status da sincronização. */
 export function BarraSuperior({ titulo, subtitulo, busca, aoBuscar, refBusca, painel, sincronizando, logado, modoEscola, aoSincronizar, aoEntrar, aoAbrirSge }) {
   return (
-    <header data-nao-imprimir className="grid grid-cols-[minmax(0,1fr)_minmax(200px,360px)_auto] items-center gap-6">
+    <header data-nao-imprimir className="grid grid-cols-[minmax(150px,1fr)_minmax(180px,360px)_auto] items-center gap-3 xl:gap-6">
       <div className="min-w-0">
         <h1 className="truncate text-[28px] leading-tight font-semibold tracking-tight">{titulo}</h1>
         {subtitulo && <p className="truncate text-sm text-tinta-suave">{subtitulo}</p>}
@@ -61,17 +61,18 @@ export function BarraSuperior({ titulo, subtitulo, busca, aoBuscar, refBusca, pa
           ref={refBusca}
           value={busca}
           onChange={(e) => aoBuscar(e.target.value)}
-          placeholder={modoEscola ? 'Buscar professor, turma…' : 'Buscar turma, disciplina ou escola'}
+          placeholder={modoEscola ? 'Buscar professor, turma…' : 'Buscar turma ou disciplina'}
           className="w-full bg-transparent text-[15px] text-tinta outline-none placeholder:text-tinta-suave/70"
         />
-        <kbd className="rounded-md bg-tinta/5 px-1.5 py-0.5 text-xs">/</kbd>
+        <kbd className="hidden rounded-md bg-tinta/5 px-1.5 py-0.5 text-xs xl:inline">/</kbd>
       </label>
 
       <div className="flex justify-end gap-2">
         <button type="button" onClick={aoAbrirSge}
           title={modoEscola ? 'Abrir o SGE dentro do app para consultar e corrigir' : 'Abrir o SGE dentro do app para fazer o diário'}
-          className="flex h-12 items-center gap-2 whitespace-nowrap rounded-full bg-lavanda-solido px-5 text-sm font-semibold text-[#fff] shadow-[0_8px_20px_-8px_rgb(107_84_238/0.7)] transition hover:brightness-110 active:scale-[0.98]">
-          {modoEscola ? <Eye size={18} aria-hidden /> : <BookOpenCheck size={18} aria-hidden />} {modoEscola ? 'Consultar no SGE' : 'Fazer diário'}
+          aria-label={modoEscola ? 'Consultar no SGE' : 'Fazer diário'}
+          className="flex h-12 items-center gap-2 whitespace-nowrap rounded-full bg-lavanda-solido px-4 text-sm font-semibold xl:px-5 text-[#fff] shadow-[0_8px_20px_-8px_rgb(107_84_238/0.7)] transition hover:brightness-110 active:scale-[0.98]">
+          {modoEscola ? <Eye size={18} aria-hidden /> : <BookOpenCheck size={18} aria-hidden />}<span className="hidden lg:inline">{modoEscola ? 'Consultar no SGE' : 'Fazer diário'}</span>
         </button>
         {logado === false ? (
           <button type="button" onClick={aoEntrar}
@@ -80,9 +81,11 @@ export function BarraSuperior({ titulo, subtitulo, busca, aoBuscar, refBusca, pa
           </button>
         ) : (
           <button type="button" onClick={aoSincronizar} disabled={sincronizando}
-            className="vidro-forte flex h-12 items-center gap-2.5 whitespace-nowrap rounded-full px-5 text-sm font-medium transition hover:bg-white active:scale-[0.98] disabled:cursor-default">
+            title={sincronizando ? 'Sincronizando…' : painel ? `Sincronizado ${tempoRelativo(painel.atualizadoEm)}. Clique para sincronizar agora.` : 'Sincronizar'}
+            aria-label={sincronizando ? 'Sincronizando' : 'Sincronizar agora'}
+            className="vidro-forte flex h-12 items-center gap-2.5 whitespace-nowrap rounded-full px-4 text-sm font-medium xl:px-5 transition hover:bg-white active:scale-[0.98] disabled:cursor-default">
             <span className={`size-2 rounded-full ${sincronizando ? 'bg-lavanda-solido animate-pulse' : painel ? 'bg-emdia' : 'bg-tinta-suave/40'}`} aria-hidden />
-            {sincronizando ? 'Sincronizando…' : painel ? `Sincronizado ${tempoRelativo(painel.atualizadoEm)}` : 'Sincronizar'}
+            <span className="hidden xl:inline">{sincronizando ? 'Sincronizando…' : painel ? `Sincronizado ${tempoRelativo(painel.atualizadoEm)}` : 'Sincronizar'}</span>
             <RefreshCw size={16} className={`text-tinta-suave ${sincronizando ? 'animate-spin' : ''}`} aria-hidden />
           </button>
         )}
