@@ -1,16 +1,26 @@
 # SGE Diário Desktop
 
-App para Windows que entra no SGE 3.0 (Seduc-TO) e mostra as pendências do diário, sem precisar do backup do celular.
+App para Windows e Linux que entra no SGE 3.0 (Seduc-TO) e mostra as pendências do diário, sem precisar do backup do celular.
 Funciona com os dois perfis do SGE e troca de tela sozinho conforme o perfil ativo:
 
 - **Servidor (professor):** Home, Semana, Turmas, Histórico e Relatórios. Conteúdo Aplicado, Chamada, Plano de aula, Plano de curso e PEI por turma; escolha do 1º ao 4º bimestre (consulta); botão que abre o SGE direto na turma e no dia pendente.
 - **Unidade escolar (coordenação, só consulta):** Visão geral, Professores, Turmas, Componentes, Histórico, Direção e Relatórios, por bimestre ou ano letivo; comparação com a semana passada; mensagens de cobrança prontas para o WhatsApp; PDF e planilha.
 
-Também tem: notificação do Windows para pendência nova, resumo no fim da tarde ("você deu 4 aulas hoje e falta registrar o conteúdo de 2"), ícone na bandeja com o número de pendências, tema claro/escuro, busca global (Ctrl+K), calendário escolar (feriados e dias sem aula), tutorial de boas-vindas, atualização automática e backup no Google Drive.
+Também tem: notificação do sistema para pendência nova, resumo no fim da tarde ("você deu 4 aulas hoje e falta registrar o conteúdo de 2"), ícone na bandeja com o número de pendências, tema claro/escuro, busca global (Ctrl+K), calendário escolar (feriados e dias sem aula), tutorial de boas-vindas, atualização automática e backup no Google Drive.
 
 ## Instalar
 
 Baixe `SGE-Diario-Desktop-Setup-<versão>.exe` na [última release](https://github.com/nabikendo/sge-diario-widget/releases/latest) e instale. Depois disso o app se atualiza sozinho (Configurações → Atualizações → Verificar agora). Como o instalador ainda não é assinado, o Windows pode mostrar o aviso azul do SmartScreen: clique em **Mais informações** e depois em **Executar assim mesmo**. O passo a passo com imagens está no [README principal](../README.md#passo-a-passo-para-instalar-para-quem-nunca-instalou-um-programa-fora-da-loja).
+
+### Linux
+
+Baixe `SGE-Diario-Desktop-<versão>-amd64.deb` na mesma release e instale com dois cliques (Ubuntu, Zorin, Mint, Debian e derivados) ou pelo terminal:
+
+```
+sudo apt install ./SGE-Diario-Desktop-<versão>-amd64.deb
+```
+
+O app aparece no menu como **SGE Diário Desktop**. A atualização automática baixa o `.deb` novo e pede a senha de administrador para instalar. "Abrir junto com o Linux" cria um atalho em `~/.config/autostart`. O ícone com o número de pendências precisa de suporte a AppIndicator na barra (já vem no Zorin e no Ubuntu). O backup no Google Drive guarda o login no chaveiro do sistema (GNOME Keyring ou KWallet); sem chaveiro, o backup não conecta.
 
 ## Primeiro uso
 
@@ -24,7 +34,7 @@ O SGE usa o **ano letivo ativo** na barra superior (ex.: "ANO LETIVO: 2026"). O 
 
 - **Só leitura.** Nenhuma rota de gravação no SGE; o app nunca clica em Salvar.
 - **A senha nunca passa pelo app.** O login é feito na página do SGE; o app guarda só a sessão, na partição `persist:sge-oficial`.
-- Tudo fica no computador (`%APPDATA%`). Em Configurações → Conta e dados dá para abrir a pasta ou apagar tudo.
+- Tudo fica no computador (`%APPDATA%` no Windows, `~/.config` no Linux). Em Configurações → Conta e dados dá para abrir a pasta ou apagar tudo.
 - **Backup no Google Drive (opcional):** Configurações → Backup no Google Drive → *Entrar com o Google*. O app guarda painéis e históricos numa pasta privada do próprio app no seu Drive (escopo `drive.appdata`), nunca a sessão do SGE nem a senha. Há envio automático (no máximo a cada 5 minutos), **Enviar agora** e **Restaurar** (une com os dados do computador). O login do Google fica criptografado pelo Windows.
 - **Calendário:** feriados nacionais e de Tocantins, Carnaval, Sexta-feira Santa e Corpus Christi não entram nas pendências. Recessos e sábados letivos são informados em Configurações → Calendário escolar.
 
@@ -55,7 +65,8 @@ desktop-next/
 npm install
 npm run dev        # Vite + Electron com recarga
 npm test           # testes (parsing, avisos, calendário, nuvem, coordenação)
-npm run build:win  # instalador em release-dist/
+npm run build:win    # instalador .exe em release-dist/
+npm run build:linux  # pacote .deb em release-dist/ (rodar no Linux)
 ```
 
 Fora do Electron (`npm run build:ui` + `vite preview`), a interface usa dados de exemplo; `?escola` mostra a coordenação e `?intro` o tutorial.

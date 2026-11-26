@@ -12,6 +12,7 @@ Acompanhe as pendências do diário escolar no SGE 3.0 — do seu diário e da e
 |---|---|---|
 | Android | `SGE-Diario-2.9.10.apk` | Android 8.0 ou superior. Também na Google Play (teste fechado). |
 | Windows | `SGE-Diario-Desktop-Setup-<versão>.exe` | Instalador para Windows x64. Entra no SGE sozinho e se atualiza. Veja o [guia do app Windows](desktop-next/README.md). |
+| Linux | `SGE-Diario-Desktop-<versão>-amd64.deb` | Ubuntu, Zorin, Mint, Debian e derivados (x64). Mesmo app do Windows, com atualização automática. Veja o [guia do app desktop](desktop-next/README.md#linux). |
 | Canal de testes | [release `latest`](https://github.com/nabikendo/sge-diario-widget/releases/tag/latest) | Pré-versões automáticas. |
 
 Todas as versões estão em [Releases](https://github.com/nabikendo/sge-diario-widget/releases).
@@ -52,6 +53,12 @@ O app lê o que o SGE mostra na sua sessão e monta o painel no aparelho. Não g
 > As imagens acima são exemplos do aviso do Windows; o nome do arquivo na sua tela será `SGE-Diario-Desktop-Setup-…exe`.
 
 O app antigo, que abria backups do Android, continua descrito no [guia anterior](desktop/README.md).
+
+## Como começar no Linux
+
+1. Baixe o `SGE-Diario-Desktop-<versão>-amd64.deb` da [última release](https://github.com/nabikendo/sge-diario-widget/releases/latest).
+2. Abra o arquivo com dois cliques e clique em **Instalar** (ou rode `sudo apt install ./SGE-Diario-Desktop-<versão>-amd64.deb`).
+3. Abra **SGE Diário Desktop** no menu de aplicativos e clique em **Entrar no SGE**. O resto é igual ao Windows.
 
 ---
 
@@ -142,7 +149,7 @@ Usamos três números no formato **MAIOR.MENOR.CORREÇÃO**. Em **2.5.15**, o **
 | `2.6.0` | Adicionar um recurso compatível, como novos filtros no painel. |
 | `3.0.0` | Fazer uma mudança que quebra compatibilidade, como trocar o formato de backup sem oferecer migração. |
 
-O fluxo estável usa [release/versao.txt](release/versao.txt) ou a versão informada no disparo manual para compilar o APK e o EXE. O Android também usa um código interno de compilação para ordenar instalações. [Referência do versionamento semântico](https://semver.org/lang/pt-BR/).
+O fluxo estável usa [release/versao.txt](release/versao.txt) ou a versão informada no disparo manual para compilar o APK, o EXE e o pacote .deb do Linux. O Android também usa um código interno de compilação para ordenar instalações. [Referência do versionamento semântico](https://semver.org/lang/pt-BR/).
 
 ## Licença
 
