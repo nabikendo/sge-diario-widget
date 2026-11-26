@@ -9,7 +9,7 @@
  *  - Login: janela visível do SGE, só quando a sessão expira. A senha é digitada na própria
  *    página do SGE; o app não lê nem guarda a senha (mesma regra do Android).
  */
-const { app, BrowserWindow, Menu, Tray, Notification, nativeImage, nativeTheme, ipcMain, shell, powerMonitor, dialog, session } = require('electron');
+const { app, BrowserWindow, Menu, Tray, Notification, nativeImage, nativeTheme, ipcMain, shell, powerMonitor, dialog, session, net } = require('electron');
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const { SGE, PARTICAO } = require('./sge/constantes');
@@ -30,6 +30,7 @@ const plataforma = require('./plataforma');
 const { icone } = plataforma;
 const DEV_URL = process.env.VITE_DEV_SERVER_URL; // definido pelo script "dev"
 let relogioAutomatico = null;
+let semRede = false; // a última sincronização automática foi pulada por falta de rede
 
 let vitrine = null;
 let janelaLogin = null;
@@ -56,7 +57,10 @@ function criarVitrine(config) {
     },
   });
   vitrine.once('ready-to-show', () => {
-    if (config.abrirMaximizado) vitrine.maximize();
+    // No Windows, maximizar antes de mostrar evita o "pulo" de tamanho. No Linux (X11/Wayland),
+    // maximize() numa janela escondida é ignorado: lá maximiza na primeira vez que a janela aparece.
+    if (config.abrirMaximizado && !plataforma.ehLinux) vitrine.maximize();
+    if (config.abrirMaximizado && plataforma.ehLinux) vitrine.once('show', () => vitrine.maximize());
     if (!(iniciouOculto && bandeja)) vitrine.show();
   });
   // Fechar a janela mantém o app na bandeja (ao lado do relógio), lendo e avisando. Sair pelo menu da bandeja.
@@ -183,7 +187,17 @@ async function backupAutomatico() {
 }
 
 let ultimaCoord = null;
+/** Espera a rede voltar (até `limiteMs`). Devolve true se há rede. */
+async function esperarRede(limiteMs) {
+  const fim = Date.now() + limiteMs;
+  while (!net.isOnline() && Date.now() < fim) await new Promise((r) => setTimeout(r, 2_000));
+  return net.isOnline();
+}
+
 async function sincronizarEAvisar({ manual = false } = {}) {
+  // Automática sem rede: não mostra erro; a próxima tentativa vem no intervalo ou quando a rede voltar.
+  if (!manual && !net.isOnline()) { semRede = true; return null; }
+  semRede = false;
   try {
     const anterior = ultimoPainel ?? await motor.lerCache();
     ultimoPainel = await motor.sincronizar((p) => enviar('sync:progresso', p), { manual });
@@ -372,7 +386,10 @@ if (unico) app.whenReady().then(async () => {
   vitrine.webContents.once('did-finish-load', () => sincronizarEAvisar());
   agendar(config);
   atualizador.iniciar((info) => enviar('app:atualizacao', info));
-  powerMonitor.on('resume', () => setTimeout(() => sincronizarEAvisar(), 20_000)); // dá tempo da rede voltar
+  // Ao voltar da suspensão, sincroniza assim que a rede voltar (Wi-Fi costuma levar alguns segundos).
+  powerMonitor.on('resume', () => setTimeout(async () => { if (await esperarRede(90_000)) sincronizarEAvisar(); else semRede = true; }, 10_000));
+  // Uma sincronização automática pulada por falta de rede roda quando a conexão volta.
+  setInterval(() => { if (semRede && net.isOnline()) sincronizarEAvisar(); }, 30_000);
   app.on('activate', async () => { if (BrowserWindow.getAllWindows().length === 0) criarVitrine(await armazenamento.lerConfig()); });
 });
 

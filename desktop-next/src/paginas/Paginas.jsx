@@ -118,7 +118,7 @@ export function Historico() {
         </div>
         <div className="mt-6 flex h-48 items-end gap-1.5" role="img" aria-label="Gráfico de dias sem conteúdo por dia">
           {porDia.map(([dia, h], i) => (
-            <div key={dia} className="group flex flex-1 flex-col items-center justify-end gap-1">
+            <div key={dia} className="group flex max-w-16 flex-1 flex-col items-center justify-end gap-1">
               <span className="text-[11px] tabular-nums text-tinta-suave opacity-0 transition group-hover:opacity-100">{h.dias}</span>
               <div className={`w-full rounded-xl transition-[height] duration-500 ease-(--ease-entrada) ${i === porDia.length - 1 ? 'bg-lavanda-solido' : 'bg-lavanda-solido/35'}`}
                 style={{ height: `${Math.max(6, (h.dias / max) * 150)}px` }} title={`${dia.split('-').reverse().join('/')}: ${h.dias} dias`} />

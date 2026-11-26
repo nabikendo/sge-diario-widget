@@ -317,11 +317,25 @@ function analisarVinculos(quadroHtml, professor, turmas) {
   return { vinculos: [...vinculos.values()], diagnosticos };
 }
 
-/** Aulas do quadro de horário de um dia: linhas "07:00 às 07:50 | componente | turma". */
-function aulasDoQuadro(quadroHtml) {
+const DIAS_DA_SEMANA = ['domingo', 'segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado'];
+
+/**
+ * Aulas de um dia no quadro de horário: linhas "07:00 às 07:50 | componente | turma".
+ * O SGE devolve a SEMANA inteira, uma tabela por dia ("Segunda", "Terça"…). Com `iso`, fica só a tabela
+ * do dia da semana dessa data (sem tabela para o dia = sem aula). Sem tabelas por dia, lê tudo (formato antigo).
+ */
+function aulasDoQuadro(quadroHtml, iso = null) {
   const $ = cheerio.load(quadroHtml);
   const aulas = [];
-  $('tr').each((_, tr) => {
+  let linhas = $('tr');
+  if (iso) {
+    const porDia = $('table').filter((_, t) => DIAS_DA_SEMANA.some((d) => normalizarSge($(t).find('thead th').first().text()).startsWith(d)));
+    if (porDia.length) {
+      const alvo = DIAS_DA_SEMANA[new Date(`${iso}T12:00:00`).getDay()];
+      linhas = porDia.filter((_, t) => normalizarSge($(t).find('thead th').first().text()).startsWith(alvo)).find('tr');
+    }
+  }
+  linhas.each((_, tr) => {
     const c = $(tr).find('td');
     if (c.length !== 3) return;
     const m = /(\d{1,2}:\d{2})\s*(?:às|as|a)\s*(\d{1,2}:\d{2})/i.exec($(c[0]).text());

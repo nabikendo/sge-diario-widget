@@ -26,12 +26,26 @@ function criarLeitor(cliente, { incluir = new Set() } = {}) {
   }
 
   /** Aulas do professor num dia (quadro de horário com a data de referência). */
+  // O quadro é semanal: hoje e amanhã na mesma semana usam uma consulta só.
+  const quadros = new Map();
+  function quadroDaSemana(iso) {
+    const d = new Date(`${iso}T12:00:00`); d.setDate(d.getDate() - d.getDay());
+    const semana = P.hojeIso(d);
+    if (!quadros.has(semana)) {
+      const p = (async () => {
+        const { professor, tipo } = P.identidadeHorario(await cliente.requisicao('/horariodeauladoprofessor'));
+        return (await cliente.json('/HorarioDeAulaDoProfessor/QuadroHorarioProfessor', {
+          dataReferencia: P.paraBr(iso), tipo, colaboradorId: professor, escolaId: '', turno: '', somenteConflitos: 'false',
+        })).html;
+      })();
+      p.catch(() => quadros.delete(semana)); // falhou: a próxima chamada tenta de novo
+      quadros.set(semana, p);
+    }
+    return quadros.get(semana);
+  }
+
   async function aulasDoDia(iso) {
-    const { professor, tipo } = P.identidadeHorario(await cliente.requisicao('/horariodeauladoprofessor'));
-    const quadro = await cliente.json('/HorarioDeAulaDoProfessor/QuadroHorarioProfessor', {
-      dataReferencia: P.paraBr(iso), tipo, colaboradorId: professor, escolaId: '', turno: '', somenteConflitos: 'false',
-    });
-    return P.aulasDoQuadro(quadro.html);
+    return P.aulasDoQuadro(await quadroDaSemana(iso), iso);
   }
 
   /** Código do componente curricular (GradeEscolarId) da turma. */
