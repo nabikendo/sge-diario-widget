@@ -9,7 +9,7 @@
  *  - Login: janela visível do SGE, só quando a sessão expira. A senha é digitada na própria
  *    página do SGE; o app não lê nem guarda a senha (mesma regra do Android).
  */
-const { app, BrowserWindow, Menu, Tray, Notification, nativeImage, nativeTheme, ipcMain, shell, powerMonitor, dialog, session } = require('electron');
+const { app, BrowserWindow, Menu, Tray, Notification, nativeImage, nativeTheme, ipcMain, shell, powerMonitor, dialog, session, net, screen } = require('electron');
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const { SGE, PARTICAO } = require('./sge/constantes');
@@ -25,10 +25,12 @@ const avisos = require('./avisos');
 const calendario = require('./calendario');
 const nuvem = require('./nuvem');
 const { gerarBitmap } = require('./iconeContador');
+const plataforma = require('./plataforma');
 
-const icone = path.join(__dirname, '..', 'assets', 'sge-diario.ico');
+const { icone } = plataforma;
 const DEV_URL = process.env.VITE_DEV_SERVER_URL; // definido pelo script "dev"
 let relogioAutomatico = null;
+let semRede = false; // a última sincronização automática foi pulada por falta de rede
 
 let vitrine = null;
 let janelaLogin = null;
@@ -36,14 +38,18 @@ let ultimoPainel = null;
 let bandeja = null;
 let configAtual = null;
 let saindo = false; // true só quando a pessoa escolheu Sair (senão fechar a janela esconde o app na bandeja)
-const iniciouOculto = process.argv.includes('--oculto'); // aberto junto com o Windows
+const iniciouOculto = process.argv.includes('--oculto'); // aberto junto com o sistema
 const TEMAS = { sistema: 'system', claro: 'light', escuro: 'dark' };
 
 // ---------- Vitrine (janela visível) ----------
 function criarVitrine(config) {
+  // Linux (Wayland/XWayland): o pedido de maximizar logo ao abrir às vezes é ignorado pelo gerenciador de janelas.
+  // Por isso a janela já nasce do tamanho da área útil da tela e o maximize vem depois que ela aparece.
+  const area = plataforma.ehLinux && config.abrirMaximizado ? screen.getPrimaryDisplay().workArea : null;
   vitrine = new BrowserWindow({
     icon: icone,
-    width: 1280, height: 820, minWidth: 960, minHeight: 640,
+    ...(area ? { x: area.x, y: area.y, width: area.width, height: area.height } : { width: 1280, height: 820 }),
+    minWidth: 960, minHeight: 640,
     title: 'SGE Diário',
     backgroundColor: nativeTheme.shouldUseDarkColors ? '#17171b' : '#eef0fb',
     show: false,
@@ -55,7 +61,10 @@ function criarVitrine(config) {
     },
   });
   vitrine.once('ready-to-show', () => {
-    if (config.abrirMaximizado) vitrine.maximize();
+    // No Windows, maximizar antes de mostrar evita o "pulo" de tamanho. No Linux (X11/Wayland),
+    // maximize() numa janela escondida é ignorado: lá maximiza na primeira vez que a janela aparece.
+    if (config.abrirMaximizado && !plataforma.ehLinux) vitrine.maximize();
+    if (config.abrirMaximizado && plataforma.ehLinux) vitrine.once('show', () => setTimeout(() => vitrine?.isDestroyed() || vitrine.maximize(), 150));
     if (!(iniciouOculto && bandeja)) vitrine.show();
   });
   // Fechar a janela mantém o app na bandeja (ao lado do relógio), lendo e avisando. Sair pelo menu da bandeja.
@@ -182,7 +191,17 @@ async function backupAutomatico() {
 }
 
 let ultimaCoord = null;
+/** Espera a rede voltar (até `limiteMs`). Devolve true se há rede. */
+async function esperarRede(limiteMs) {
+  const fim = Date.now() + limiteMs;
+  while (!net.isOnline() && Date.now() < fim) await new Promise((r) => setTimeout(r, 2_000));
+  return net.isOnline();
+}
+
 async function sincronizarEAvisar({ manual = false } = {}) {
+  // Automática sem rede: não mostra erro; a próxima tentativa vem no intervalo ou quando a rede voltar.
+  if (!manual && !net.isOnline()) { semRede = true; return null; }
+  semRede = false;
   try {
     const anterior = ultimoPainel ?? await motor.lerCache();
     ultimoPainel = await motor.sincronizar((p) => enviar('sync:progresso', p), { manual });
@@ -303,14 +322,14 @@ ipcMain.handle('sge:sair', async () => {
   enviar('sge:sessao', { logado: false });
 });
 ipcMain.handle('historico:obter', () => armazenamento.lerHistorico());
-ipcMain.handle('config:obter', async () => ({ ...(await armazenamento.lerConfig()), versao: app.getVersion(), pastaDados: app.getPath('userData') }));
+ipcMain.handle('config:obter', async () => ({ ...(await armazenamento.lerConfig()), versao: app.getVersion(), pastaDados: app.getPath('userData'), sistema: plataforma.nomeSistema }));
 ipcMain.handle('config:salvar', async (_e, parcial) => {
   const config = await armazenamento.gravarConfig(parcial);
   configAtual = config;
   nativeTheme.themeSource = TEMAS[config.tema] ?? 'system';
-  app.setLoginItemSettings({ openAtLogin: config.abrirComWindows, args: ['--oculto'] });
+  plataforma.abrirComSistema(config.abrirComWindows);
   agendar(config);
-  return { ...config, versao: app.getVersion(), pastaDados: app.getPath('userData') };
+  return { ...config, versao: app.getVersion(), pastaDados: app.getPath('userData'), sistema: plataforma.nomeSistema };
 });
 ipcMain.handle('dados:abrirPasta', () => shell.openPath(app.getPath('userData')));
 ipcMain.handle('dados:apagar', async () => { await armazenamento.apagarDados(); ultimoPainel = null; ultimaCoord = null; enviar('coord:concluida', null); atualizarContador(0, 'sem dados'); });
@@ -371,7 +390,10 @@ if (unico) app.whenReady().then(async () => {
   vitrine.webContents.once('did-finish-load', () => sincronizarEAvisar());
   agendar(config);
   atualizador.iniciar((info) => enviar('app:atualizacao', info));
-  powerMonitor.on('resume', () => setTimeout(() => sincronizarEAvisar(), 20_000)); // dá tempo da rede voltar
+  // Ao voltar da suspensão, sincroniza assim que a rede voltar (Wi-Fi costuma levar alguns segundos).
+  powerMonitor.on('resume', () => setTimeout(async () => { if (await esperarRede(90_000)) sincronizarEAvisar(); else semRede = true; }, 10_000));
+  // Uma sincronização automática pulada por falta de rede roda quando a conexão volta.
+  setInterval(() => { if (semRede && net.isOnline()) sincronizarEAvisar(); }, 30_000);
   app.on('activate', async () => { if (BrowserWindow.getAllWindows().length === 0) criarVitrine(await armazenamento.lerConfig()); });
 });
 
